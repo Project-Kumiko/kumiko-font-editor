@@ -3,62 +3,40 @@ import { useEffect } from 'react';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
-import { loadDraft, saveDraft } from './lib/persistence';
+import { Home } from './components/Home';
+import { saveProject } from './lib/persistence';
 import { useStore } from './store';
 
 function App() {
   const fontData = useStore((state) => state.fontData);
-  const hydrateDraft = useStore((state) => state.hydrateDraft);
-  const hasHydratedDraft = useStore((state) => state.hasHydratedDraft);
-  const markHydratedDraft = useStore((state) => state.markHydratedDraft);
+  const projectId = useStore((state) => state.projectId);
+  const projectTitle = useStore((state) => state.projectTitle);
   const isDesktop = useBreakpointValue({ base: false, lg: true });
 
   useEffect(() => {
-    let cancelled = false;
-
-    const hydrate = async () => {
-      try {
-        const draft = await loadDraft();
-        if (cancelled) {
-          return;
-        }
-
-        if (draft) {
-          hydrateDraft(draft);
-          return;
-        }
-
-        markHydratedDraft();
-      } catch (error) {
-        console.warn('Unable to load IndexedDB draft.', error);
-        if (!cancelled) {
-          markHydratedDraft();
-        }
-      }
-    };
-
-    void hydrate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrateDraft, markHydratedDraft]);
-
-  useEffect(() => {
-    if (!hasHydratedDraft || !fontData) {
+    if (!projectId || !fontData || !projectTitle) {
       return;
     }
 
     const timer = window.setTimeout(() => {
-      void saveDraft(fontData).catch((error) => {
-        console.warn('Unable to save IndexedDB draft.', error);
+      void saveProject({
+        id: projectId,
+        title: projectTitle,
+        lastModified: Date.now(),
+        fontData,
+      }).catch((error) => {
+        console.warn('Unable to save IndexedDB project draft.', error);
       });
     }, 250);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [fontData, hasHydratedDraft]);
+  }, [fontData, projectId, projectTitle]);
+
+  if (!fontData) {
+    return <Home />;
+  }
 
   return (
     <Grid

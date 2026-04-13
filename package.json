@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.0",
+    "@plist/openstep.parse": "^1.1.1",
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
     "framer-motion": "latest",
+    "zundo": "^2.3.0",
     "immer": "latest",
     "paper": "latest",
     "react": "^19.2.4",

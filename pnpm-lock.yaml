@@ -10,6 +10,9 @@ dependencies:
   '@emotion/styled':
     specifier: latest
     version: 11.14.1(@emotion/react@11.14.0)(@types/react@19.2.14)(react@19.2.4)
+  '@plist/openstep.parse':
+    specifier: ^1.1.1
+    version: 1.1.1
   framer-motion:
     specifier: latest
     version: 12.38.0(react-dom@19.2.4)(react@19.2.4)
@@ -28,6 +31,9 @@ dependencies:
   react-virtuoso:
     specifier: ^4.12.5
     version: 4.12.5(react-dom@19.2.4)(react@19.2.4)
+  zundo:
+    specifier: ^2.3.0
+    version: 2.3.0(zustand@5.0.12)
   zustand:
     specifier: latest
     version: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)
@@ -595,6 +601,16 @@ packages:
   /@oxc-project/types@0.122.0:
     resolution: {integrity: sha512-oLAl5kBpV4w69UtFZ9xqcmTi+GENWOcPF7FCrczTiBbmC0ibXxCwyvZGbO39rCVEuLGAZM84DH0pUIyyv/YJzA==}
     dev: true
+
+  /@plist/common@1.1.0:
+    resolution: {integrity: sha512-zZAx3dLVsDaW/ulxCbHS3ptVUnO5XEPQ75UPyNJpwPdv9ViWLYXQmbYNmFR8thKpw067RAORuQpBWHvKPffvIg==}
+    dev: false
+
+  /@plist/openstep.parse@1.1.1:
+    resolution: {integrity: sha512-ZUDkVGVy4MIoq4D8WDD+Bb10W8rnNopSoF9JBNmaEZuJY3KeNSZvj9to1TkZo99EqEP9OM5bcUR5wzFrrqlbGg==}
+    dependencies:
+      '@plist/common': 1.1.0
+    dev: false
 
   /@popperjs/core@2.11.8:
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -2319,6 +2335,14 @@ packages:
   /zod@4.3.6:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
     dev: true
+
+  /zundo@2.3.0(zustand@5.0.12):
+    resolution: {integrity: sha512-4GXYxXA17SIKYhVbWHdSEU04P697IMyVGXrC2TnzoyohEAWytFNOKqOp5gTGvaW93F/PM5Y0evbGtOPF0PWQwQ==}
+    peerDependencies:
+      zustand: ^4.3.0 || ^5.0.0
+    dependencies:
+      zustand: 5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)
+    dev: false
 
   /zustand@5.0.12(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4):
     resolution: {integrity: sha512-i77ae3aZq4dhMlRhJVCYgMLKuSiZAaUPAct2AksxQ+gOtimhGMdXljRT21P5BNpeT4kXlLIckvkPM029OljD7g==}

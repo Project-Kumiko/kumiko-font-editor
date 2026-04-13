@@ -1,85 +1,93 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { useSyncExternalStore } from 'react'
+import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
+import { temporal, type TemporalState } from 'zundo'
 
-export type NodeType = 'corner' | 'smooth';
+export type NodeType = 'corner' | 'smooth'
 
 export interface PathNode {
-  id: string;
-  x: number;
-  y: number;
-  type: NodeType;
+  id: string
+  x: number
+  y: number
+  type: NodeType
 }
 
 export interface PathData {
-  id: string;
-  nodes: PathNode[];
-  closed: boolean;
+  id: string
+  nodes: PathNode[]
+  closed: boolean
 }
 
 export interface GlyphComponentRef {
-  id: string;
-  glyphId: string;
-  x: number;
-  y: number;
-  scaleX: number;
-  scaleY: number;
-  rotation: number;
+  id: string
+  glyphId: string
+  x: number
+  y: number
+  scaleX: number
+  scaleY: number
+  rotation: number
 }
 
 export interface GlyphMetrics {
-  lsb: number;
-  rsb: number;
-  width: number;
+  lsb: number
+  rsb: number
+  width: number
 }
 
 export interface GlyphData {
-  id: string;
-  name: string;
-  paths: PathData[];
-  components: string[];
-  componentRefs: GlyphComponentRef[];
-  metrics: GlyphMetrics;
+  id: string
+  name: string
+  paths: PathData[]
+  components: string[]
+  componentRefs: GlyphComponentRef[]
+  metrics: GlyphMetrics
 }
 
 export interface FontData {
-  glyphs: Record<string, GlyphData>;
+  glyphs: Record<string, GlyphData>
 }
 
 export interface SelectedNodeRef {
-  pathId: string;
-  nodeId: string;
+  pathId: string
+  nodeId: string
 }
 
 export interface ViewportState {
-  zoom: number;
-  pan: { x: number; y: number };
+  zoom: number
+  pan: { x: number; y: number }
 }
 
 export interface GlobalState {
-  fontData: FontData | null;
-  idsDictionary: Record<string, string[]>;
-  currentSearchQuery: string;
-  filteredGlyphList: GlyphData[];
-  selectedGlyphId: string | null;
-  selectedLayerId: string | null;
-  selectedNodeIds: string[];
-  viewport: ViewportState;
-  hasHydratedDraft: boolean;
+  fontData: FontData | null
+  projectId: string | null
+  projectTitle: string
+  idsDictionary: Record<string, string[]>
+  currentSearchQuery: string
+  filteredGlyphList: GlyphData[]
+  selectedGlyphId: string | null
+  selectedLayerId: string | null
+  selectedNodeIds: string[]
+  viewport: ViewportState
 
-  setSearchQuery: (query: string) => void;
-  setSelectedGlyphId: (id: string | null) => void;
-  setSelectedNodeIds: (ids: string[]) => void;
-  updateViewport: (zoom: number, panX: number, panY: number) => void;
+  setSearchQuery: (query: string) => void
+  setSelectedGlyphId: (id: string | null) => void
+  setSelectedNodeIds: (ids: string[]) => void
+  updateViewport: (zoom: number, panX: number, panY: number) => void
   updateNodePosition: (
     glyphId: string,
     pathId: string,
     nodeId: string,
-    newPos: { x: number; y: number },
-  ) => void;
-  updateNodeType: (glyphId: string, pathId: string, nodeId: string, type: NodeType) => void;
-  updateGlyphMetrics: (glyphId: string, metrics: Partial<GlyphMetrics>) => void;
-  hydrateDraft: (fontData: FontData) => void;
-  markHydratedDraft: () => void;
+    newPos: { x: number; y: number }
+  ) => void
+  updateNodeType: (
+    glyphId: string,
+    pathId: string,
+    nodeId: string,
+    type: NodeType
+  ) => void
+  updateGlyphMetrics: (glyphId: string, metrics: Partial<GlyphMetrics>) => void
+  loadProjectState: (id: string, title: string, fontData: FontData) => void
+  closeProjectState: () => void
 }
 
 const IDS_DICTIONARY: Record<string, string[]> = {
@@ -88,20 +96,25 @@ const IDS_DICTIONARY: Record<string, string[]> = {
   果: ['日', '木'],
   樹: ['木', '尌'],
   機: ['木', '幾'],
-};
+}
 
-const createNode = (id: string, x: number, y: number, type: NodeType = 'corner'): PathNode => ({
+const createNode = (
+  id: string,
+  x: number,
+  y: number,
+  type: NodeType = 'corner'
+): PathNode => ({
   id,
   x,
   y,
   type,
-});
+})
 
 const createMetrics = (width: number, lsb = 60, rsb = 60): GlyphMetrics => ({
   width,
   lsb,
   rsb,
-});
+})
 
 const muGlyph: GlyphData = {
   id: 'uni6728',
@@ -131,7 +144,7 @@ const muGlyph: GlyphData = {
       nodes: [createNode('n0', -280, 520), createNode('n1', 280, 520)],
     },
   ],
-};
+}
 
 const MOCK_FONT_DATA: FontData = {
   glyphs: {
@@ -142,8 +155,24 @@ const MOCK_FONT_DATA: FontData = {
       paths: [],
       components: ['木', '木'],
       componentRefs: [
-        { id: 'c0', glyphId: 'uni6728', x: -190, y: 0, scaleX: 0.9, scaleY: 1, rotation: 0 },
-        { id: 'c1', glyphId: 'uni6728', x: 190, y: 0, scaleX: 0.9, scaleY: 1, rotation: 0 },
+        {
+          id: 'c0',
+          glyphId: 'uni6728',
+          x: -190,
+          y: 0,
+          scaleX: 0.9,
+          scaleY: 1,
+          rotation: 0,
+        },
+        {
+          id: 'c1',
+          glyphId: 'uni6728',
+          x: 190,
+          y: 0,
+          scaleX: 0.9,
+          scaleY: 1,
+          rotation: 0,
+        },
       ],
       metrics: createMetrics(1000),
     },
@@ -153,9 +182,33 @@ const MOCK_FONT_DATA: FontData = {
       paths: [],
       components: ['木', '木', '木'],
       componentRefs: [
-        { id: 'c0', glyphId: 'uni6728', x: 0, y: 160, scaleX: 0.74, scaleY: 0.74, rotation: 0 },
-        { id: 'c1', glyphId: 'uni6728', x: -220, y: -90, scaleX: 0.74, scaleY: 0.74, rotation: 0 },
-        { id: 'c2', glyphId: 'uni6728', x: 220, y: -90, scaleX: 0.74, scaleY: 0.74, rotation: 0 },
+        {
+          id: 'c0',
+          glyphId: 'uni6728',
+          x: 0,
+          y: 160,
+          scaleX: 0.74,
+          scaleY: 0.74,
+          rotation: 0,
+        },
+        {
+          id: 'c1',
+          glyphId: 'uni6728',
+          x: -220,
+          y: -90,
+          scaleX: 0.74,
+          scaleY: 0.74,
+          rotation: 0,
+        },
+        {
+          id: 'c2',
+          glyphId: 'uni6728',
+          x: 220,
+          y: -90,
+          scaleX: 0.74,
+          scaleY: 0.74,
+          rotation: 0,
+        },
       ],
       metrics: createMetrics(1020),
     },
@@ -175,7 +228,17 @@ const MOCK_FONT_DATA: FontData = {
         },
       ],
       components: ['日', '木'],
-      componentRefs: [{ id: 'c0', glyphId: 'uni6728', x: 0, y: -110, scaleX: 0.7, scaleY: 0.72, rotation: 0 }],
+      componentRefs: [
+        {
+          id: 'c0',
+          glyphId: 'uni6728',
+          x: 0,
+          y: -110,
+          scaleX: 0.7,
+          scaleY: 0.72,
+          rotation: 0,
+        },
+      ],
       metrics: createMetrics(900),
     },
     uni6A39: {
@@ -185,11 +248,24 @@ const MOCK_FONT_DATA: FontData = {
         {
           id: 'marker',
           closed: false,
-          nodes: [createNode('n0', 260, 680), createNode('n1', 260, 150, 'smooth')],
+          nodes: [
+            createNode('n0', 260, 680),
+            createNode('n1', 260, 150, 'smooth'),
+          ],
         },
       ],
       components: ['木', '尌'],
-      componentRefs: [{ id: 'c0', glyphId: 'uni6728', x: -170, y: 0, scaleX: 0.82, scaleY: 1, rotation: 0 }],
+      componentRefs: [
+        {
+          id: 'c0',
+          glyphId: 'uni6728',
+          x: -170,
+          y: 0,
+          scaleX: 0.82,
+          scaleY: 1,
+          rotation: 0,
+        },
+      ],
       metrics: createMetrics(1040),
     },
     uni6A5F: {
@@ -197,11 +273,21 @@ const MOCK_FONT_DATA: FontData = {
       name: '機',
       paths: [],
       components: ['木', '幾'],
-      componentRefs: [{ id: 'c0', glyphId: 'uni6728', x: -180, y: 0, scaleX: 0.84, scaleY: 1, rotation: 0 }],
+      componentRefs: [
+        {
+          id: 'c0',
+          glyphId: 'uni6728',
+          x: -180,
+          y: 0,
+          scaleX: 0.84,
+          scaleY: 1,
+          rotation: 0,
+        },
+      ],
       metrics: createMetrics(1030),
     },
   },
-};
+}
 
 for (let index = 0; index < 2500; index += 1) {
   MOCK_FONT_DATA.glyphs[`uni_mock_${index}`] = {
@@ -211,166 +297,200 @@ for (let index = 0; index < 2500; index += 1) {
     components: index % 3 === 0 ? ['木'] : index % 5 === 0 ? ['日', '木'] : [],
     componentRefs: [],
     metrics: createMetrics(900 + (index % 5) * 20),
-  };
+  }
 }
 
-const getGlyphs = (fontData: FontData | null) => Object.values(fontData?.glyphs ?? {});
+const getGlyphs = (fontData: FontData | null) =>
+  Object.values(fontData?.glyphs ?? {})
 
 const matchesIdsSearch = (
   glyph: GlyphData,
   query: string,
-  idsDictionary: Record<string, string[]>,
+  idsDictionary: Record<string, string[]>
 ) => {
-  const directIds = idsDictionary[glyph.name] ?? [];
-  return directIds.some((component) => component.toLowerCase().includes(query));
-};
+  const directIds = idsDictionary[glyph.name] ?? []
+  return directIds.some((component) => component.toLowerCase().includes(query))
+}
 
 const filterGlyphs = (
   fontData: FontData | null,
   query: string,
-  idsDictionary: Record<string, string[]>,
+  idsDictionary: Record<string, string[]>
 ) => {
-  const glyphs = getGlyphs(fontData);
-  const normalizedQuery = query.trim().toLowerCase();
+  const glyphs = getGlyphs(fontData)
+  const normalizedQuery = query.trim().toLowerCase()
 
   if (!normalizedQuery) {
-    return glyphs;
+    return glyphs
   }
 
   return glyphs.filter((glyph) => {
     return (
       glyph.name.toLowerCase().includes(normalizedQuery) ||
       glyph.id.toLowerCase().includes(normalizedQuery) ||
-      glyph.components.some((component) => component.toLowerCase().includes(normalizedQuery)) ||
+      glyph.components.some((component) =>
+        component.toLowerCase().includes(normalizedQuery)
+      ) ||
       matchesIdsSearch(glyph, normalizedQuery, idsDictionary)
-    );
-  });
-};
+    )
+  })
+}
 
 const syncFilteredGlyphList = (state: GlobalState) => {
-  state.filteredGlyphList = filterGlyphs(state.fontData, state.currentSearchQuery, state.idsDictionary);
-};
+  state.filteredGlyphList = filterGlyphs(
+    state.fontData,
+    state.currentSearchQuery,
+    state.idsDictionary
+  )
+}
 
-const findPath = (glyph: GlyphData, pathId: string) => glyph.paths.find((path) => path.id === pathId);
+const findPath = (glyph: GlyphData, pathId: string) =>
+  glyph.paths.find((path) => path.id === pathId)
 
-const findNode = (path: PathData | undefined, nodeId: string) => path?.nodes.find((node) => node.id === nodeId);
+const findNode = (path: PathData | undefined, nodeId: string) =>
+  path?.nodes.find((node) => node.id === nodeId)
 
 export const deterministicStringify = (value: unknown) => {
   const sortValue = (input: unknown): unknown => {
     if (Array.isArray(input)) {
-      return input.map(sortValue);
+      return input.map(sortValue)
     }
 
     if (input && typeof input === 'object') {
       return Object.keys(input as Record<string, unknown>)
         .sort()
         .reduce<Record<string, unknown>>((accumulator, key) => {
-          accumulator[key] = sortValue((input as Record<string, unknown>)[key]);
-          return accumulator;
-        }, {});
+          accumulator[key] = sortValue((input as Record<string, unknown>)[key])
+          return accumulator
+        }, {})
     }
 
-    return input;
-  };
+    return input
+  }
 
-  return JSON.stringify(sortValue(value), null, 2);
-};
+  return JSON.stringify(sortValue(value), null, 2)
+}
 
 export const useStore = create<GlobalState>()(
-  immer((set) => ({
-    fontData: MOCK_FONT_DATA,
-    idsDictionary: IDS_DICTIONARY,
-    currentSearchQuery: '',
-    filteredGlyphList: getGlyphs(MOCK_FONT_DATA),
-    selectedGlyphId: 'uni6728',
-    selectedLayerId: 'default',
-    selectedNodeIds: [],
-    viewport: {
-      zoom: 0.46,
-      pan: { x: 0, y: 30 },
-    },
-    hasHydratedDraft: false,
+  temporal(
+    immer((set) => ({
+      fontData: null,
+      projectId: null,
+      projectTitle: '',
+      idsDictionary: {},
+      currentSearchQuery: '',
+      filteredGlyphList: [],
+      selectedGlyphId: null,
+      selectedLayerId: 'default',
+      selectedNodeIds: [],
+      viewport: {
+        zoom: 0.46,
+        pan: { x: 0, y: 30 },
+      },
 
-    setSearchQuery: (query) =>
-      set((state) => {
-        state.currentSearchQuery = query;
-        syncFilteredGlyphList(state);
-      }),
+      setSearchQuery: (query) =>
+        set((state) => {
+          state.currentSearchQuery = query
+          syncFilteredGlyphList(state)
+        }),
 
-    setSelectedGlyphId: (id) =>
-      set((state) => {
-        state.selectedGlyphId = id;
-        state.selectedNodeIds = [];
-      }),
+      setSelectedGlyphId: (id) =>
+        set((state) => {
+          state.selectedGlyphId = id
+          state.selectedNodeIds = []
+        }),
 
-    setSelectedNodeIds: (ids) =>
-      set((state) => {
-        state.selectedNodeIds = ids;
-      }),
+      setSelectedNodeIds: (ids) =>
+        set((state) => {
+          state.selectedNodeIds = ids
+        }),
 
-    updateViewport: (zoom, panX, panY) =>
-      set((state) => {
-        state.viewport.zoom = Math.min(4, Math.max(0.1, zoom));
-        state.viewport.pan = { x: panX, y: panY };
-      }),
+      updateViewport: (zoom, panX, panY) =>
+        set((state) => {
+          state.viewport.zoom = Math.min(4, Math.max(0.1, zoom))
+          state.viewport.pan = { x: panX, y: panY }
+        }),
 
-    updateNodePosition: (glyphId, pathId, nodeId, newPos) =>
-      set((state) => {
-        const glyph = state.fontData?.glyphs[glyphId];
-        if (!glyph) {
-          return;
-        }
+      updateNodePosition: (glyphId, pathId, nodeId, newPos) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph) {
+            return
+          }
 
-        const node = findNode(findPath(glyph, pathId), nodeId);
-        if (!node) {
-          return;
-        }
+          const node = findNode(findPath(glyph, pathId), nodeId)
+          if (!node) {
+            return
+          }
 
-        node.x = Math.round(newPos.x);
-        node.y = Math.round(newPos.y);
-      }),
+          node.x = Math.round(newPos.x)
+          node.y = Math.round(newPos.y)
+        }),
 
-    updateNodeType: (glyphId, pathId, nodeId, type) =>
-      set((state) => {
-        const glyph = state.fontData?.glyphs[glyphId];
-        if (!glyph) {
-          return;
-        }
+      updateNodeType: (glyphId, pathId, nodeId, type) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph) {
+            return
+          }
 
-        const node = findNode(findPath(glyph, pathId), nodeId);
-        if (node) {
-          node.type = type;
-        }
-      }),
+          const node = findNode(findPath(glyph, pathId), nodeId)
+          if (node) {
+            node.type = type
+          }
+        }),
 
-    updateGlyphMetrics: (glyphId, metrics) =>
-      set((state) => {
-        const glyph = state.fontData?.glyphs[glyphId];
-        if (!glyph) {
-          return;
-        }
+      updateGlyphMetrics: (glyphId, metrics) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph) {
+            return
+          }
 
-        glyph.metrics = {
-          ...glyph.metrics,
-          ...metrics,
-        };
-      }),
+          glyph.metrics = {
+            ...glyph.metrics,
+            ...metrics,
+          }
+        }),
 
-    hydrateDraft: (fontData) =>
-      set((state) => {
-        state.fontData = fontData;
-        state.hasHydratedDraft = true;
-        syncFilteredGlyphList(state);
+      loadProjectState: (id, title, fontData) =>
+        set((state) => {
+          state.projectId = id
+          state.projectTitle = title
+          state.fontData = fontData
+          syncFilteredGlyphList(state)
 
-        if (state.selectedGlyphId && !fontData.glyphs[state.selectedGlyphId]) {
-          state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null;
-          state.selectedNodeIds = [];
-        }
-      }),
+          if (
+            state.selectedGlyphId &&
+            !fontData.glyphs[state.selectedGlyphId]
+          ) {
+            state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
+            state.selectedNodeIds = []
+          } else if (!state.selectedGlyphId) {
+            state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
+          }
+        }),
 
-    markHydratedDraft: () =>
-      set((state) => {
-        state.hasHydratedDraft = true;
-      }),
-  })),
-);
+      closeProjectState: () =>
+        set((state) => {
+          state.fontData = null
+          state.projectId = null
+          state.projectTitle = ''
+          state.filteredGlyphList = []
+        }),
+    })),
+    {
+      partialize: (state) => ({ fontData: state.fontData }),
+      limit: 20,
+    }
+  )
+)
+
+export const useTemporalStore = <T>(
+  selector: (state: TemporalState<unknown>) => T
+): T =>
+  useSyncExternalStore(
+    useStore.temporal.subscribe,
+    () => selector(useStore.temporal.getState()),
+    () => selector(useStore.temporal.getState())
+  )

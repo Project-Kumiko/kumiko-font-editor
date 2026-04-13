@@ -1,4 +1,4 @@
-import { Box, Divider, Heading, HStack, Input, Tag, Text, VStack } from '@chakra-ui/react';
+import { Box, Divider, Heading, HStack, Input, Tag, Text, VStack, Button } from '@chakra-ui/react';
 import { Virtuoso } from 'react-virtuoso';
 import { useStore } from '../store';
 
@@ -8,6 +8,7 @@ export function LeftPanel() {
   const filteredGlyphList = useStore((state) => state.filteredGlyphList);
   const selectedGlyphId = useStore((state) => state.selectedGlyphId);
   const setSelectedGlyphId = useStore((state) => state.setSelectedGlyphId);
+  const closeProjectState = useStore((state) => state.closeProjectState);
 
   return (
     <Box
@@ -20,14 +21,19 @@ export function LeftPanel() {
       borderColor="blackAlpha.200"
     >
       <VStack align="stretch" spacing={3} mb={4}>
-        <Box>
-          <Text fontSize="xs" textTransform="uppercase" letterSpacing="0.16em" color="gray.500" mb={1}>
-            Kumiko Font Editor
-          </Text>
-          <Heading size="md" color="gray.800">
-            部件檢索
-          </Heading>
-        </Box>
+        <HStack justify="space-between" align="flex-start">
+          <Box>
+            <Text fontSize="xs" textTransform="uppercase" letterSpacing="0.16em" color="gray.500" mb={1}>
+              Kumiko Font Editor
+            </Text>
+            <Heading size="md" color="gray.800">
+              部件檢索
+            </Heading>
+          </Box>
+          <Button size="sm" variant="ghost" onClick={closeProjectState}>
+            ⬅︎ 首頁
+          </Button>
+        </HStack>
 
         <Input
           placeholder="搜尋部件、字形或 IDS (例如 木 / 林 / uni6728)"
