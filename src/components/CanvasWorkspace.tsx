@@ -1,281 +1,271 @@
-import { useEffect, useRef, type MutableRefObject } from 'react'
-import { Box, Flex, Kbd, Text, HStack, Button } from '@chakra-ui/react'
-import paper from 'paper'
+// 新的 CanvasWorkspace - 使用 Fontra 架構
+
+import { useEffect, useRef, useCallback } from 'react'
+import { Box, Flex, Button, Text, HStack } from '@chakra-ui/react'
 import {
-  useStore,
-  useTemporalStore,
-  type FontData,
+  CanvasController,
+  SceneView,
+  VisualizationLayer,
+  visualizationLayerDefinitions,
+  type PositionedGlyph,
   type GlyphData,
-  type ViewportState,
-} from '../store'
+  type SceneModel,
+} from '../canvas'
+import { SceneController } from '../tools'
+import { VarPackedPath } from '../font/VarPackedPath'
+import { useStore, useTemporalStore } from '../store'
 
-type HandleBinding = {
-  circle: paper.Path.Circle
-  segment: paper.Segment
-}
-
-const GRID_STEP = 120
-const MAX_COMPONENT_DEPTH = 4
-
-const toCanvasPoint = (x: number, y: number) => new paper.Point(x, -y)
-
-const applyViewport = (
-  rootGroup: paper.Group,
-  viewport: ViewportState,
-  canvasSize: paper.Size
-) => {
-  // 必須將群組參考點固定在原點，否則改變節點時因 Bounding Box 改變會導致座標系位移 (飛走)
-  rootGroup.pivot = new paper.Point(0, 0)
-  rootGroup.position = new paper.Point(
-    canvasSize.width / 2 + viewport.pan.x,
-    canvasSize.height / 2 + viewport.pan.y
-  )
-  rootGroup.scaling = new paper.Point(viewport.zoom, viewport.zoom)
-}
-
-const renderGuides = (rootGroup: paper.Group) => {
-  // Add outer frame
-  const frame = new paper.Path.Rectangle({
-    from: new paper.Point(-1200, -1100),
-    to: new paper.Point(1200, 1100),
-    strokeColor: new paper.Color('black'),
-    strokeWidth: 1,
-    fillColor: undefined,
-  })
-  rootGroup.addChild(frame)
-
-  for (let x = -1200; x <= 1200; x += GRID_STEP) {
-    const line = new paper.Path.Line({
-      from: new paper.Point(x, -1100),
-      to: new paper.Point(x, 1100),
-      strokeColor:
-        x === 0
-          ? new paper.Color('#8ba2b8')
-          : new paper.Color(0.8, 0.8, 0.8, 0.3),
-      strokeWidth: x === 0 ? 1.6 : 0.6,
-      dashArray: x === 0 ? undefined : [6, 8],
-      guide: true,
-    })
-    rootGroup.addChild(line)
-  }
-
-  for (let y = -1100; y <= 1100; y += GRID_STEP) {
-    const line = new paper.Path.Line({
-      from: new paper.Point(-1200, y),
-      to: new paper.Point(1200, y),
-      strokeColor:
-        y === 0
-          ? new paper.Color('black')
-          : new paper.Color(0.8, 0.8, 0.8, 0.3),
-      strokeWidth: y === 0 ? 2 : 0.6,
-      dashArray: y === 0 ? undefined : [6, 8],
-      guide: true,
-    })
-    rootGroup.addChild(line)
-  }
-}
-
-const renderMetrics = (glyph: GlyphData, rootGroup: paper.Group) => {
-  const { lsb, width } = glyph.metrics
-
-  ;[
-    { x: 0, color: '#f6ad55' },
-    { x: lsb, color: '#63b3ed' },
-    { x: width, color: '#68d391' },
-  ].forEach(({ x, color }) => {
-    const guide = new paper.Path.Line({
-      from: new paper.Point(x, -980),
-      to: new paper.Point(x, 980),
-      strokeColor: new paper.Color(color),
-      strokeWidth: 1.2,
-      dashArray: [12, 10],
-      opacity: 0.82,
-    })
-    rootGroup.addChild(guide)
-  })
-}
-
-const renderGlyphPaths = (
-  glyph: GlyphData,
-  rootGroup: paper.Group,
-  handleBindings: Map<string, HandleBinding>,
-  selectedHandleIds: Set<string>,
-  showHandles: boolean,
-  matrix?: paper.Matrix
-) => {
-  glyph.paths.forEach((pathData) => {
-    const path = new paper.Path({
-      closed: pathData.closed,
-      strokeColor: new paper.Color('black'),
-      strokeWidth: 2,
-      strokeCap: 'round',
-      strokeJoin: 'round',
-      fillColor: pathData.closed
-        ? new paper.Color(0.35, 0.77, 0.95, 0.08)
-        : undefined,
-    })
-
-    path.data = { pathId: pathData.id }
-    pathData.nodes.forEach((node) => {
-      const point = matrix
-        ? matrix.transform(toCanvasPoint(node.x, node.y))
-        : toCanvasPoint(node.x, node.y)
-      const segment = new paper.Segment(point)
-      path.add(segment)
-    })
-    rootGroup.addChild(path)
-
-    if (!showHandles) {
-      return
-    }
-
-    pathData.nodes.forEach((node, index) => {
-      const point = path.segments[index].point
-      const nodeKey = `${pathData.id}:${node.id}`
-      const isSelected = selectedHandleIds.has(nodeKey)
-      const circle = new paper.Path.Circle({
-        center: point,
-        radius: 9,
-        fillColor: isSelected
-          ? new paper.Color('#f6ad55')
-          : new paper.Color('#f8fafc'),
-        strokeColor:
-          node.type === 'smooth'
-            ? new paper.Color('#90cdf4')
-            : new paper.Color('#1a202c'),
-        strokeWidth: 2,
-      })
-
-      circle.data = { pathId: pathData.id, nodeId: node.id }
-      rootGroup.addChild(circle)
-      handleBindings.set(nodeKey, { circle, segment: path.segments[index] })
-    })
-  })
-}
-
-const renderComponentRefs = (
-  glyphId: string,
-  fontData: FontData,
-  rootGroup: paper.Group,
-  depth: number
-) => {
-  if (depth > MAX_COMPONENT_DEPTH) {
-    return
-  }
-
-  const glyph = fontData.glyphs[glyphId]
-  if (!glyph) {
-    return
-  }
-
-  glyph.componentRefs.forEach((component) => {
-    const referencedGlyph = fontData.glyphs[component.glyphId]
-    if (!referencedGlyph) {
-      return
-    }
-
-    const componentMatrix = new paper.Matrix()
-    componentMatrix.translate(component.x, -component.y)
-    componentMatrix.rotate(-component.rotation, new paper.Point(0, 0))
-    componentMatrix.scale(component.scaleX, component.scaleY)
-
-    renderGlyphPaths(
-      referencedGlyph,
-      rootGroup,
-      new Map(),
-      new Set(),
-      false,
-      componentMatrix
-    )
-    renderComponentRefs(component.glyphId, fontData, rootGroup, depth + 1)
-  })
-}
-
-const drawScene = (
-  fontData: FontData | null,
-  selectedGlyphId: string | null,
-  selectedNodeIds: string[],
-  viewport: ViewportState,
-  rootGroupRef: MutableRefObject<paper.Group | null>,
-  handleBindingsRef: MutableRefObject<Map<string, HandleBinding>>
-) => {
-  if (!paper.project || !paper.view) {
-    return
-  }
-
-  paper.project.activeLayer.removeChildren()
-
-  // 最核心的修復：關閉 applyMatrix，讓 Group 保有自己的變換矩陣 (Transform Matrix)。
-  // 否則預設 applyMatrix = true 會把縮放跟位移「破壞性」寫入子節點，造成 globalToLocal 失效！
-  const rootGroup = new paper.Group({ applyMatrix: false })
-  rootGroupRef.current = rootGroup
-  handleBindingsRef.current = new Map()
-
-  renderGuides(rootGroup)
-
-  if (!fontData || !selectedGlyphId) {
-    applyViewport(rootGroup, viewport, paper.view.size)
-    paper.view.update()
-    return
-  }
-
-  const glyph = fontData.glyphs[selectedGlyphId]
-  if (!glyph) {
-    applyViewport(rootGroup, viewport, paper.view.size)
-    paper.view.update()
-    return
-  }
-
-  renderMetrics(glyph, rootGroup)
-  renderComponentRefs(selectedGlyphId, fontData, rootGroup, 0)
-  renderGlyphPaths(
-    glyph,
-    rootGroup,
-    handleBindingsRef.current,
-    new Set(selectedNodeIds),
-    true
-  )
-
-  applyViewport(rootGroup, viewport, paper.view.size)
-  paper.view.update()
-}
+// const GRID_STEP = 120; // Not currently used but kept for future implementation
 
 export function CanvasWorkspace() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rootGroupRef = useRef<paper.Group | null>(null)
-  const handleBindingsRef = useRef<Map<string, HandleBinding>>(new Map())
-  const dragStateRef = useRef<{
-    activeHandleId: string | null
-    isPanning: boolean
-    didMove: boolean
-    startPan: { x: number; y: number }
-  }>({
-    activeHandleId: null,
-    isPanning: false,
-    didMove: false,
-    startPan: { x: 0, y: 0 },
-  })
+  const canvasControllerRef = useRef<CanvasController | null>(null)
+  const sceneControllerRef = useRef<SceneController | null>(null)
+  const sceneViewRef = useRef<SceneView | null>(null)
 
+  // Debug logging
+  console.log('CanvasWorkspace component initialized')
+
+  // Store data
   const fontData = useStore((state) => state.fontData)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
-  const updateNodePosition = useStore((state) => state.updateNodePosition)
-  const updateViewport = useStore((state) => state.updateViewport)
 
-  // Zundo temporal hooks for reactivity
+  console.log('Store data:', {
+    fontData: !!fontData,
+    selectedGlyphId,
+    selectedNodeIdsCount: selectedNodeIds.length,
+    viewport,
+  })
+
+  // Zundo temporal hooks
   const pastStatesLength = useTemporalStore((state) => state.pastStates.length)
   const futureStatesLength = useTemporalStore(
     (state) => state.futureStates.length
   )
 
-  const handleUndo = () => useStore.temporal.getState().undo()
-  const handleRedo = () => useStore.temporal.getState().redo()
+  const handleUndo = useCallback(() => {
+    console.log('Undo clicked')
+    useStore.temporal.getState().undo()
+  }, [])
 
+  const handleRedo = useCallback(() => {
+    console.log('Redo clicked')
+    useStore.temporal.getState().redo()
+  }, [])
+
+  // Convert current glyph data to Fontra format
+  const getPositionedGlyph = useCallback((): PositionedGlyph | undefined => {
+    console.log('getPositionedGlyph called', {
+      fontData: !!fontData,
+      selectedGlyphId,
+    })
+    if (!fontData || !selectedGlyphId) {
+      console.log('Missing fontData or selectedGlyphId')
+      return undefined
+    }
+
+    const glyph = fontData.glyphs[selectedGlyphId]
+    console.log('Found glyph:', {
+      glyphId: selectedGlyphId,
+      hasPaths: !!glyph.paths,
+      pathsCount: glyph.paths?.length,
+    })
+    if (!glyph) return undefined
+
+    // Convert paths to VarPackedPath
+    const contours: {
+      points: {
+        x: number
+        y: number
+        type: 'onCurve' | 'offCurveCubic'
+        smooth?: boolean
+      }[]
+      isClosed: boolean
+    }[] = []
+
+    for (const pathData of glyph.paths) {
+      const points = pathData.nodes.map((node) => ({
+        x: node.x,
+        y: node.y,
+        type: (node.type === 'smooth' ? 'onCurve' : 'onCurve') as
+          | 'onCurve'
+          | 'offCurveCubic',
+        smooth: node.type === 'smooth',
+      }))
+
+      contours.push({
+        points,
+        isClosed: pathData.closed,
+      })
+    }
+
+    const varPath = VarPackedPath.fromUnpackedContours(contours)
+    console.log('Created VarPackedPath', {
+      contoursCount: contours.length,
+      pointsPerContour: contours.map((c) => c.points.length),
+    })
+
+    const glyphData: GlyphData = {
+      path: varPath,
+      xAdvance: glyph.metrics.width,
+      components: [],
+      guidelines: [],
+      flattenedPath2d: undefined,
+      closedContoursPath2d: undefined,
+    }
+
+    return {
+      glyph: glyphData,
+      x: 0,
+      y: 0,
+      isEditing: true,
+      isEmpty: glyph.paths.length === 0,
+    }
+  }, [fontData, selectedGlyphId])
+
+  // Initialize canvas
+  useEffect(() => {
+    console.log('Canvas initialization effect running')
+    if (!canvasRef.current) {
+      console.log('No canvas ref yet')
+      return
+    }
+    if (canvasControllerRef.current) {
+      console.log('Canvas controller already exists')
+      return
+    }
+
+    const canvas = canvasRef.current
+    console.log('Canvas element:', canvas)
+
+    // Create canvas controller
+    const controller = new CanvasController(canvas)
+    console.log('CanvasController created')
+
+    canvasControllerRef.current = controller
+
+    // Create scene view with all registered layers
+    const layers = visualizationLayerDefinitions.map(
+      (def) => new VisualizationLayer(def)
+    )
+    console.log('Created layers:', layers.length)
+    const sceneView = new SceneView(layers)
+    sceneViewRef.current = sceneView
+    controller.sceneView = sceneView
+    console.log('SceneView created and attached')
+
+    // Create scene model FIRST so we can set it on controller before initial draw
+    const sceneModel: SceneModel = {
+      glyph: undefined,
+      selection: new Set(),
+      hoverSelection: new Set(),
+      canEdit: true,
+    }
+    console.log('SceneModel created')
+
+    // Set the sceneModel on controller immediately
+    controller.sceneModel = sceneModel
+
+    // Create scene controller
+    const sceneController = new SceneController({
+      canvasController: controller,
+      model: sceneModel,
+      onSelectionChange: (selection) => {
+        console.log('Selection changed:', selection)
+        const nodeIds: string[] = []
+        for (const item of selection) {
+          const match = item.match(/^point\/(\d+)$/)
+          if (match) {
+            const pathIndex = 0 // Simplified for now
+            const nodeIndex = parseInt(match[1], 10)
+            nodeIds.push(`${pathIndex}:${nodeIndex}`)
+          }
+        }
+        setSelectedNodeIds(nodeIds)
+      },
+      onUpdateNodePosition: (glyphId, pathId, nodeId, newPos) => {
+        console.log('Updating node position via callback:', { glyphId, pathId, nodeId, newPos })
+        useStore.getState().updateNodePosition(glyphId, pathId, nodeId, newPos)
+      }
+    })
+
+    sceneControllerRef.current = sceneController
+    console.log('SceneController created')
+
+    // Initial draw
+    console.log('Calling initial draw')
+    controller.draw()
+
+    return () => {
+      console.log('Cleaning up canvas')
+      controller.destroy()
+      canvasControllerRef.current = null
+      sceneControllerRef.current = null
+      sceneViewRef.current = null
+    }
+  }, [setSelectedNodeIds])
+
+  // Update scene model when data changes
+  useEffect(() => {
+    console.log('Update scene model effect running', {
+      fontData: !!fontData,
+      selectedGlyphId,
+      selectedNodeIdsLength: selectedNodeIds.length,
+    })
+    const sceneView = sceneViewRef.current
+    const sceneController = sceneControllerRef.current
+    if (!sceneView || !sceneController) {
+      console.log('Missing sceneView or sceneController', {
+        sceneView: !!sceneView,
+        sceneController: !!sceneController,
+      })
+      return
+    }
+
+    const positionedGlyph = getPositionedGlyph()
+    console.log('Positioned glyph from getPositionedGlyph:', {
+      positionedGlyph: !!positionedGlyph,
+    })
+
+    // Update scene model
+    console.log('Setting sceneModel glyph:', { glyph: positionedGlyph ? { xAdvance: positionedGlyph.glyph.xAdvance } : null })
+    sceneController.sceneModel.glyph = positionedGlyph
+    sceneController.sceneModel.selection = new Set(
+      selectedNodeIds.map((id) => {
+        const [, nodeIndex] = id.split(':')
+        return `point/${nodeIndex}`
+      })
+    )
+    console.log('Updated scene model glyph and selection, now has glyph:', !!sceneController.sceneModel.glyph)
+
+    // Update viewport
+    const controller = canvasControllerRef.current
+    if (controller) {
+      console.log('Updating viewport', {
+        viewport,
+        canvasWidth: controller.canvasWidth,
+        canvasHeight: controller.canvasHeight,
+      })
+      controller.origin.x = controller.canvasWidth / 2 + viewport.pan.x
+      controller.origin.y = controller.canvasHeight / 2 + viewport.pan.y
+      controller.magnification = viewport.zoom
+      console.log('Updated controller origin and magnification', {
+        origin: controller.origin,
+        magnification: controller.magnification,
+      })
+    }
+
+    // Request redraw
+    console.log('Requesting update')
+    controller?.requestUpdate()
+  }, [fontData, selectedGlyphId, selectedNodeIds, viewport, getPositionedGlyph])
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 避免在 input 等元素中觸發
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -296,127 +286,7 @@ export function CanvasWorkspace() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [pastStatesLength, futureStatesLength])
-
-  useEffect(() => {
-    if (!canvasRef.current || paper.project) {
-      return
-    }
-
-    const canvasElement = canvasRef.current
-    paper.setup(canvasElement)
-
-    const tool = new paper.Tool()
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault()
-      const currentViewport = useStore.getState().viewport
-      const scaleFactor = event.deltaY < 0 ? 1.12 : 0.9
-      updateViewport(
-        currentViewport.zoom * scaleFactor,
-        currentViewport.pan.x,
-        currentViewport.pan.y
-      )
-    }
-
-    tool.onMouseDown = (event: paper.ToolEvent) => {
-      const dragState = dragStateRef.current
-      dragState.didMove = false
-      dragState.activeHandleId = null
-      dragState.isPanning = false
-      dragState.startPan = useStore.getState().viewport.pan
-
-      const hitResult = paper.project?.hitTest(event.point, {
-        fill: true,
-        stroke: true,
-        tolerance: 10,
-      })
-
-      const pathId = hitResult?.item?.data?.pathId as string | undefined
-      const nodeId = hitResult?.item?.data?.nodeId as string | undefined
-
-      if (pathId && nodeId) {
-        const handleId = `${pathId}:${nodeId}`
-        dragState.activeHandleId = handleId
-        setSelectedNodeIds([handleId])
-        return
-      }
-
-      dragState.isPanning = true
-      setSelectedNodeIds([])
-    }
-
-    tool.onMouseDrag = (event: paper.ToolEvent) => {
-      const dragState = dragStateRef.current
-      dragState.didMove = true
-
-      if (dragState.activeHandleId) {
-        const rootGroup = rootGroupRef.current
-        const binding = handleBindingsRef.current.get(dragState.activeHandleId)
-        if (!rootGroup || !binding) {
-          return
-        }
-
-        const localPoint = rootGroup.globalToLocal(event.point)
-        binding.circle.position = localPoint
-        binding.segment.point = localPoint
-        paper.view.update()
-        return
-      }
-
-      if (dragState.isPanning) {
-        const nextPanX =
-          dragState.startPan.x + event.point.x - event.downPoint.x
-        const nextPanY =
-          dragState.startPan.y + event.point.y - event.downPoint.y
-        updateViewport(useStore.getState().viewport.zoom, nextPanX, nextPanY)
-      }
-    }
-
-    tool.onMouseUp = () => {
-      const dragState = dragStateRef.current
-
-      if (dragState.activeHandleId && selectedGlyphId) {
-        const [pathId, nodeId] = dragState.activeHandleId.split(':')
-        const binding = handleBindingsRef.current.get(dragState.activeHandleId)
-        if (binding) {
-          const finalX = binding.segment.point.x
-          const finalY = -binding.segment.point.y
-          updateNodePosition(selectedGlyphId, pathId, nodeId, {
-            x: finalX,
-            y: finalY,
-          })
-        }
-      }
-
-      dragState.activeHandleId = null
-      dragState.isPanning = false
-      dragState.didMove = false
-    }
-
-    canvasElement.addEventListener('wheel', handleWheel, { passive: false })
-    tool.activate()
-
-    return () => {
-      canvasElement.removeEventListener('wheel', handleWheel)
-      tool.remove()
-      paper.project?.remove()
-    }
-  }, [selectedGlyphId, setSelectedNodeIds, updateNodePosition, updateViewport])
-
-  useEffect(() => {
-    if (!paper.view) {
-      return
-    }
-
-    drawScene(
-      fontData,
-      selectedGlyphId,
-      selectedNodeIds,
-      viewport,
-      rootGroupRef,
-      handleBindingsRef
-    )
-  }, [fontData, selectedGlyphId, selectedNodeIds, viewport])
+  }, [handleUndo, handleRedo])
 
   return (
     <Box position="relative" w="100%" h="100%" bg="white" overflow="hidden">
@@ -428,8 +298,9 @@ export function CanvasWorkspace() {
           display: 'block',
           cursor: 'crosshair',
         }}
-        data-paper-resize="true"
       />
+
+      {/* UI Overlay */}
       <Flex
         position="absolute"
         top={4}
@@ -444,13 +315,13 @@ export function CanvasWorkspace() {
         backdropFilter="blur(10px)"
       >
         <Text fontSize="xs" color="whiteAlpha.800">
-          拖曳節點即時預覽，放開後才寫回 Store
+          Fontra Canvas Workspace
         </Text>
         <Text fontSize="xs" color="whiteAlpha.700">
           滾輪縮放，拖曳空白區平移視角
         </Text>
         <Text fontSize="xs" color="whiteAlpha.700">
-          畫布採字體座標系，內部會自動轉成 Canvas 的 Y 軸朝下
+          點擊節點選取，拖曳移動
         </Text>
 
         <HStack mt={2}>
@@ -474,6 +345,8 @@ export function CanvasWorkspace() {
           </Button>
         </HStack>
       </Flex>
+
+      {/* Shortcuts legend */}
       <Flex
         position="absolute"
         right={4}
@@ -487,13 +360,13 @@ export function CanvasWorkspace() {
         color="whiteAlpha.800"
         fontSize="xs"
       >
-        <Kbd bg="whiteAlpha.200" color="white">
+        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
           Wheel
-        </Kbd>
+        </Box>
         <Text>Zoom</Text>
-        <Kbd bg="whiteAlpha.200" color="white">
+        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
           Drag
-        </Kbd>
+        </Box>
         <Text>Pan / Move Node</Text>
       </Flex>
     </Box>

@@ -480,8 +480,8 @@ export const useStore = create<GlobalState>()(
         }),
     })),
     {
-      partialize: (state) => ({ fontData: state.fontData }),
-      limit: 20,
+      partialize: (state) => ({ fontData: state.fontData, selectedGlyphId: state.selectedGlyphId, selectedNodeIds: state.selectedNodeIds, viewport: state.viewport }),
+      limit: 50,
     }
   )
 )
