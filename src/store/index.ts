@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal, type TemporalState } from 'zundo'
 
-export type NodeType = 'corner' | 'smooth'
+export type NodeType = 'corner' | 'smooth' | 'offcurve' | 'qcurve'
 
 export interface PathNode {
   id: string
@@ -45,6 +45,13 @@ export interface GlyphData {
 
 export interface FontData {
   glyphs: Record<string, GlyphData>
+  lineMetricsHorizontalLayout?: Record<
+    string,
+    {
+      value: number
+      zone?: number
+    }
+  >
 }
 
 export interface SelectedNodeRef {

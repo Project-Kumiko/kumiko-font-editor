@@ -5,6 +5,13 @@ import type { CanvasController } from './CanvasController'
 
 export interface SceneModel {
   glyph?: PositionedGlyph
+  lineMetricsHorizontalLayout?: Record<
+    string,
+    {
+      value: number
+      zone?: number
+    }
+  >
   selection?: Set<string>
   hoverSelection?: Set<string>
   hoverPathHit?: PathHitInfo
@@ -38,13 +45,20 @@ export interface GlyphData {
     iterPoints(): Generator<Point & { index: number }, void>
     iterHandles(): Generator<[Point, Point], void>
     iterContours(): Generator<{ points: Point[]; isClosed: boolean }, void>
-    iterContourSegments?(contourIndex: number): Generator<{ points: Point[]; pointIndices: number[] }, void>
-    appendUnpackedContour?(contour: { points: Point[]; isClosed: boolean }): void
+    iterContourSegments?(
+      contourIndex: number
+    ): Generator<{ points: Point[]; pointIndices: number[] }, void>
+    appendUnpackedContour?(contour: {
+      points: Point[]
+      isClosed: boolean
+    }): void
     setPoint?(index: number, point: Point): void
     pointTypes?: Uint8Array
     coordinates?: Float64Array
     toPath2D(): Path2D
-    getControlBounds(): { xMin: number; yMin: number; xMax: number; yMax: number } | undefined
+    getControlBounds():
+      | { xMin: number; yMin: number; xMax: number; yMax: number }
+      | undefined
     numContours: number
   }
   components?: ComponentData[]
@@ -83,7 +97,10 @@ export interface GuidelineData {
 export interface VisualizationLayerDefinition {
   identifier: string
   name: string
-  selectionFunc: (visContext: VisContext, layer: VisualizationLayerDefinition) => PositionedGlyph[]
+  selectionFunc: (
+    visContext: VisContext,
+    layer: VisualizationLayerDefinition
+  ) => PositionedGlyph[]
   userSwitchable?: boolean
   defaultOn?: boolean
   zIndex: number
@@ -108,21 +125,13 @@ export class SceneView {
   model: SceneModel = {}
 
   constructor(layers: VisualizationLayer[] = []) {
-    console.log('SceneView constructor called with', layers.length, 'layers')
     this.layers = layers.filter((l) => l.visible)
-    console.log('SceneView has', this.layers.length, 'visible layers after filtering')
   }
 
   draw(canvasController: CanvasController, model: SceneModel) {
-    console.log('SceneView.draw called', {
-      layersCount: this.layers.length,
-      hasGlyph: !!model.glyph,
-      glyphId: model.glyph?.glyph?.xAdvance !== undefined ? 'present' : 'missing'
-    })
-
     // Sort layers by zIndex
-    const sortedLayers = [...this.layers].sort((a, b) =>
-      a.definition.zIndex - b.definition.zIndex
+    const sortedLayers = [...this.layers].sort(
+      (a, b) => a.definition.zIndex - b.definition.zIndex
     )
 
     for (const _layer of sortedLayers) {
@@ -136,11 +145,15 @@ export class SceneView {
   }
 
   removeLayer(identifier: string) {
-    this.layers = this.layers.filter((l) => l.definition.identifier !== identifier)
+    this.layers = this.layers.filter(
+      (l) => l.definition.identifier !== identifier
+    )
   }
 
   setLayerVisible(identifier: string, visible: boolean) {
-    const layer = this.layers.find((l) => l.definition.identifier === identifier)
+    const layer = this.layers.find(
+      (l) => l.definition.identifier === identifier
+    )
     if (layer) {
       layer.visible = visible
     }

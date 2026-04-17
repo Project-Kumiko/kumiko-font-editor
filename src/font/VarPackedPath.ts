@@ -27,6 +27,7 @@ export interface UnpackedContour {
 export interface Segment {
   points: Point[]
   pointIndices: number[]
+  type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
 }
 
 export class VarPackedPath {
@@ -327,47 +328,17 @@ export class VarPackedPath {
   *iterContourSegments(contourIndex: number): Generator<Segment, void> {
     const normalizedIndex = this._normalizeContourIndex(contourIndex)
     const startPoint = this._getContourStartPoint(normalizedIndex)
-    const endPoint = this.contourInfo[normalizedIndex].endPoint
-    const isClosed = this.contourInfo[normalizedIndex].isClosed ?? true
+    const contour = this.contourInfo[normalizedIndex]
 
-    const points: number[] = []
-    for (let i = startPoint; i <= endPoint; i++) {
-      points.push(i)
-    }
-
-    if (points.length === 0) return
-
-    if (!isClosed) {
-      // For open contours, yield segments between consecutive on-curve points
-      let segmentStart = 0
-      for (let i = 1; i < points.length; i++) {
-        if (this.getPoint(points[i]).type === 'onCurve') {
-          yield {
-            points: points.slice(segmentStart, i + 1).map((idx) => this.getPoint(idx)),
-            pointIndices: points.slice(segmentStart, i + 1),
-          }
-          segmentStart = i
-        }
-      }
-    } else {
-      // For closed contours, wrap around
-      const onCurveIndices = points.filter((idx) => this.getPoint(idx).type === 'onCurve')
-
-      for (let i = 0; i < onCurveIndices.length; i++) {
-        const current = onCurveIndices[i]
-        const next = onCurveIndices[(i + 1) % onCurveIndices.length]
-
-        let segmentIndices: number[]
-        if (next > current) {
-          segmentIndices = points.filter((idx) => idx >= current && idx <= next)
-        } else {
-          segmentIndices = points.filter((idx) => idx >= current || idx <= next)
-        }
-
-        yield {
-          points: segmentIndices.map((idx) => this.getPoint(idx)),
-          pointIndices: segmentIndices,
-        }
+    for (const segment of this._iterDecomposedSegments(
+      startPoint,
+      contour.endPoint,
+      contour.isClosed ?? true
+    )) {
+      yield {
+        type: segment.type,
+        points: coordinatesToPoints(segment.coordinates),
+        pointIndices: segment.pointIndices,
       }
     }
   }
@@ -441,13 +412,13 @@ export class VarPackedPath {
           path += `M ${pts[0].x} ${pts[0].y}`
         }
 
-        if (pts.length === 2) {
+        if (segment.type === 'line' && pts.length === 2) {
           // Line
           path += ` L ${pts[1].x} ${pts[1].y}`
-        } else if (pts.length === 3) {
+        } else if (segment.type === 'quad' && pts.length === 3) {
           // Quadratic curve
           path += ` Q ${pts[1].x} ${pts[1].y} ${pts[2].x} ${pts[2].y}`
-        } else if (pts.length === 4) {
+        } else if (segment.type === 'cubic' && pts.length === 4) {
           // Cubic curve
           path += ` C ${pts[1].x} ${pts[1].y} ${pts[2].x} ${pts[2].y} ${pts[3].x} ${pts[3].y}`
         }
@@ -465,6 +436,30 @@ export class VarPackedPath {
   toPath2D(): Path2D {
     return new Path2D(this.toSVGPath())
   }
+
+  private *_iterDecomposedSegments(
+    startPoint: number,
+    endPoint: number,
+    isClosed: boolean
+  ): Generator<{ type: 'line' | 'quad' | 'cubic'; coordinates: number[]; pointIndices: number[] }, void> {
+    for (const segment of iterContourSegmentPointIndices(
+      this.pointTypes,
+      startPoint,
+      endPoint,
+      isClosed
+    )) {
+      const coordinates: number[] = []
+      for (const pointIndex of segment.pointIndices) {
+        const pointIndex2 = pointIndex * 2
+        coordinates.push(this.coordinates[pointIndex2], this.coordinates[pointIndex2 + 1])
+      }
+      yield* decomposeSegment({
+        type: segment.type,
+        coordinates,
+        pointIndices: segment.pointIndices,
+      })
+    }
+  }
 }
 
 export interface Rect {
@@ -472,4 +467,176 @@ export interface Rect {
   yMin: number
   xMax: number
   yMax: number
+}
+
+function* iterContourSegmentPointIndices(
+  pointTypes: Uint8Array,
+  startPoint: number,
+  endPoint: number,
+  isClosed: boolean
+): Generator<{ type: 'line' | 'quad' | 'cubic' | 'quadBlob'; pointIndices: number[] }, void> {
+  const numPoints = endPoint - startPoint + 1
+  let firstOnCurve: number | null = null
+
+  for (let i = 0; i < numPoints; i++) {
+    if ((pointTypes[i + startPoint] & POINT_TYPE_MASK) === POINT_TYPE_ON_CURVE) {
+      firstOnCurve = i
+      break
+    }
+  }
+
+  if (firstOnCurve === null) {
+    yield {
+      type: 'quadBlob',
+      pointIndices: Array.from({ length: numPoints }, (_, index) => startPoint + index),
+    }
+    return
+  }
+
+  let currentSegment: number[] = []
+  let segmentType: 'line' | 'quad' | 'cubic' = 'line'
+  const lastIndex = isClosed ? numPoints : numPoints - 1 - firstOnCurve
+
+  for (let i = 0; i <= lastIndex; i++) {
+    const pointIndex = isClosed
+      ? startPoint + ((firstOnCurve + i) % numPoints)
+      : startPoint + firstOnCurve + i
+    const pointType = pointTypes[pointIndex] & POINT_TYPE_MASK
+    currentSegment.push(pointIndex)
+
+    if (i === 0) {
+      continue
+    }
+
+    switch (pointType) {
+      case POINT_TYPE_ON_CURVE:
+        yield { type: segmentType, pointIndices: currentSegment }
+        currentSegment = [pointIndex]
+        segmentType = 'line'
+        break
+      case POINT_TYPE_OFF_CURVE_QUAD:
+        segmentType = 'quad'
+        break
+      case POINT_TYPE_OFF_CURVE_CUBIC:
+        segmentType = 'cubic'
+        break
+      default:
+        throw new Error('illegal point type')
+    }
+  }
+}
+
+function* decomposeSegment(segment: {
+  type: 'line' | 'quad' | 'cubic' | 'quadBlob'
+  coordinates: number[]
+  pointIndices: number[]
+}): Generator<{ type: 'line' | 'quad' | 'cubic'; coordinates: number[]; pointIndices: number[] }, void> {
+  switch (segment.type) {
+    case 'line':
+      if (segment.coordinates.length === 4) {
+        yield {
+          type: 'line',
+          coordinates: segment.coordinates,
+          pointIndices: segment.pointIndices,
+        }
+      }
+      break
+    case 'cubic':
+      if (segment.coordinates.length <= 6) {
+        yield* decomposeQuad({
+          type: 'quad',
+          coordinates: segment.coordinates,
+          pointIndices: segment.pointIndices,
+        })
+      } else if (segment.coordinates.length === 8) {
+        yield {
+          type: 'cubic',
+          coordinates: segment.coordinates,
+          pointIndices: segment.pointIndices,
+        }
+      } else if (segment.coordinates.length >= 8) {
+        yield {
+          type: 'cubic',
+          coordinates: [
+            ...segment.coordinates.slice(0, 4),
+            ...segment.coordinates.slice(-4),
+          ],
+          pointIndices: [
+            segment.pointIndices[0],
+            segment.pointIndices[1],
+            segment.pointIndices[segment.pointIndices.length - 2],
+            segment.pointIndices[segment.pointIndices.length - 1],
+          ],
+        }
+      }
+      break
+    case 'quad':
+      yield* decomposeQuad({
+        type: 'quad',
+        coordinates: segment.coordinates,
+        pointIndices: segment.pointIndices,
+      })
+      break
+    case 'quadBlob': {
+      const lastIndex = segment.coordinates.length - 2
+      const mid = [
+        (segment.coordinates[0] + segment.coordinates[lastIndex]) / 2,
+        (segment.coordinates[1] + segment.coordinates[lastIndex + 1]) / 2,
+      ]
+      yield* decomposeQuad({
+        type: 'quad',
+        coordinates: [...mid, ...segment.coordinates, ...mid],
+        pointIndices: [
+          segment.pointIndices[segment.pointIndices.length - 1],
+          ...segment.pointIndices,
+          segment.pointIndices[0],
+        ],
+      })
+      break
+    }
+  }
+}
+
+function* decomposeQuad(segment: {
+  type: 'quad'
+  coordinates: number[]
+  pointIndices: number[]
+}): Generator<{ type: 'quad'; coordinates: number[]; pointIndices: number[] }, void> {
+  if (segment.coordinates.length < 6) {
+    return
+  }
+
+  const coordinates = segment.coordinates
+  const pointIndices = [...segment.pointIndices]
+  let [x0, y0] = [coordinates[0], coordinates[1]]
+  let [x1, y1] = [coordinates[2], coordinates[3]]
+  const lastIndex = coordinates.length - 2
+
+  for (let i = 4; i < lastIndex; i += 2) {
+    const [x2, y2] = [coordinates[i], coordinates[i + 1]]
+    const xMid = (x1 + x2) / 2
+    const yMid = (y1 + y2) / 2
+    yield {
+      type: 'quad',
+      coordinates: [x0, y0, x1, y1, xMid, yMid],
+      pointIndices: pointIndices.slice(0, 3),
+    }
+    pointIndices.shift()
+    ;[x0, y0] = [xMid, yMid]
+    ;[x1, y1] = [x2, y2]
+  }
+
+  yield {
+    type: 'quad',
+    coordinates: [x0, y0, x1, y1, coordinates[lastIndex], coordinates[lastIndex + 1]],
+    pointIndices: pointIndices.slice(0, 3),
+  }
+}
+
+function coordinatesToPoints(coordinates: number[]): Point[] {
+  const points: Point[] = []
+  for (let i = 0; i < coordinates.length; i += 2) {
+    points.push({ x: coordinates[i], y: coordinates[i + 1] })
+  }
+  return points
 }

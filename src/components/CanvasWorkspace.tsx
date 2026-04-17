@@ -22,9 +22,10 @@ export function CanvasWorkspace() {
   const canvasControllerRef = useRef<CanvasController | null>(null)
   const sceneControllerRef = useRef<SceneController | null>(null)
   const sceneViewRef = useRef<SceneView | null>(null)
-
-  // Debug logging
-  console.log('CanvasWorkspace component initialized')
+  const availableTools = [
+    { id: 'pointer', label: 'Pointer', status: 'ready' },
+    { id: 'pen', label: 'Pen', status: 'partial' },
+  ] as const
 
   // Store data
   const fontData = useStore((state) => state.fontData)
@@ -32,13 +33,7 @@ export function CanvasWorkspace() {
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
-
-  console.log('Store data:', {
-    fontData: !!fontData,
-    selectedGlyphId,
-    selectedNodeIdsCount: selectedNodeIds.length,
-    viewport,
-  })
+  const updateViewport = useStore((state) => state.updateViewport)
 
   // Zundo temporal hooks
   const pastStatesLength = useTemporalStore((state) => state.pastStates.length)
@@ -47,12 +42,10 @@ export function CanvasWorkspace() {
   )
 
   const handleUndo = useCallback(() => {
-    console.log('Undo clicked')
     useStore.temporal.getState().undo()
   }, [])
 
   const handleRedo = useCallback(() => {
-    console.log('Redo clicked')
     useStore.temporal.getState().redo()
   }, [])
 
@@ -76,21 +69,11 @@ export function CanvasWorkspace() {
 
   // Convert current glyph data to Fontra format
   const getPositionedGlyph = useCallback((): PositionedGlyph | undefined => {
-    console.log('getPositionedGlyph called', {
-      fontData: !!fontData,
-      selectedGlyphId,
-    })
     if (!fontData || !selectedGlyphId) {
       console.log('Missing fontData or selectedGlyphId')
       return undefined
     }
-
     const glyph = fontData.glyphs[selectedGlyphId]
-    console.log('Found glyph:', {
-      glyphId: selectedGlyphId,
-      hasPaths: !!glyph.paths,
-      pathsCount: glyph.paths?.length,
-    })
     if (!glyph) return undefined
     const pointRefs = buildPointRefs()
 
@@ -99,7 +82,7 @@ export function CanvasWorkspace() {
       points: {
         x: number
         y: number
-        type: 'onCurve' | 'offCurveCubic'
+        type: 'onCurve' | 'offCurveQuad' | 'offCurveCubic'
         smooth?: boolean
       }[]
       isClosed: boolean
@@ -109,9 +92,11 @@ export function CanvasWorkspace() {
       const points = pathData.nodes.map((node) => ({
         x: node.x,
         y: node.y,
-        type: (node.type === 'smooth' ? 'onCurve' : 'onCurve') as
-          | 'onCurve'
-          | 'offCurveCubic',
+        type: (node.type === 'offcurve'
+          ? 'offCurveCubic'
+          : node.type === 'qcurve'
+            ? 'offCurveQuad'
+            : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
         smooth: node.type === 'smooth',
       }))
 
@@ -122,10 +107,6 @@ export function CanvasWorkspace() {
     }
 
     const varPath = VarPackedPath.fromUnpackedContours(contours)
-    console.log('Created VarPackedPath', {
-      contoursCount: contours.length,
-      pointsPerContour: contours.map((c) => c.points.length),
-    })
 
     const glyphData: GlyphData = {
       path: varPath,
@@ -149,7 +130,6 @@ export function CanvasWorkspace() {
 
   // Initialize canvas
   useEffect(() => {
-    console.log('Canvas initialization effect running')
     if (!canvasRef.current) {
       console.log('No canvas ref yet')
       return
@@ -160,11 +140,9 @@ export function CanvasWorkspace() {
     }
 
     const canvas = canvasRef.current
-    console.log('Canvas element:', canvas)
 
     // Create canvas controller
     const controller = new CanvasController(canvas)
-    console.log('CanvasController created')
 
     canvasControllerRef.current = controller
 
@@ -172,11 +150,9 @@ export function CanvasWorkspace() {
     const layers = visualizationLayerDefinitions.map(
       (def) => new VisualizationLayer(def)
     )
-    console.log('Created layers:', layers.length)
     const sceneView = new SceneView(layers)
     sceneViewRef.current = sceneView
     controller.sceneView = sceneView
-    console.log('SceneView created and attached')
 
     // Create scene model FIRST so we can set it on controller before initial draw
     const sceneModel: SceneModel = {
@@ -185,7 +161,6 @@ export function CanvasWorkspace() {
       hoverSelection: new Set(),
       canEdit: true,
     }
-    console.log('SceneModel created')
 
     // Set the sceneModel on controller immediately
     controller.sceneModel = sceneModel
@@ -195,7 +170,6 @@ export function CanvasWorkspace() {
       canvasController: controller,
       model: sceneModel,
       onSelectionChange: (selection) => {
-        console.log('Selection changed:', selection)
         const pointRefs = sceneController.sceneModel.glyph?.pointRefs ?? []
         const nodeIds: string[] = []
         for (const item of selection) {
@@ -211,7 +185,6 @@ export function CanvasWorkspace() {
         setSelectedNodeIds(nodeIds)
       },
       onUpdateNodePosition: (glyphId, pathId, nodeId, newPos) => {
-        console.log('Updating node position via callback:', { glyphId, pathId, nodeId, newPos })
         useStore.getState().updateNodePosition(glyphId, pathId, nodeId, newPos)
       },
       onCommitNodePositions: (glyphId, updates) => {
@@ -223,73 +196,59 @@ export function CanvasWorkspace() {
     })
 
     sceneControllerRef.current = sceneController
-    console.log('SceneController created')
+
+    const syncViewportFromCanvas = () => {
+      updateViewport(
+        controller.magnification,
+        controller.origin.x - controller.canvasWidth / 2,
+        controller.origin.y - controller.canvasHeight / 2
+      )
+    }
+
+    canvas.addEventListener('viewBoxChanged', syncViewportFromCanvas)
 
     // Initial draw
-    console.log('Calling initial draw')
     controller.draw()
 
     return () => {
-      console.log('Cleaning up canvas')
+      canvas.removeEventListener('viewBoxChanged', syncViewportFromCanvas)
       controller.destroy()
       canvasControllerRef.current = null
       sceneControllerRef.current = null
       sceneViewRef.current = null
     }
-  }, [setSelectedNodeIds])
+  }, [setSelectedNodeIds, updateViewport])
 
   // Update scene model when data changes
   useEffect(() => {
-    console.log('Update scene model effect running', {
-      fontData: !!fontData,
-      selectedGlyphId,
-      selectedNodeIdsLength: selectedNodeIds.length,
-    })
     const sceneView = sceneViewRef.current
     const sceneController = sceneControllerRef.current
     if (!sceneView || !sceneController) {
-      console.log('Missing sceneView or sceneController', {
-        sceneView: !!sceneView,
-        sceneController: !!sceneController,
-      })
       return
     }
 
     const positionedGlyph = getPositionedGlyph()
-    console.log('Positioned glyph from getPositionedGlyph:', {
-      positionedGlyph: !!positionedGlyph,
-    })
 
     // Update scene model
-    console.log('Setting sceneModel glyph:', { glyph: positionedGlyph ? { xAdvance: positionedGlyph.glyph.xAdvance } : null })
     sceneController.sceneModel.glyph = positionedGlyph
+    sceneController.sceneModel.lineMetricsHorizontalLayout =
+      fontData?.lineMetricsHorizontalLayout
     sceneController.sceneModel.selection = new Set(
       selectedNodeIds.map((id) => {
         const [, nodeIndex] = id.split(':')
         return `point/${nodeIndex}`
       })
     )
-    console.log('Updated scene model glyph and selection, now has glyph:', !!sceneController.sceneModel.glyph)
 
     // Update viewport
     const controller = canvasControllerRef.current
     if (controller) {
-      console.log('Updating viewport', {
-        viewport,
-        canvasWidth: controller.canvasWidth,
-        canvasHeight: controller.canvasHeight,
-      })
       controller.origin.x = controller.canvasWidth / 2 + viewport.pan.x
       controller.origin.y = controller.canvasHeight / 2 + viewport.pan.y
       controller.magnification = viewport.zoom
-      console.log('Updated controller origin and magnification', {
-        origin: controller.origin,
-        magnification: controller.magnification,
-      })
     }
 
     // Request redraw
-    console.log('Requesting update')
     controller?.requestUpdate()
   }, [fontData, selectedGlyphId, selectedNodeIds, viewport, getPositionedGlyph])
 
@@ -373,6 +332,22 @@ export function CanvasWorkspace() {
           >
             ↪ Redo (⇧⌘Z)
           </Button>
+        </HStack>
+
+        <HStack mt={2} spacing={2} align="center">
+          {availableTools.map((tool) => (
+            <Box
+              key={tool.id}
+              px={2}
+              py={1}
+              borderRadius="md"
+              bg={tool.status === 'ready' ? 'whiteAlpha.200' : 'orange.300'}
+              color={tool.status === 'ready' ? 'whiteAlpha.900' : 'black'}
+              fontSize="xs"
+            >
+              {tool.label} {tool.status === 'partial' ? '(partial)' : ''}
+            </Box>
+          ))}
         </HStack>
       </Flex>
 

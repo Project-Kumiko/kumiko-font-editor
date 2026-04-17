@@ -116,8 +116,24 @@ export function Home() {
 }
 
 function mapGlyphsToFontData(raw: any): FontData {
-  const fontData: FontData = { glyphs: {} };
-  
+  const fontData: FontData = {
+    glyphs: {},
+    lineMetricsHorizontalLayout: getLineMetricsHorizontalLayout(raw),
+  };
+
+  const parseNumeric = (value: unknown) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  };
+
   if (raw && raw.glyphs && Array.isArray(raw.glyphs)) {
     raw.glyphs.forEach((g: any) => {
       const name = g.glyphname || 'unknown';
@@ -135,9 +151,9 @@ function mapGlyphsToFontData(raw: any): FontData {
              if (p.nodes && Array.isArray(p.nodes)) {
                p.nodes.forEach((n: any) => {
                  if (typeof n === 'string') {
-                   const parts = n.split(' ');
-                   if (parts.length >= 2) {
-                     nodes.push({ id: `n${nodes.length}`, x: parseFloat(parts[0]), y: parseFloat(parts[1]), type: 'smooth' });
+                   const parsedNode = parseGlyphsNode(n, nodes.length);
+                   if (parsedNode) {
+                     nodes.push(parsedNode);
                    }
                  }
                });
@@ -151,11 +167,100 @@ function mapGlyphsToFontData(raw: any): FontData {
              if (c.name) components.push(c.name);
            });
         }
+
+        const layerWidth = parseNumeric(layer.width);
+        const glyphWidth = parseNumeric(g.width);
+        const width = layerWidth ?? glyphWidth ?? 1000;
+        const lsb = 60;
+        const rsb = 60;
+
+        fontData.glyphs[id] = {
+          id,
+          name,
+          paths,
+          components,
+          componentRefs: [],
+          metrics: {
+            width,
+            lsb,
+            rsb,
+          },
+        };
+        return;
       }
-      
+
       fontData.glyphs[id] = { id, name, paths, components, componentRefs: [], metrics: { width: 1000, lsb: 60, rsb: 60 } };
     });
   }
   
   return fontData;
+}
+
+function parseGlyphsNode(nodeString: string, index: number): PathNode | null {
+  const parts = nodeString.trim().split(/\s+/);
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const x = Number.parseFloat(parts[0]);
+  const y = Number.parseFloat(parts[1]);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+
+  const typeToken = parts[2]?.toUpperCase();
+  const isSmooth = parts.slice(3).some((part) => part.toUpperCase() === 'SMOOTH');
+
+  let type: PathNode['type'];
+  switch (typeToken) {
+    case 'OFFCURVE':
+      type = 'offcurve';
+      break;
+    case 'QCURVE':
+      type = 'qcurve';
+      break;
+    case 'CURVE':
+      type = isSmooth ? 'smooth' : 'corner';
+      break;
+    case 'LINE':
+    default:
+      type = isSmooth ? 'smooth' : 'corner';
+      break;
+  }
+
+  return {
+    id: `n${index}`,
+    x,
+    y,
+    type,
+  };
+}
+
+function getLineMetricsHorizontalLayout(raw: any) {
+  const parseNumeric = (value: unknown) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  };
+
+  const firstMaster =
+    Array.isArray(raw?.fontMaster) && raw.fontMaster.length > 0 ? raw.fontMaster[0] : null;
+
+  const ascender = parseNumeric(firstMaster?.ascender) ?? parseNumeric(raw?.ascender) ?? 800;
+  const descender = parseNumeric(firstMaster?.descender) ?? parseNumeric(raw?.descender) ?? -200;
+  const capHeight = parseNumeric(firstMaster?.capHeight) ?? parseNumeric(raw?.capHeight);
+  const xHeight = parseNumeric(firstMaster?.xHeight) ?? parseNumeric(raw?.xHeight);
+
+  return {
+    ascender: { value: ascender, zone: 16 },
+    capHeight: { value: capHeight ?? ascender },
+    xHeight: { value: xHeight ?? Math.round(ascender * 0.7) },
+    baseline: { value: 0 },
+    descender: { value: descender, zone: -16 },
+  };
 }

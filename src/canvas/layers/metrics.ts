@@ -64,30 +64,49 @@ registerVisualizationLayerDefinition({
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number
 
-    // Default line metrics if not provided
-    const ascender = 800
-    const descender = -200
-    const xAdvance = 500 // placeholder
+    const lineMetrics = _model.lineMetricsHorizontalLayout
+    if (!lineMetrics) {
+      return
+    }
 
-    // Draw glyph box
+    const glyphWidth = _positionedGlyph.glyph.xAdvance || 0
     const pathBox = new Path2D()
-    pathBox.rect(0, descender, xAdvance, ascender - descender)
+    if (lineMetrics.ascender && lineMetrics.descender) {
+      pathBox.rect(
+        0,
+        lineMetrics.descender.value,
+        glyphWidth,
+        lineMetrics.ascender.value - lineMetrics.descender.value
+      )
+    }
+
+    const zoneFillPaths: Path2D[] = []
+    const zoneEndStrokes = new Path2D()
+    for (const metric of Object.values(lineMetrics)) {
+      if (metric.zone) {
+        const pathZone = new Path2D()
+        pathZone.rect(0, metric.value, glyphWidth, metric.zone)
+        zoneFillPaths.push(pathZone)
+
+        const zoneY = metric.value + metric.zone
+        zoneEndStrokes.moveTo(0, zoneY)
+        zoneEndStrokes.lineTo(glyphWidth, zoneY)
+      }
+
+      const pathMetric = new Path2D()
+      pathMetric.moveTo(0, metric.value)
+      pathMetric.lineTo(glyphWidth, metric.value)
+      pathBox.addPath(pathMetric)
+    }
+
+    context.fillStyle = parameters.zoneColor as string
+    zoneFillPaths.forEach((zonePath) => context.fill(zonePath))
+
+    context.strokeStyle = parameters.zoneStrokeColor as string
+    context.stroke(zoneEndStrokes)
 
     context.strokeStyle = parameters.strokeColor as string
     context.stroke(pathBox)
-
-    // Draw metrics lines
-    const metricsLines = [
-      { y: ascender, label: 'ascender' },
-      { y: descender, label: 'descender' },
-      { y: 0, label: 'baseline' },
-      { y: 700, label: 'cap height' },
-      { y: 500, label: 'x-height' },
-    ]
-
-    for (const metric of metricsLines) {
-      strokeLine(context, 0, metric.y, xAdvance, metric.y)
-    }
   },
 })
 

@@ -42,7 +42,10 @@ export class CanvasController {
   private _resizeObserver: ResizeObserver | null = null
   private _initialScrollTarget: EventTarget | null = null
   private _scrollTimerID: number | null = null
-  private _previousOffsets: { parentOffsetX: number; parentOffsetY: number } | null = null
+  private _previousOffsets: {
+    parentOffsetX: number
+    parentOffsetY: number
+  } | null = null
   private _initialMagnification = 0
 
   constructor(
@@ -76,9 +79,18 @@ export class CanvasController {
     this.canvas.addEventListener('wheel', this.handleWheel.bind(this))
 
     // Safari pinch zoom
-    this.canvas.addEventListener('gesturestart', this.handleSafariGestureStart.bind(this))
-    this.canvas.addEventListener('gesturechange', this.handleSafariGestureChange.bind(this))
-    this.canvas.addEventListener('gestureend', this.handleSafariGestureEnd.bind(this))
+    this.canvas.addEventListener(
+      'gesturestart',
+      this.handleSafariGestureStart.bind(this)
+    )
+    this.canvas.addEventListener(
+      'gesturechange',
+      this.handleSafariGestureChange.bind(this)
+    )
+    this.canvas.addEventListener(
+      'gestureend',
+      this.handleSafariGestureEnd.bind(this)
+    )
 
     this.setupSize()
     this.requestUpdate()
@@ -103,8 +115,7 @@ export class CanvasController {
 
   private _shouldBlockScroll(_event: WheelEvent): boolean {
     return !!(
-      this._initialScrollTarget &&
-      this._initialScrollTarget !== this.canvas
+      this._initialScrollTarget && this._initialScrollTarget !== this.canvas
     )
   }
 
@@ -132,8 +143,8 @@ export class CanvasController {
     this.canvas.style.width = width + 'px'
     this.canvas.style.height = height + 'px'
 
-    const parentOffsetX = (this.canvas.parentElement?.offsetLeft ?? 0)
-    const parentOffsetY = (this.canvas.parentElement?.offsetTop ?? 0)
+    const parentOffsetX = this.canvas.parentElement?.offsetLeft ?? 0
+    const parentOffsetY = this.canvas.parentElement?.offsetTop ?? 0
 
     if (this._previousOffsets) {
       // Try to keep the scroll position constant
@@ -147,18 +158,6 @@ export class CanvasController {
   }
 
   draw() {
-    console.log('CanvasController.draw called', {
-      canvasWidth: this.canvas.width,
-      canvasHeight: this.canvas.height,
-      scale: this.devicePixelRatio,
-      magnification: this.magnification,
-      origin: this.origin,
-      hasSceneView: !!this.sceneView,
-      hasSceneModel: !!this.sceneModel,
-      sceneView: this.sceneView,
-      sceneModel: this.sceneModel
-    })
-
     const scale = this.devicePixelRatio
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height)
 
@@ -172,7 +171,6 @@ export class CanvasController {
       return
     }
 
-    console.log('About to draw sceneView')
     try {
       withSavedState(this.context, () => {
         this.context.scale(scale, scale)
@@ -184,11 +182,9 @@ export class CanvasController {
       console.error('Error in draw:', error)
       throw error
     }
-    console.log('Finished drawing sceneView')
   }
 
   requestUpdate() {
-    console.log('CanvasController.requestUpdate called')
     requestAnimationFrame(() => this.draw())
   }
 
@@ -201,12 +197,14 @@ export class CanvasController {
       return
     }
 
-    let { deltaX, deltaY } = event
+    const { deltaX, deltaY } = event
 
     // Detect "clunky" scroll wheel
     const clunkyScrollWheel =
       Math.abs(deltaY) > 50 &&
-      Math.abs((event as WheelEvent & { wheelDeltaY: number }).wheelDeltaY / deltaY) < 2
+      Math.abs(
+        (event as WheelEvent & { wheelDeltaY: number }).wheelDeltaY / deltaY
+      ) < 2
 
     if (event.ctrlKey || event.altKey) {
       const scaleDown = clunkyScrollWheel ? 500 : event.ctrlKey ? 100 : 300
@@ -227,13 +225,17 @@ export class CanvasController {
     event.preventDefault()
     const gestureEvent = event as unknown as { scale: number }
     this._initialMagnification = this.magnification
-    this._doPinchMagnify(gestureEvent as unknown as MouseEvent, gestureEvent.scale)
+    this._doPinchMagnify(
+      gestureEvent as unknown as MouseEvent,
+      gestureEvent.scale
+    )
   }
 
   handleSafariGestureChange(event: Event) {
     event.preventDefault()
     const gestureEvent = event as unknown as { scale: number }
-    const zoomFactor = (this._initialMagnification * gestureEvent.scale) / this.magnification
+    const zoomFactor =
+      (this._initialMagnification * gestureEvent.scale) / this.magnification
     this._doPinchMagnify(gestureEvent as unknown as MouseEvent, zoomFactor)
   }
 
@@ -242,7 +244,10 @@ export class CanvasController {
     this._initialMagnification = 0
   }
 
-  private _doPinchMagnify(event: { pageX: number; pageY: number }, zoomFactor: number) {
+  private _doPinchMagnify(
+    event: { pageX: number; pageY: number },
+    zoomFactor: number
+  ) {
     const center = this.localPoint({ x: event.pageX, y: event.pageY })
     const prevMagnification = this.magnification
 
