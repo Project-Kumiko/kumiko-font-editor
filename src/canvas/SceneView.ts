@@ -14,7 +14,9 @@ export interface SceneModel {
   >
   selection?: Set<string>
   hoverSelection?: Set<string>
+  selectionRect?: { xMin: number; yMin: number; xMax: number; yMax: number }
   hoverPathHit?: PathHitInfo
+  selectedPathHit?: PathHitInfo
   initialClickedPointIndex?: number
   canEdit?: boolean
 }
@@ -23,6 +25,9 @@ export interface PathHitInfo {
   segment: {
     points: { x: number; y: number }[]
     pointIndices: number[]
+    type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+    contourIndex?: number
+    key?: string
   }
   x: number
   y: number
@@ -47,12 +52,19 @@ export interface GlyphData {
     iterContours(): Generator<{ points: Point[]; isClosed: boolean }, void>
     iterContourSegments?(
       contourIndex: number
-    ): Generator<{ points: Point[]; pointIndices: number[] }, void>
+    ): Generator<{
+      points: Point[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+    }, void>
     appendUnpackedContour?(contour: {
       points: Point[]
       isClosed: boolean
     }): void
     setPoint?(index: number, point: Point): void
+    getPoint?(index: number): Point
+    contourToPath2D?(contourIndex: number): Path2D
+    contourInfo?: Array<{ endPoint: number; isClosed?: boolean }>
     pointTypes?: Uint8Array
     coordinates?: Float64Array
     toPath2D(): Path2D

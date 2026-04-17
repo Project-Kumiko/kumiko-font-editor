@@ -27,20 +27,108 @@ export interface EventStream {
 export interface SceneControllerInterface {
   selection: Set<string>
   hoverSelection: Set<string>
-  hoverPathHit?: { segment: { points: { x: number; y: number }[] }; x: number; y: number }
+  selectedPathHit?: {
+    segment: {
+      points: { x: number; y: number }[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      contourIndex?: number
+      key?: string
+    }
+    x: number
+    y: number
+  }
+  hoverPathHit?: {
+    segment: {
+      points: { x: number; y: number }[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      contourIndex?: number
+      key?: string
+    }
+    x: number
+    y: number
+  }
   mouseClickMargin: number
+  setHoverSelection(selection: Set<string>): void
+  setHoverPathHit(
+    pathHit?: {
+      segment: {
+        points: { x: number; y: number }[]
+        pointIndices: number[]
+        type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+        contourIndex?: number
+        key?: string
+      }
+      x: number
+      y: number
+    }
+  ): void
+  setSelectedPathHit(
+    pathHit?: {
+      segment: {
+        points: { x: number; y: number }[]
+        pointIndices: number[]
+        type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+        contourIndex?: number
+        key?: string
+      }
+      x: number
+      y: number
+    }
+  ): void
   localPoint(event: { pageX: number; pageY: number }): { x: number; y: number }
+  hitTestAtPoint(
+    point: { x: number; y: number },
+    size: number,
+    currentSelection?: Set<string>
+  ):
+    | { type: 'point' | 'handle'; pointIndex: number; selection: Set<string> }
+    | {
+        type: 'line-segment' | 'curve-segment'
+        pathHit: {
+          segment: {
+            points: { x: number; y: number }[]
+            pointIndices: number[]
+            type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+            contourIndex?: number
+            key?: string
+          }
+          x: number
+          y: number
+        }
+        selection: Set<string>
+      }
+    | { type: 'contour-interior'; contourIndex: number; selection: Set<string> }
+    | { type: 'empty'; selection: Set<string> }
   selectionAtPoint(
     point: { x: number; y: number },
     size: number,
     currentSelection: Set<string>,
     hoverSelection: Set<string>,
     altKey: boolean
-  ): { selection: Set<string>; pathHit?: { segment: { points: { x: number; y: number }[] }; x: number; y: number } }
+  ): {
+    selection: Set<string>
+    pathHit?: {
+      segment: { points: { x: number; y: number }[]; pointIndices: number[] }
+      x: number
+      y: number
+    }
+  }
   pathHitAtPoint(
     point: { x: number; y: number },
     size: number
-  ): { segment: { points: { x: number; y: number }[] }; x: number; y: number }
+  ): {
+    segment: {
+      points: { x: number; y: number }[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      contourIndex?: number
+      key?: string
+    }
+    x: number
+    y: number
+  } | null
   onUpdateNodePosition?: (
     glyphId: string,
     pathId: string,
@@ -62,6 +150,7 @@ export interface SceneControllerInterface {
     type: 'corner' | 'smooth'
   ) => void
   setSelection(selection: Set<string>): void
+  previewSelection(selection: Set<string>): void
 }
 
 export abstract class BaseTool {

@@ -513,7 +513,9 @@ export const useStore = create<GlobalState>()(
         }),
     })),
     {
-      partialize: (state) => ({ fontData: state.fontData, selectedGlyphId: state.selectedGlyphId, selectedNodeIds: state.selectedNodeIds, viewport: state.viewport }),
+      partialize: (state) => ({ fontData: state.fontData }),
+      equality: (pastState, currentState) =>
+        pastState.fontData === currentState.fontData,
       limit: 50,
     }
   )

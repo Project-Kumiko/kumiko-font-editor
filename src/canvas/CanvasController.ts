@@ -42,6 +42,7 @@ export class CanvasController {
   private _resizeObserver: ResizeObserver | null = null
   private _initialScrollTarget: EventTarget | null = null
   private _scrollTimerID: number | null = null
+  private _updateRequested = false
   private _previousOffsets: {
     parentOffsetX: number
     parentOffsetY: number
@@ -185,7 +186,14 @@ export class CanvasController {
   }
 
   requestUpdate() {
-    requestAnimationFrame(() => this.draw())
+    if (this._updateRequested) {
+      return
+    }
+    this._updateRequested = true
+    requestAnimationFrame(() => {
+      this._updateRequested = false
+      this.draw()
+    })
   }
 
   // Event handlers

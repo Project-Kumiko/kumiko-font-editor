@@ -1,7 +1,7 @@
 // 場景控制器 - 管理編輯狀態和互動
 
 import type { CanvasController } from '../canvas/CanvasController'
-import type { SceneModel } from '../canvas/SceneView'
+import type { PathHitInfo, Point, SceneModel } from '../canvas/SceneView'
 import { PointerTool } from './PointerTool'
 import { PenTool } from './PenTool'
 import type { BaseTool, ToolEvent } from './BaseTool'
@@ -32,13 +32,21 @@ export interface SceneControllerOptions {
   ) => void
 }
 
+export type HitTestResult =
+  | { type: 'point' | 'handle'; pointIndex: number; selection: Set<string> }
+  | { type: 'line-segment' | 'curve-segment'; pathHit: PathHitInfo; selection: Set<string> }
+  | { type: 'contour-interior'; contourIndex: number; selection: Set<string> }
+  | { type: 'empty'; selection: Set<string> }
+
+type IndexedPoint = Point & { index: number }
 export class SceneController {
   canvasController: CanvasController
   sceneModel: SceneModel
 
   selection: Set<string> = new Set()
   hoverSelection: Set<string> = new Set()
-  hoverPathHit?: { segment: { points: { x: number; y: number }[] }; x: number; y: number }
+  selectedPathHit?: PathHitInfo
+  hoverPathHit?: PathHitInfo
 
   mouseClickMargin = 10
 
@@ -58,27 +66,21 @@ export class SceneController {
     this.onCommitNodePositions = options.onCommitNodePositions
     this.onUpdateNodeType = options.onUpdateNodeType
 
-    // Initialize tools
     this.tools.set(
       'pointer',
       new PointerTool(this.canvasController, this as any, this.sceneModel)
     )
     this.tools.set('pen', new PenTool(this.canvasController, this as any, this.sceneModel))
 
-    // Set default tool
     this.setActiveTool('pointer')
-
-    // Bind events
     this.bindEvents()
   }
 
   setActiveTool(toolName: string) {
-    // Deactivate current tool
     if (this.activeTool) {
       this.activeTool.deactivate()
     }
 
-    // Activate new tool
     this.activeTool = this.tools.get(toolName) || null
     if (this.activeTool) {
       this.activeTool.activate()
@@ -86,20 +88,37 @@ export class SceneController {
   }
 
   setSelection(selection: Set<string>) {
-    this.selection = selection
+    this.selection = new Set(selection)
+    this.sceneModel.selection = new Set(selection)
     this.onSelectionChange?.(selection)
+  }
+
+  previewSelection(selection: Set<string>) {
+    this.selection = new Set(selection)
+    this.sceneModel.selection = new Set(selection)
+  }
+
+  setHoverSelection(selection: Set<string>) {
+    this.hoverSelection = new Set(selection)
+    this.sceneModel.hoverSelection = new Set(selection)
+  }
+
+  setSelectedPathHit(pathHit?: PathHitInfo) {
+    this.selectedPathHit = pathHit
+    this.sceneModel.selectedPathHit = pathHit
+  }
+
+  setHoverPathHit(pathHit?: PathHitInfo) {
+    this.hoverPathHit = pathHit
+    this.sceneModel.hoverPathHit = pathHit
   }
 
   private bindEvents() {
     const canvas = this.canvasController.canvas
-
-    // Mouse events
     canvas.addEventListener('mousedown', this.handleMouseDown.bind(this))
     canvas.addEventListener('mousemove', this.handleMouseMove.bind(this))
     canvas.addEventListener('mouseup', this.handleMouseUp.bind(this))
     canvas.addEventListener('dblclick', this.handleDoubleClick.bind(this))
-
-    // Prevent context menu
     canvas.addEventListener('contextmenu', (e) => e.preventDefault())
   }
 
@@ -107,11 +126,7 @@ export class SceneController {
     if (!this.activeTool) return
 
     const toolEvent = this.mouseEventToToolEvent(event)
-
-    // Create event stream for drag handling
     this._eventStream = new EventStreamImpl()
-
-    // Start drag
     this.activeTool.handleDrag(this._eventStream, toolEvent).catch(console.error)
   }
 
@@ -119,12 +134,9 @@ export class SceneController {
     if (!this.activeTool) return
 
     const toolEvent = this.mouseEventToToolEvent(event)
-
-    // Pass to event stream if dragging
     if (this._eventStream && !this._eventStream.done_) {
       this._eventStream.push(toolEvent)
     } else {
-      // Just hover
       this.activeTool.handleHover(toolEvent)
     }
   }
@@ -137,17 +149,14 @@ export class SceneController {
   }
 
   private handleDoubleClick(_event: MouseEvent) {
-    // Handled in mousedown via detail count
+    // handled in mousedown via detail
   }
 
   private mouseEventToToolEvent(event: MouseEvent): ToolEvent {
     const rect = this.canvasController.canvas.getBoundingClientRect()
-    const x = event.clientX - rect.left
-    const y = event.clientY - rect.top
-
     return {
-      x,
-      y,
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
       pageX: event.pageX,
       pageY: event.pageY,
       detail: event.detail,
@@ -159,77 +168,160 @@ export class SceneController {
     }
   }
 
-  // Hit testing methods
-
   localPoint(event: { pageX: number; pageY: number }): { x: number; y: number } {
     return this.canvasController.localPoint({ x: event.pageX, y: event.pageY })
+  }
+
+  hitTestAtPoint(
+    point: { x: number; y: number },
+    size: number,
+    currentSelection: Set<string> = this.selection
+  ): HitTestResult {
+    const glyph = this.sceneModel.glyph
+    const path = glyph?.glyph.path
+    if (!path) {
+      return { type: 'empty', selection: new Set() }
+    }
+
+    const threshold = size / this.canvasController.magnification
+    const selectedPointHit = this.findPointHit(point, threshold, currentSelection, path)
+    if (selectedPointHit) {
+      return selectedPointHit
+    }
+
+    const anyPointHit = this.findPointHit(point, threshold, undefined, path)
+    if (anyPointHit) {
+      return anyPointHit
+    }
+
+    const pathHit = this.pathHitAtPoint(point, size)
+    if (pathHit) {
+      return {
+        type: pathHit.segment.type === 'line' ? 'line-segment' : 'curve-segment',
+        pathHit,
+        selection: new Set(),
+      }
+    }
+
+    const contourInterior = this.contourSelectionAtPoint(point)
+    if (contourInterior) {
+      return contourInterior
+    }
+
+    return { type: 'empty', selection: new Set() }
   }
 
   selectionAtPoint(
     point: { x: number; y: number },
     size: number,
-    _currentSelection: Set<string>,
+    currentSelection: Set<string>,
     _hoverSelection: Set<string>,
     _altKey: boolean
-  ): { selection: Set<string>; pathHit?: { segment: { points: { x: number; y: number }[] }; x: number; y: number } } {
-    const selection = new Set<string>()
-
-    // Check if point is near a node
-    const glyph = this.sceneModel.glyph
-    if (glyph?.glyph.path) {
-      const path = glyph.glyph.path
-
-      for (const pt of path.iterPoints()) {
-        const dist = Math.sqrt((pt.x - point.x) ** 2 + (pt.y - point.y) ** 2)
-        if (dist <= size / this.canvasController.magnification) {
-          selection.add(`point/${pt.index}`)
-          return { selection }
-        }
-      }
+  ): { selection: Set<string>; pathHit?: PathHitInfo } {
+    const hit = this.hitTestAtPoint(point, size, currentSelection)
+    if (hit.type === 'line-segment' || hit.type === 'curve-segment') {
+      return { selection: hit.selection, pathHit: hit.pathHit }
     }
-
-    // Check for path hit
-    const pathHit = this.pathHitAtPoint(point, size)
-    if (pathHit) {
-      return { selection, pathHit }
-    }
-
-    return { selection }
+    return { selection: hit.selection }
   }
 
   pathHitAtPoint(
     point: { x: number; y: number },
     size: number
-  ): { segment: { points: { x: number; y: number }[] }; x: number; y: number } | null {
+  ): PathHitInfo | null {
     const glyph = this.sceneModel.glyph
-    if (!glyph?.glyph.path) return null
+    const path = glyph?.glyph.path
+    if (!path?.iterContourSegments) {
+      return null
+    }
 
     const threshold = size / this.canvasController.magnification
-    const path = glyph.glyph.path
+    let bestHit: PathHitInfo | null = null
+    let bestDistance = Number.POSITIVE_INFINITY
 
-    // Check segments
-    for (let i = 0; i < path.numContours; i++) {
-      if (!path.iterContourSegments) {
-        return null
+    for (let contourIndex = 0; contourIndex < path.numContours; contourIndex += 1) {
+      for (const segment of path.iterContourSegments(contourIndex)) {
+        const nearest = this.nearestPointOnSegment(point, segment.points)
+        if (!nearest || nearest.distance > threshold || nearest.distance >= bestDistance) {
+          continue
+        }
+
+        bestDistance = nearest.distance
+        bestHit = {
+          segment: {
+            points: segment.points,
+            pointIndices: segment.pointIndices,
+            type: segment.type,
+            contourIndex,
+            key: this.segmentKey(contourIndex, segment.pointIndices),
+          },
+          x: nearest.point.x,
+          y: nearest.point.y,
+        }
+      }
+    }
+
+    return bestHit
+  }
+
+  private contourSelectionAtPoint(
+    point: { x: number; y: number }
+  ): Extract<HitTestResult, { type: 'contour-interior' }> | null {
+    const path = this.sceneModel.glyph?.glyph.path
+    if (!path || !this.canvasController.context || !path.contourInfo || !path.contourToPath2D) {
+      return null
+    }
+
+    for (let contourIndex = path.numContours - 1; contourIndex >= 0; contourIndex -= 1) {
+      const contourPath = path.contourToPath2D(contourIndex)
+      if (!this.canvasController.context.isPointInPath(contourPath, point.x, point.y)) {
+        continue
       }
 
-      for (const segment of path.iterContourSegments(i)) {
-        const pts = segment.points
-        if (pts.length < 2) continue
+      const selection = new Set<string>()
+      const startPoint = contourIndex === 0 ? 0 : path.contourInfo[contourIndex - 1].endPoint + 1
+      const endPoint = path.contourInfo[contourIndex].endPoint
+      for (let i = startPoint; i <= endPoint; i += 1) {
+        const contourPoint = path.getPoint?.(i)
+        if (contourPoint?.type === 'onCurve') {
+          selection.add(`point/${i}`)
+        }
+      }
 
-        // Check distance to line segment
-        for (let j = 0; j < pts.length - 1; j++) {
-          const p1 = pts[j]
-          const p2 = pts[j + 1]
-          const dist = this.pointToSegmentDistance(point, p1, p2)
+      return { type: 'contour-interior', contourIndex, selection }
+    }
 
-          if (dist <= threshold) {
-            return {
-              segment: { points: [p1, p2] },
-              x: point.x,
-              y: point.y,
-            }
+    return null
+  }
+
+  private findPointHit(
+    point: { x: number; y: number },
+    threshold: number,
+    selection: Set<string> | undefined,
+    path: { iterPoints(): Generator<IndexedPoint, void> }
+  ): Extract<HitTestResult, { type: 'point' | 'handle' }> | null {
+    if (selection?.size) {
+      for (const item of selection) {
+        const match = item.match(/^point\/(\d+)$/)
+        if (!match) continue
+        const hitPoint = this.getPointByIndex(path, parseInt(match[1], 10))
+        if (!hitPoint) continue
+        if (distance(point, hitPoint) <= threshold) {
+          return {
+            type: hitPoint.type === 'onCurve' ? 'point' : 'handle',
+            pointIndex: hitPoint.index,
+            selection: new Set([`point/${hitPoint.index}`]),
           }
+        }
+      }
+    }
+
+    for (const hitPoint of path.iterPoints()) {
+      if (distance(point, hitPoint) <= threshold) {
+        return {
+          type: hitPoint.type === 'onCurve' ? 'point' : 'handle',
+          pointIndex: hitPoint.index,
+          selection: new Set([`point/${hitPoint.index}`]),
         }
       }
     }
@@ -237,28 +329,101 @@ export class SceneController {
     return null
   }
 
-  private pointToSegmentDistance(
+  private nearestPointOnSegment(
+    point: { x: number; y: number },
+    points: { x: number; y: number }[]
+  ): { point: { x: number; y: number }; distance: number } | null {
+    if (points.length < 2) {
+      return null
+    }
+    if (points.length === 2) {
+      return this.projectPointToLineSegment(point, points[0], points[1])
+    }
+
+    const steps = points.length === 3 ? 24 : 32
+    let bestPoint = points[0]
+    let bestDistance = Number.POSITIVE_INFINITY
+
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps
+      const sample =
+        points.length === 3
+          ? quadraticAt(points[0], points[1], points[2], t)
+          : cubicAt(points[0], points[1], points[2], points[3], t)
+      const sampleDistance = distance(point, sample)
+      if (sampleDistance < bestDistance) {
+        bestDistance = sampleDistance
+        bestPoint = sample
+      }
+    }
+
+    return { point: bestPoint, distance: bestDistance }
+  }
+
+  private projectPointToLineSegment(
     point: { x: number; y: number },
     p1: { x: number; y: number },
     p2: { x: number; y: number }
-  ): number {
+  ) {
     const dx = p2.x - p1.x
     const dy = p2.y - p1.y
-
     if (dx === 0 && dy === 0) {
-      return Math.sqrt((point.x - p1.x) ** 2 + (point.y - p1.y) ** 2)
+      return { point: p1, distance: distance(point, p1) }
     }
 
-    const t = Math.max(0, Math.min(1, ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy)))
+    const t = Math.max(
+      0,
+      Math.min(1, ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy))
+    )
+    const projected = { x: p1.x + t * dx, y: p1.y + t * dy }
+    return { point: projected, distance: distance(point, projected) }
+  }
 
-    const projX = p1.x + t * dx
-    const projY = p1.y + t * dy
+  private segmentKey(contourIndex: number, pointIndices: number[]): string {
+    return `${contourIndex}:${pointIndices.join('-')}`
+  }
 
-    return Math.sqrt((point.x - projX) ** 2 + (point.y - projY) ** 2)
+  private getPointByIndex(
+    path: { iterPoints(): Generator<IndexedPoint, void> },
+    index: number
+  ): IndexedPoint | null {
+    for (const pt of path.iterPoints()) {
+      if (pt.index === index) {
+        return pt
+      }
+    }
+    return null
   }
 }
 
-// Event stream implementation
+function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function quadraticAt(p0: Point, p1: Point, p2: Point, t: number) {
+  const inv = 1 - t
+  return {
+    x: inv * inv * p0.x + 2 * inv * t * p1.x + t * t * p2.x,
+    y: inv * inv * p0.y + 2 * inv * t * p1.y + t * t * p2.y,
+  }
+}
+
+function cubicAt(p0: Point, p1: Point, p2: Point, p3: Point, t: number) {
+  const inv = 1 - t
+  return {
+    x:
+      inv * inv * inv * p0.x +
+      3 * inv * inv * t * p1.x +
+      3 * inv * t * t * p2.x +
+      t * t * t * p3.x,
+    y:
+      inv * inv * inv * p0.y +
+      3 * inv * inv * t * p1.y +
+      3 * inv * t * t * p2.y +
+      t * t * t * p3.y,
+  }
+}
+
 class EventStreamImpl {
   private events: ToolEvent[] = []
   private resolvers: ((event: ToolEvent | undefined) => void)[] = []
@@ -285,11 +450,9 @@ class EventStreamImpl {
     if (this.events.length > 0) {
       return this.events.shift()
     }
-
     if (this.done_) {
       return undefined
     }
-
     return new Promise((resolve) => {
       this.resolvers.push(resolve)
     })

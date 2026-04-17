@@ -304,24 +304,23 @@ export class VarPackedPath {
   }
 
   *iterHandles(): Generator<[Point, Point], void> {
-    for (const contour of this.iterContours()) {
-      const { points, isClosed } = contour
-      if (points.length < 2) continue
-
-      for (let i = 0; i < points.length; i++) {
-        const point = points[i]
-        if (point.type !== 'onCurve') continue
-
-        const nextIndex = (i + 1) % points.length
-        const nextPoint = points[nextIndex]
-
-        if (!isClosed && i === points.length - 1) continue
-
-        // Check for off-curve handles
-        if (nextPoint.type === 'offCurveQuad' || nextPoint.type === 'offCurveCubic') {
-          yield [point, nextPoint]
+    let startPoint = 0
+    for (const contour of this.contourInfo) {
+      const endPoint = contour.endPoint
+      let prevIndex = contour.isClosed ? endPoint : startPoint
+      for (
+        let nextIndex = startPoint + (contour.isClosed ? 0 : 1);
+        nextIndex <= endPoint;
+        nextIndex++
+      ) {
+        const prevType = this.pointTypes[prevIndex] & POINT_TYPE_MASK
+        const nextType = this.pointTypes[nextIndex] & POINT_TYPE_MASK
+        if (prevType !== nextType || nextType === POINT_TYPE_OFF_CURVE_QUAD) {
+          yield [this.getPoint(prevIndex), this.getPoint(nextIndex)]
         }
+        prevIndex = nextIndex
       }
+      startPoint = endPoint + 1
     }
   }
 
@@ -435,6 +434,45 @@ export class VarPackedPath {
   // Create Path2D for Canvas rendering
   toPath2D(): Path2D {
     return new Path2D(this.toSVGPath())
+  }
+
+  contourToPath2D(contourIndex: number): Path2D {
+    const path = new Path2D()
+    const segments = Array.from(this.iterContourSegments(contourIndex))
+
+    for (let j = 0; j < segments.length; j += 1) {
+      const segment = segments[j]
+      const pts = segment.points
+      if (j === 0) {
+        path.moveTo(pts[0].x, pts[0].y)
+      }
+
+      if (segment.type === 'line' && pts.length === 2) {
+        path.lineTo(pts[1].x, pts[1].y)
+      } else if (segment.type === 'quad' && pts.length === 3) {
+        path.quadraticCurveTo(pts[1].x, pts[1].y, pts[2].x, pts[2].y)
+      } else if (segment.type === 'cubic' && pts.length === 4) {
+        path.bezierCurveTo(
+          pts[1].x,
+          pts[1].y,
+          pts[2].x,
+          pts[2].y,
+          pts[3].x,
+          pts[3].y
+        )
+      }
+    }
+
+    if (this.contourInfo[contourIndex]?.isClosed !== false) {
+      path.closePath()
+    }
+    return path
+  }
+
+  getAbsolutePointIndex(contourIndex: number, contourPointIndex: number): number {
+    const normalizedIndex = this._normalizeContourIndex(contourIndex)
+    const startPoint = this._getContourStartPoint(normalizedIndex)
+    return startPoint + contourPointIndex
   }
 
   private *_iterDecomposedSegments(

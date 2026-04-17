@@ -59,6 +59,45 @@ registerVisualizationLayerDefinition({
   },
 })
 
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.selected.segments',
+  name: 'Selected Segments',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 540,
+  screenParameters: { strokeWidth: 4 },
+  colors: {
+    selectedColor: '#0f766e',
+    hoveredColor: '#2b6cb0',
+  },
+  colorsDarkMode: {
+    selectedColor: '#81e6d9',
+    hoveredColor: '#90cdf4',
+  },
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    const context = canvasController.context
+    const glyph = positionedGlyph.glyph
+    if (!glyph.path?.iterContourSegments) return
+
+    const selectedSegmentKey = model.selectedPathHit?.segment.key
+
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+    context.lineWidth = parameters.strokeWidth as number
+
+    for (let contourIndex = 0; contourIndex < glyph.path.numContours; contourIndex += 1) {
+      for (const segment of glyph.path.iterContourSegments(contourIndex)) {
+        const segmentKey = `${contourIndex}:${segment.pointIndices.join('-')}`
+        const isSelected = selectedSegmentKey === segmentKey
+        if (!isSelected) {
+          continue
+        }
+        context.strokeStyle = parameters.selectedColor as string
+        strokeSegment(context, segment.points)
+      }
+    }
+  },
+})
+
 // 控制杆 (Bezier handles)
 registerVisualizationLayerDefinition({
   identifier: 'fontra.handles',
@@ -68,15 +107,26 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#777' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterHandles) return
 
-    context.strokeStyle = parameters.color as string
     context.lineWidth = parameters.strokeWidth as number
+    const selectedPointIndices = expandSelectionForDisplay(
+      glyph.path,
+      new Set(parseSelection(model.selection || new Set()))
+    )
+    const hoveredPointIndices = new Set(parseSelection(model.hoverSelection || new Set()))
 
     for (const [pt1, pt2] of glyph.path.iterHandles()) {
+      const handleIndices = findHandleIndices(glyph.path, pt1, pt2)
+      context.strokeStyle =
+        handleIndices.some((index) => selectedPointIndices.has(index))
+          ? '#0f766e'
+          : handleIndices.some((index) => hoveredPointIndices.has(index))
+          ? '#2b6cb0'
+          : (parameters.color as string)
       strokeLine(context, pt1.x, pt1.y, pt2.x, pt2.y)
     }
   },
@@ -142,7 +192,9 @@ registerVisualizationLayerDefinition({
     const handleSize = parameters.handleSize as number
     const underlayOffset = parameters.underlayOffset as number
 
-    const selectedPointIndices = parseSelection(model.selection || new Set())
+    const selectedPointIndices = Array.from(
+      expandSelectionForDisplay(glyph.path, new Set(parseSelection(model.selection || new Set())))
+    )
     const hoveredPointIndices = parseSelection(model.hoverSelection || new Set())
 
     // Draw underlay (white background)
@@ -172,6 +224,9 @@ registerVisualizationLayerDefinition({
     // Draw hovered nodes
     context.fillStyle = parameters.hoveredColor as string
     for (const idx of hoveredPointIndices) {
+      if (selectedPointIndices.includes(idx)) {
+        continue
+      }
       const pt = getPointByIndex(glyph.path, idx)
       if (pt) {
         fillNode(context, pt, cornerSize, smoothSize, handleSize)
@@ -212,6 +267,30 @@ registerVisualizationLayerDefinition({
   },
 })
 
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.selection.rect',
+  name: 'Selection Rect',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 800,
+  screenParameters: { strokeWidth: 1 },
+  colors: { strokeColor: '#2b6cb0', fillColor: '#90cdf433' },
+  colorsDarkMode: { strokeColor: '#90cdf4', fillColor: '#90cdf433' },
+  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    if (!model.selectionRect) {
+      return
+    }
+    const rect = model.selectionRect
+    const context = canvasController.context
+    context.lineWidth = parameters.strokeWidth as number
+    context.strokeStyle = parameters.strokeColor as string
+    context.fillStyle = parameters.fillColor as string
+    context.beginPath()
+    context.rect(rect.xMin, rect.yMin, rect.xMax - rect.xMin, rect.yMax - rect.yMin)
+    context.fill()
+    context.stroke()
+  },
+})
+
 // Helper functions
 
 function fillNode(
@@ -245,6 +324,33 @@ function fillNode(
   context.fill()
 }
 
+function strokeSegment(
+  context: CanvasRenderingContext2D,
+  points: Point[]
+) {
+  if (points.length < 2) {
+    return
+  }
+
+  context.beginPath()
+  context.moveTo(points[0].x, points[0].y)
+  if (points.length === 2) {
+    context.lineTo(points[1].x, points[1].y)
+  } else if (points.length === 3) {
+    context.quadraticCurveTo(points[1].x, points[1].y, points[2].x, points[2].y)
+  } else if (points.length >= 4) {
+    context.bezierCurveTo(
+      points[1].x,
+      points[1].y,
+      points[2].x,
+      points[2].y,
+      points[3].x,
+      points[3].y
+    )
+  }
+  context.stroke()
+}
+
 function parseSelection(selection: Set<string>): number[] {
   const indices: number[] = []
   for (const item of selection) {
@@ -264,6 +370,121 @@ function getPointByIndex(
     if (pt.index === index) {
       return pt
     }
+  }
+  return null
+}
+
+function findHandleIndices(
+  path: { iterPoints(): Generator<Point & { index: number }, void> },
+  pt1: Point,
+  pt2: Point
+): number[] {
+  const indices: number[] = []
+  for (const point of path.iterPoints()) {
+    if (
+      (point.x === pt1.x && point.y === pt1.y) ||
+      (point.x === pt2.x && point.y === pt2.y)
+    ) {
+      indices.push(point.index)
+    }
+  }
+  return indices
+}
+
+function expandSelectionForDisplay(
+  path: {
+    getPoint?(index: number): Point
+    contourInfo?: Array<{ endPoint: number; isClosed?: boolean }>
+  },
+  selection: Set<number>
+): Set<number> {
+  if (!path.getPoint || !path.contourInfo?.length) {
+    return selection
+  }
+
+  const expanded = new Set(selection)
+  for (const index of selection) {
+    const point = path.getPoint(index)
+    if (!point || point.type !== 'onCurve') {
+      continue
+    }
+    for (const attachedIndex of findAttachedHandleIndices(path, index)) {
+      expanded.add(attachedIndex)
+    }
+  }
+  return expanded
+}
+
+function findAttachedHandleIndices(
+  path: {
+    getPoint?(index: number): Point
+    contourInfo?: Array<{ endPoint: number; isClosed?: boolean }>
+  },
+  pointIndex: number
+): number[] {
+  if (!path.getPoint || !path.contourInfo?.length) {
+    return []
+  }
+
+  const contourBounds = findContourBounds(path.contourInfo, pointIndex)
+  if (!contourBounds) {
+    return []
+  }
+
+  const attached = new Set<number>()
+  collectHandleRun(path, pointIndex, -1, contourBounds, attached)
+  collectHandleRun(path, pointIndex, 1, contourBounds, attached)
+  return [...attached]
+}
+
+function collectHandleRun(
+  path: { getPoint?(index: number): Point },
+  startIndex: number,
+  direction: -1 | 1,
+  contourBounds: { start: number; end: number; isClosed: boolean },
+  attached: Set<number>
+) {
+  if (!path.getPoint) {
+    return
+  }
+
+  let currentIndex = startIndex
+  while (true) {
+    currentIndex += direction
+    if (currentIndex < contourBounds.start || currentIndex > contourBounds.end) {
+      if (!contourBounds.isClosed) {
+        return
+      }
+      currentIndex = direction > 0 ? contourBounds.start : contourBounds.end
+    }
+
+    if (currentIndex === startIndex) {
+      return
+    }
+
+    const point = path.getPoint(currentIndex)
+    if (!point || point.type === 'onCurve') {
+      return
+    }
+
+    attached.add(currentIndex)
+  }
+}
+
+function findContourBounds(
+  contourInfo: Array<{ endPoint: number; isClosed?: boolean }>,
+  pointIndex: number
+): { start: number; end: number; isClosed: boolean } | null {
+  let start = 0
+  for (const contour of contourInfo) {
+    if (pointIndex <= contour.endPoint) {
+      return {
+        start,
+        end: contour.endPoint,
+        isClosed: contour.isClosed ?? true,
+      }
+    }
+    start = contour.endPoint + 1
   }
   return null
 }

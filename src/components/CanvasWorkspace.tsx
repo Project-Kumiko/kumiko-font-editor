@@ -233,12 +233,17 @@ export function CanvasWorkspace() {
     sceneController.sceneModel.glyph = positionedGlyph
     sceneController.sceneModel.lineMetricsHorizontalLayout =
       fontData?.lineMetricsHorizontalLayout
-    sceneController.sceneModel.selection = new Set(
-      selectedNodeIds.map((id) => {
-        const [, nodeIndex] = id.split(':')
-        return `point/${nodeIndex}`
+    const selectionPointIds = new Set(
+      selectedNodeIds.flatMap((selectedNodeId) => {
+        const pointRefs = positionedGlyph?.pointRefs ?? []
+        const pointIndex = pointRefs.findIndex(
+          (pointRef) => `${pointRef.pathId}:${pointRef.nodeId}` === selectedNodeId
+        )
+        return pointIndex >= 0 ? [`point/${pointIndex}`] : []
       })
     )
+    sceneController.sceneModel.selection = selectionPointIds
+    sceneController.selection = selectionPointIds
 
     // Update viewport
     const controller = canvasControllerRef.current
