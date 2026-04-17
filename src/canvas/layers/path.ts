@@ -24,6 +24,14 @@ function isHandTool(model: SceneModel) {
   return model.activeToolIdentifier === 'hand'
 }
 
+function screenLength(canvasController: CanvasController, value: number) {
+  return value / canvasController.magnification
+}
+
+function screenArray(canvasController: CanvasController, values: number[]) {
+  return values.map((value) => screenLength(canvasController, value))
+}
+
 // 編輯路徑填充
 registerVisualizationLayerDefinition({
   identifier: 'fontra.edit.path.fill',
@@ -33,12 +41,20 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { fillColor: '#0001' },
   colorsDarkMode: { fillColor: '#FFF3' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel,
+    _controller: CanvasController
+  ) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path) return
 
-    context.fillStyle = parameters.fillColor as string
+    context.fillStyle = isHandTool(model)
+      ? '#000'
+      : (parameters.fillColor as string)
     context.fill(glyph.path.toPath2D())
   },
 })
@@ -52,13 +68,25 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 2 },
   colors: { strokeColor: '#000' },
   colorsDarkMode: { strokeColor: '#FFF' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel,
+    _controller: CanvasController
+  ) => {
+    if (isHandTool(model)) {
+      return
+    }
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path) return
 
     context.strokeStyle = parameters.strokeColor as string
-    context.lineWidth = parameters.strokeWidth as number
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
     context.stroke(glyph.path.toPath2D())
   },
 })
@@ -75,7 +103,12 @@ registerVisualizationLayerDefinition({
   },
   colors: { color: '#3080FF80', closeColor: '#d9485f99' },
   colorsDarkMode: { color: '#50A0FF80', closeColor: '#fc818199' },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  draw: (
+    canvasController: CanvasController,
+    _positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -87,18 +120,34 @@ registerVisualizationLayerDefinition({
 
     const context = canvasController.context
     const color =
-      targetPoint?.kind === 'close' ? (parameters.closeColor as string) : (parameters.color as string)
+      targetPoint?.kind === 'close'
+        ? (parameters.closeColor as string)
+        : (parameters.color as string)
 
     context.fillStyle = color
     context.strokeStyle = color
-    context.lineWidth = parameters.strokeWidth as number
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
     context.lineCap = 'round'
 
     if (targetPoint) {
-      fillRoundNode(context, targetPoint, (parameters.connectRadius as number) * 2)
+      fillRoundNode(
+        context,
+        targetPoint,
+        screenLength(canvasController, (parameters.connectRadius as number) * 2)
+      )
     }
     for (const point of insertHandles?.points || []) {
-      fillRoundNode(context, point, (parameters.insertHandlesRadius as number) * 2)
+      fillRoundNode(
+        context,
+        point,
+        screenLength(
+          canvasController,
+          (parameters.insertHandlesRadius as number) * 2
+        )
+      )
     }
   },
 })
@@ -111,7 +160,12 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 2, lineDash: [6, 4] },
   colors: { strokeColor: '#0f766e' },
   colorsDarkMode: { strokeColor: '#81e6d9' },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  draw: (
+    canvasController: CanvasController,
+    _positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -121,8 +175,13 @@ registerVisualizationLayerDefinition({
 
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
-    context.lineWidth = parameters.strokeWidth as number
-    context.setLineDash(parameters.lineDash as number[])
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
+    context.setLineDash(
+      screenArray(canvasController, parameters.lineDash as number[])
+    )
     context.stroke(model.penPreviewPath)
     context.setLineDash([])
   },
@@ -136,7 +195,12 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1.25, lineDash: [5, 5] },
   colors: { strokeColor: '#dd6b20' },
   colorsDarkMode: { strokeColor: '#f6ad55' },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  draw: (
+    canvasController: CanvasController,
+    _positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -146,8 +210,13 @@ registerVisualizationLayerDefinition({
 
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
-    context.lineWidth = parameters.strokeWidth as number
-    context.setLineDash(parameters.lineDash as number[])
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
+    context.setLineDash(
+      screenArray(canvasController, parameters.lineDash as number[])
+    )
     for (const guide of model.alignmentGuides) {
       strokeLine(context, guide.x1, guide.y1, guide.x2, guide.y2)
     }
@@ -162,14 +231,19 @@ registerVisualizationLayerDefinition({
   zIndex: 540,
   screenParameters: { strokeWidth: 4 },
   colors: {
-    selectedColor: '#0f766e',
-    hoveredColor: '#2b6cb0',
-  },
-  colorsDarkMode: {
-    selectedColor: '#81e6d9',
+    selectedColor: '#1E88A8',
     hoveredColor: '#90cdf4',
   },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  colorsDarkMode: {
+    selectedColor: '#90cdf4',
+    hoveredColor: '#90cdf4',
+  },
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -178,15 +252,28 @@ registerVisualizationLayerDefinition({
     if (!glyph.path?.iterContourSegments) return
 
     const selectedSegmentKey = model.selectedPathHit?.segment.key
+    const selectedPointIndices = expandSelectionForDisplay(
+      glyph.path,
+      new Set(parseSelection(model.selection || new Set()))
+    )
 
     context.lineCap = 'round'
     context.lineJoin = 'round'
-    context.lineWidth = parameters.strokeWidth as number
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
 
-    for (let contourIndex = 0; contourIndex < glyph.path.numContours; contourIndex += 1) {
+    for (
+      let contourIndex = 0;
+      contourIndex < glyph.path.numContours;
+      contourIndex += 1
+    ) {
       for (const segment of glyph.path.iterContourSegments(contourIndex)) {
         const segmentKey = `${contourIndex}:${segment.pointIndices.join('-')}`
-        const isSelected = selectedSegmentKey === segmentKey
+        const isSelected =
+          selectedSegmentKey === segmentKey ||
+          segment.pointIndices.every((index) => selectedPointIndices.has(index))
         if (!isSelected) {
           continue
         }
@@ -206,7 +293,13 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#777' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel,
+    _controller: CanvasController
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -214,19 +307,25 @@ registerVisualizationLayerDefinition({
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterHandles) return
 
-    context.lineWidth = parameters.strokeWidth as number
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
     const selectedPointIndices = expandSelectionForDisplay(
       glyph.path,
       new Set(parseSelection(model.selection || new Set()))
     )
-    const hoveredPointIndices = new Set(parseSelection(model.hoverSelection || new Set()))
+    const hoveredPointIndices = new Set(
+      parseSelection(model.hoverSelection || new Set())
+    )
 
     for (const [pt1, pt2] of glyph.path.iterHandles()) {
       const handleIndices = findHandleIndices(glyph.path, pt1, pt2)
-      context.strokeStyle =
-        handleIndices.some((index) => selectedPointIndices.has(index))
-          ? '#0f766e'
-          : handleIndices.some((index) => hoveredPointIndices.has(index))
+      context.strokeStyle = handleIndices.some((index) =>
+        selectedPointIndices.has(index)
+      )
+        ? '#0f766e'
+        : handleIndices.some((index) => hoveredPointIndices.has(index))
           ? '#2b6cb0'
           : (parameters.color as string)
       strokeLine(context, pt1.x, pt1.y, pt2.x, pt2.y)
@@ -243,7 +342,13 @@ registerVisualizationLayerDefinition({
   screenParameters: { cornerSize: 8, smoothSize: 8, handleSize: 6.5 },
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#BBB' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    _model: SceneModel,
+    _controller: CanvasController
+  ) => {
     if (isHandTool(_model)) {
       return
     }
@@ -251,9 +356,18 @@ registerVisualizationLayerDefinition({
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return
 
-    const cornerSize = parameters.cornerSize as number
-    const smoothSize = parameters.smoothSize as number
-    const handleSize = parameters.handleSize as number
+    const cornerSize = screenLength(
+      canvasController,
+      parameters.cornerSize as number
+    )
+    const smoothSize = screenLength(
+      canvasController,
+      parameters.smoothSize as number
+    )
+    const handleSize = screenLength(
+      canvasController,
+      parameters.handleSize as number
+    )
 
     context.fillStyle = parameters.color as string
 
@@ -287,7 +401,13 @@ registerVisualizationLayerDefinition({
     selectedColor: '#FFF',
     underColor: '#0008',
   },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel,
+    _controller: CanvasController
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -295,15 +415,32 @@ registerVisualizationLayerDefinition({
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return
 
-    const cornerSize = parameters.cornerSize as number
-    const smoothSize = parameters.smoothSize as number
-    const handleSize = parameters.handleSize as number
-    const underlayOffset = parameters.underlayOffset as number
+    const cornerSize = screenLength(
+      canvasController,
+      parameters.cornerSize as number
+    )
+    const smoothSize = screenLength(
+      canvasController,
+      parameters.smoothSize as number
+    )
+    const handleSize = screenLength(
+      canvasController,
+      parameters.handleSize as number
+    )
+    const underlayOffset = screenLength(
+      canvasController,
+      parameters.underlayOffset as number
+    )
 
     const selectedPointIndices = Array.from(
-      expandSelectionForDisplay(glyph.path, new Set(parseSelection(model.selection || new Set())))
+      expandSelectionForDisplay(
+        glyph.path,
+        new Set(parseSelection(model.selection || new Set()))
+      )
     )
-    const hoveredPointIndices = parseSelection(model.hoverSelection || new Set())
+    const hoveredPointIndices = parseSelection(
+      model.hoverSelection || new Set()
+    )
 
     // Draw underlay (white background)
     context.fillStyle = parameters.underColor as string
@@ -354,7 +491,13 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1, lineDash: [4, 4] },
   colors: { strokeColor: '#8888' },
   colorsDarkMode: { strokeColor: '#AAA8' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel,
+    controller: CanvasController
+  ) => {
     if (isHandTool(model)) {
       return
     }
@@ -366,8 +509,13 @@ registerVisualizationLayerDefinition({
 
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
-    context.lineWidth = parameters.strokeWidth as number
-    context.setLineDash(parameters.lineDash as number[])
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
+    context.setLineDash(
+      screenArray(canvasController, parameters.lineDash as number[])
+    )
 
     const { xMin, yMin, xMax, yMax } = controller.getViewBox()
 
@@ -386,7 +534,12 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { strokeColor: '#2b6cb0', fillColor: '#90cdf433' },
   colorsDarkMode: { strokeColor: '#90cdf4', fillColor: '#90cdf433' },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  draw: (
+    canvasController: CanvasController,
+    _positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
     if (
       isHandTool(model) ||
       !model.selectionRect ||
@@ -397,11 +550,19 @@ registerVisualizationLayerDefinition({
     }
     const rect = model.selectionRect
     const context = canvasController.context
-    context.lineWidth = parameters.strokeWidth as number
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
     context.strokeStyle = parameters.strokeColor as string
     context.fillStyle = parameters.fillColor as string
     context.beginPath()
-    context.rect(rect.xMin, rect.yMin, rect.xMax - rect.xMin, rect.yMax - rect.yMin)
+    context.rect(
+      rect.xMin,
+      rect.yMin,
+      rect.xMax - rect.xMin,
+      rect.yMax - rect.yMin
+    )
     context.fill()
     context.stroke()
   },
@@ -416,7 +577,8 @@ function fillNode(
   smoothSize: number,
   handleSize: number
 ) {
-  const size = pt.type === 'onCurve' ? (pt.smooth ? smoothSize : cornerSize) : handleSize
+  const size =
+    pt.type === 'onCurve' ? (pt.smooth ? smoothSize : cornerSize) : handleSize
 
   context.beginPath()
 
@@ -450,10 +612,7 @@ function fillRoundNode(
   context.fill()
 }
 
-function strokeSegment(
-  context: CanvasRenderingContext2D,
-  points: Point[]
-) {
+function strokeSegment(context: CanvasRenderingContext2D, points: Point[]) {
   if (points.length < 2) {
     return
   }
@@ -577,7 +736,10 @@ function collectHandleRun(
   let currentIndex = startIndex
   while (true) {
     currentIndex += direction
-    if (currentIndex < contourBounds.start || currentIndex > contourBounds.end) {
+    if (
+      currentIndex < contourBounds.start ||
+      currentIndex > contourBounds.end
+    ) {
       if (!contourBounds.isClosed) {
         return
       }

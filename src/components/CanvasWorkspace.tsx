@@ -14,6 +14,12 @@ import {
 import { SceneController } from '../tools'
 import { VarPackedPath } from '../font/VarPackedPath'
 import { getEffectiveNodeType, useStore, useTemporalStore } from '../store'
+import {
+  buildClipboardPayloadFromSelection,
+  materializeClipboardPaths,
+  parseClipboardPathsText,
+  serializeClipboardPaths,
+} from '../utils/clipboardPaths'
 
 // const GRID_STEP = 120; // Not currently used but kept for future implementation
 
@@ -35,6 +41,7 @@ export function CanvasWorkspace() {
   const fontData = useStore((state) => state.fontData)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
+  const selectedSegment = useStore((state) => state.selectedSegment)
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
   const setSelectedSegment = useStore((state) => state.setSelectedSegment)
@@ -78,6 +85,54 @@ export function CanvasWorkspace() {
   const handleRedo = useCallback(() => {
     useStore.temporal.getState().redo()
   }, [])
+
+  const handleCopySelection = useCallback(async () => {
+    if (!fontData || !selectedGlyphId) {
+      return
+    }
+
+    const glyph = fontData.glyphs[selectedGlyphId]
+    if (!glyph) {
+      return
+    }
+
+    const payload = buildClipboardPayloadFromSelection(
+      glyph,
+      selectedNodeIds,
+      selectedSegment
+    )
+    if (!payload) {
+      return
+    }
+
+    await navigator.clipboard.writeText(serializeClipboardPaths(payload))
+  }, [fontData, selectedGlyphId, selectedNodeIds, selectedSegment])
+
+  const handlePasteSelection = useCallback(async () => {
+    if (!selectedGlyphId) {
+      return
+    }
+
+    const clipboardText = await navigator.clipboard.readText()
+    const payload = parseClipboardPathsText(clipboardText)
+    if (!payload) {
+      return
+    }
+
+    const paths = materializeClipboardPaths(payload)
+    if (!paths.length) {
+      return
+    }
+
+    const store = useStore.getState()
+    for (const path of paths) {
+      store.createPath(selectedGlyphId, path)
+    }
+
+    setSelectedNodeIds(
+      paths.flatMap((path) => path.nodes.map((node) => `${path.id}:${node.id}`))
+    )
+  }, [selectedGlyphId, setSelectedNodeIds])
 
   const handleToolSelect = useCallback(
     (toolId: 'pointer' | 'pen' | 'brush' | 'hand') => {
@@ -324,6 +379,11 @@ export function CanvasWorkspace() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -338,6 +398,12 @@ export function CanvasWorkspace() {
         } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
           e.preventDefault()
           handleRedo()
+        } else if (e.key === 'c' || e.key === 'C') {
+          e.preventDefault()
+          void handleCopySelection()
+        } else if (e.key === 'v' || e.key === 'V') {
+          e.preventDefault()
+          void handlePasteSelection()
         }
       } else if (
         (e.key === 'Backspace' || e.key === 'Delete') &&
@@ -376,6 +442,11 @@ export function CanvasWorkspace() {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ') {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+
       if (e.key !== ' ') {
         return
       }
@@ -387,13 +458,13 @@ export function CanvasWorkspace() {
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('keydown', handleKeyDown, true)
+    window.addEventListener('keyup', handleKeyUp, true)
     return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('keydown', handleKeyDown, true)
+      window.removeEventListener('keyup', handleKeyUp, true)
     }
-  }, [activeToolId, deleteSelectedNodes, getPreviousPenSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedNodeIds, setSelectedNodeIds])
+  }, [activeToolId, deleteSelectedNodes, getPreviousPenSelection, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedNodeIds, setSelectedNodeIds])
 
   return (
     <Box

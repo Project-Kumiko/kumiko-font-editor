@@ -930,9 +930,10 @@ export class PointerTool extends BaseTool {
     x: number,
     y: number
   ) {
-    if (this.shouldSnapToGrid()) {
-      x = Math.round(x)
-      y = Math.round(y)
+    const gridStep = this.getGridSnapStep()
+    if (gridStep) {
+      x = Math.round(x / gridStep) * gridStep
+      y = Math.round(y / gridStep) * gridStep
     }
     if (path.setPoint) {
       const existingPoint = path.getPoint?.(index)
@@ -948,8 +949,14 @@ export class PointerTool extends BaseTool {
     }
   }
 
-  private shouldSnapToGrid() {
-    return this.canvasController.magnification >= 24
+  private getGridSnapStep() {
+    if (this.canvasController.magnification >= 32) {
+      return 1
+    }
+    if (this.canvasController.magnification >= 10) {
+      return 10
+    }
+    return 0
   }
 
   private getSnappedDelta(
@@ -960,8 +967,9 @@ export class PointerTool extends BaseTool {
     dx: number,
     dy: number
   ) {
-    let snappedDx = this.shouldSnapToGrid() ? Math.round(dx) : dx
-    let snappedDy = this.shouldSnapToGrid() ? Math.round(dy) : dy
+    const gridStep = this.getGridSnapStep()
+    let snappedDx = gridStep ? Math.round(dx / gridStep) * gridStep : dx
+    let snappedDy = gridStep ? Math.round(dy / gridStep) * gridStep : dy
     const guides: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
 
     if (

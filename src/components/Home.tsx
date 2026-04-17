@@ -134,6 +134,24 @@ function mapGlyphsToFontData(raw: any): FontData {
     return null;
   };
 
+  const getPathBounds = (paths: PathData[]) => {
+    let xMin = Infinity;
+    let xMax = -Infinity;
+
+    for (const path of paths) {
+      for (const node of path.nodes) {
+        xMin = Math.min(xMin, node.x);
+        xMax = Math.max(xMax, node.x);
+      }
+    }
+
+    if (!Number.isFinite(xMin) || !Number.isFinite(xMax)) {
+      return null;
+    }
+
+    return { xMin, xMax };
+  };
+
   if (raw && raw.glyphs && Array.isArray(raw.glyphs)) {
     raw.glyphs.forEach((g: any) => {
       const name = g.glyphname || 'unknown';
@@ -171,8 +189,21 @@ function mapGlyphsToFontData(raw: any): FontData {
         const layerWidth = parseNumeric(layer.width);
         const glyphWidth = parseNumeric(g.width);
         const width = layerWidth ?? glyphWidth ?? 1000;
-        const lsb = 60;
-        const rsb = 60;
+        const rawLsb =
+          parseNumeric(layer.LSB) ??
+          parseNumeric(layer.lsb) ??
+          parseNumeric(g.LSB) ??
+          parseNumeric(g.lsb);
+        const rawRsb =
+          parseNumeric(layer.RSB) ??
+          parseNumeric(layer.rsb) ??
+          parseNumeric(g.RSB) ??
+          parseNumeric(g.rsb);
+        const bounds = getPathBounds(paths);
+        const lsb = rawLsb ?? Math.round(bounds?.xMin ?? 0);
+        const rsb =
+          rawRsb ??
+          Math.round(width - (bounds?.xMax ?? width));
 
         fontData.glyphs[id] = {
           id,
@@ -189,7 +220,20 @@ function mapGlyphsToFontData(raw: any): FontData {
         return;
       }
 
-      fontData.glyphs[id] = { id, name, paths, components, componentRefs: [], metrics: { width: 1000, lsb: 60, rsb: 60 } };
+      const bounds = getPathBounds(paths);
+      const width = 1000;
+      fontData.glyphs[id] = {
+        id,
+        name,
+        paths,
+        components,
+        componentRefs: [],
+        metrics: {
+          width,
+          lsb: Math.round(bounds?.xMin ?? 0),
+          rsb: Math.round(width - (bounds?.xMax ?? width)),
+        },
+      };
     });
   }
   
