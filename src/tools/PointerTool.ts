@@ -26,6 +26,13 @@ export class PointerTool extends BaseTool {
     selectionToRestore: Set<string>
     activePointIndices: number[]
     pathSnapshot: Map<number, Point>
+    linkedHandle?:
+      | {
+          draggedHandleIndex: number
+          anchorIndex: number
+          oppositeHandleIndex: number
+        }
+      | undefined
     didMove: boolean
     pointToggleOnClick?: { selectionKey: string; remove: boolean }
   } = this.createInitialDragState()
@@ -146,6 +153,10 @@ export class PointerTool extends BaseTool {
         if (!snapshotPoint) continue
         this.updatePointPosition(path, index, snapshotPoint.x + dx, snapshotPoint.y + dy)
       }
+
+      if (this.dragState.mode === 'point-drag' && this.dragState.linkedHandle) {
+        this.updateLinkedSmoothHandle(path, dx, dy)
+      }
     } else if (this.dragState.mode === 'curve-segment-deform') {
       this.deformDraggedSegment(path, this.dragState.activePointIndices, dx, dy)
     }
@@ -226,7 +237,7 @@ export class PointerTool extends BaseTool {
       const path = this.sceneModel.glyph.glyph.path
       const pt = this.getPointByIndex(path, idx)
 
-      if (pt?.type === 'onCurve') {
+      if (pt?.type === 'onCurve' && !this.isOpenContourEndpoint(path, idx)) {
         this.toggleSmooth(path, idx)
         const pointRef = this.sceneModel.glyph.pointRefs?.[idx]
         const glyphId = this.sceneModel.glyph.glyphId
@@ -323,7 +334,16 @@ export class PointerTool extends BaseTool {
         path,
         this.getSelectedPointIndices(baseSelection)
       )
-      this.capturePointSnapshot(path, this.dragState.activePointIndices)
+      this.dragState.linkedHandle = this.getLinkedHandleDrag(path, hit)
+      this.capturePointSnapshot(path, [
+        ...this.dragState.activePointIndices,
+        ...(this.dragState.linkedHandle
+          ? [
+              this.dragState.linkedHandle.anchorIndex,
+              this.dragState.linkedHandle.oppositeHandleIndex,
+            ]
+          : []),
+      ])
       this.sceneController.setSelectedPathHit(undefined)
       this.dragState.pointToggleOnClick = undefined
       return
@@ -358,6 +378,7 @@ export class PointerTool extends BaseTool {
       yMin: Math.min(this.dragState.anchorPoint.y, currentPoint.y),
       xMax: Math.max(this.dragState.anchorPoint.x, currentPoint.x),
       yMax: Math.max(this.dragState.anchorPoint.y, currentPoint.y),
+      owner: 'pointer' as const,
     }
     this.sceneModel.selectionRect = selectionRect
 
@@ -435,9 +456,14 @@ export class PointerTool extends BaseTool {
     }
 
     const uniquePointIndices = Array.from(new Set(this.dragState.activePointIndices))
+    const committedPointIndices = this.dragState.linkedHandle
+      ? Array.from(
+          new Set([...uniquePointIndices, this.dragState.linkedHandle.oppositeHandleIndex])
+        )
+      : uniquePointIndices
     const dx = this.dragState.currentPoint.x - this.dragState.anchorPoint.x
     const dy = this.dragState.currentPoint.y - this.dragState.anchorPoint.y
-    const updates = uniquePointIndices.flatMap((idx) => {
+    const updates = committedPointIndices.flatMap((idx) => {
       const pointRef = pointRefs[idx]
       const snapshotPoint = this.dragState.pathSnapshot.get(idx)
       if (!pointRef || !snapshotPoint) {
@@ -454,6 +480,13 @@ export class PointerTool extends BaseTool {
         newPos = {
           x: snapshotPoint.x + dx,
           y: snapshotPoint.y + dy,
+        }
+
+        if (
+          this.dragState.mode === 'point-drag' &&
+          this.dragState.linkedHandle?.oppositeHandleIndex === idx
+        ) {
+          newPos = this.getLinkedSmoothHandlePosition(dx, dy) ?? newPos
         }
       } else if (this.dragState.mode === 'curve-segment-deform') {
         const pointIndex = this.dragState.activePointIndices.indexOf(idx)
@@ -494,6 +527,7 @@ export class PointerTool extends BaseTool {
       activePointIndices: [],
       pathSnapshot: new Map<number, Point>(),
       didMove: false,
+      linkedHandle: undefined,
       pointToggleOnClick: undefined,
     }
   }
@@ -568,6 +602,142 @@ export class PointerTool extends BaseTool {
     }
 
     return [...expanded]
+  }
+
+  private getLinkedHandleDrag(
+    path: {
+      getPoint?(index: number): Point
+      contourInfo?: Array<{ endPoint: number; isClosed?: boolean }>
+    },
+    hit: HitTestResult
+  ) {
+    if (hit.type !== 'handle' || !path.getPoint || !path.contourInfo?.length) {
+      return undefined
+    }
+
+    const contourBounds = this.findContourBounds(path.contourInfo, hit.pointIndex)
+    if (!contourBounds) {
+      return undefined
+    }
+
+    const previousIndex = this.stepContourIndex(hit.pointIndex, -1, contourBounds)
+    const nextIndex = this.stepContourIndex(hit.pointIndex, 1, contourBounds)
+    const previousPoint = previousIndex === null ? null : path.getPoint(previousIndex)
+    const nextPoint = nextIndex === null ? null : path.getPoint(nextIndex)
+
+    let anchorIndex: number | null = null
+    let oppositeHandleIndex: number | null = null
+
+    if (previousPoint?.type === 'onCurve' && previousIndex !== null) {
+      anchorIndex = previousIndex
+      oppositeHandleIndex = this.findAdjacentHandleIndex(path, previousIndex, -1, contourBounds)
+    } else if (nextPoint?.type === 'onCurve' && nextIndex !== null) {
+      anchorIndex = nextIndex
+      oppositeHandleIndex = this.findAdjacentHandleIndex(path, nextIndex, 1, contourBounds)
+    }
+
+    if (anchorIndex === null || oppositeHandleIndex === null) {
+      return undefined
+    }
+
+    const anchorPoint = path.getPoint(anchorIndex)
+    if (!anchorPoint?.smooth) {
+      return undefined
+    }
+
+    return {
+      draggedHandleIndex: hit.pointIndex,
+      anchorIndex,
+      oppositeHandleIndex,
+    }
+  }
+
+  private findAdjacentHandleIndex(
+    path: { getPoint?(index: number): Point },
+    anchorIndex: number,
+    direction: -1 | 1,
+    contourBounds: { start: number; end: number; isClosed: boolean }
+  ) {
+    const candidateIndex = this.stepContourIndex(anchorIndex, direction, contourBounds)
+    if (candidateIndex === null || !path.getPoint) {
+      return null
+    }
+
+    const candidatePoint = path.getPoint(candidateIndex)
+    if (!candidatePoint || candidatePoint.type === 'onCurve') {
+      return null
+    }
+
+    return candidateIndex
+  }
+
+  private stepContourIndex(
+    index: number,
+    direction: -1 | 1,
+    contourBounds: { start: number; end: number; isClosed: boolean }
+  ) {
+    let nextIndex = index + direction
+    if (nextIndex < contourBounds.start || nextIndex > contourBounds.end) {
+      if (!contourBounds.isClosed) {
+        return null
+      }
+      nextIndex = direction > 0 ? contourBounds.start : contourBounds.end
+    }
+    return nextIndex
+  }
+
+  private updateLinkedSmoothHandle(
+    path: {
+      setPoint?(index: number, point: { x: number; y: number; type?: string; smooth?: boolean }): void
+    },
+    dx: number,
+    dy: number
+  ) {
+    const nextPosition = this.getLinkedSmoothHandlePosition(dx, dy)
+    const linkedHandle = this.dragState.linkedHandle
+    if (!nextPosition || !linkedHandle) {
+      return
+    }
+
+    this.updatePointPosition(
+      path,
+      linkedHandle.oppositeHandleIndex,
+      nextPosition.x,
+      nextPosition.y
+    )
+  }
+
+  private getLinkedSmoothHandlePosition(dx: number, dy: number) {
+    const linkedHandle = this.dragState.linkedHandle
+    if (!linkedHandle) {
+      return undefined
+    }
+
+    const draggedSnapshot = this.dragState.pathSnapshot.get(linkedHandle.draggedHandleIndex)
+    const anchorSnapshot = this.dragState.pathSnapshot.get(linkedHandle.anchorIndex)
+    const oppositeSnapshot = this.dragState.pathSnapshot.get(linkedHandle.oppositeHandleIndex)
+    if (!draggedSnapshot || !anchorSnapshot || !oppositeSnapshot) {
+      return undefined
+    }
+
+    const draggedVector = {
+      x: draggedSnapshot.x + dx - anchorSnapshot.x,
+      y: draggedSnapshot.y + dy - anchorSnapshot.y,
+    }
+    const draggedLength = Math.hypot(draggedVector.x, draggedVector.y)
+    if (draggedLength === 0) {
+      return { x: anchorSnapshot.x, y: anchorSnapshot.y }
+    }
+
+    const oppositeLength = Math.hypot(
+      oppositeSnapshot.x - anchorSnapshot.x,
+      oppositeSnapshot.y - anchorSnapshot.y
+    )
+
+    return {
+      x: anchorSnapshot.x - (draggedVector.x / draggedLength) * oppositeLength,
+      y: anchorSnapshot.y - (draggedVector.y / draggedLength) * oppositeLength,
+    }
   }
 
   private findAttachedHandleIndices(
@@ -646,6 +816,24 @@ export class PointerTool extends BaseTool {
       start = contour.endPoint + 1
     }
     return null
+  }
+
+  private isOpenContourEndpoint(
+    path: {
+      contourInfo?: Array<{ endPoint: number; isClosed?: boolean }>
+    },
+    pointIndex: number
+  ) {
+    if (!path.contourInfo?.length) {
+      return false
+    }
+
+    const contourBounds = this.findContourBounds(path.contourInfo, pointIndex)
+    if (!contourBounds || contourBounds.isClosed) {
+      return false
+    }
+
+    return pointIndex === contourBounds.start || pointIndex === contourBounds.end
   }
 
   private capturePointSnapshot(

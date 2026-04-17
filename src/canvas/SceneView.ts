@@ -14,9 +14,16 @@ export interface SceneModel {
   >
   selection?: Set<string>
   hoverSelection?: Set<string>
-  selectionRect?: { xMin: number; yMin: number; xMax: number; yMax: number }
+  selectionRect?: {
+    xMin: number
+    yMin: number
+    xMax: number
+    yMax: number
+    owner?: 'pointer'
+  }
   hoverPathHit?: PathHitInfo
   selectedPathHit?: PathHitInfo
+  activeToolIdentifier?: string
   initialClickedPointIndex?: number
   canEdit?: boolean
 }

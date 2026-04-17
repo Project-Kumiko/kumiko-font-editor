@@ -276,7 +276,11 @@ registerVisualizationLayerDefinition({
   colors: { strokeColor: '#2b6cb0', fillColor: '#90cdf433' },
   colorsDarkMode: { strokeColor: '#90cdf4', fillColor: '#90cdf433' },
   draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
-    if (!model.selectionRect) {
+    if (
+      !model.selectionRect ||
+      model.selectionRect.owner !== 'pointer' ||
+      model.activeToolIdentifier !== 'pointer'
+    ) {
       return
     }
     const rect = model.selectionRect

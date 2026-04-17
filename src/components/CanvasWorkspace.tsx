@@ -1,6 +1,6 @@
 // 新的 CanvasWorkspace - 使用 Fontra 架構
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Box, Flex, Button, Text, HStack } from '@chakra-ui/react'
 import {
   CanvasController,
@@ -13,7 +13,7 @@ import {
 } from '../canvas'
 import { SceneController } from '../tools'
 import { VarPackedPath } from '../font/VarPackedPath'
-import { useStore, useTemporalStore } from '../store'
+import { getEffectiveNodeType, useStore, useTemporalStore } from '../store'
 
 // const GRID_STEP = 120; // Not currently used but kept for future implementation
 
@@ -22,9 +22,11 @@ export function CanvasWorkspace() {
   const canvasControllerRef = useRef<CanvasController | null>(null)
   const sceneControllerRef = useRef<SceneController | null>(null)
   const sceneViewRef = useRef<SceneView | null>(null)
+  const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush'>('pointer')
   const availableTools = [
     { id: 'pointer', label: 'Pointer', status: 'ready' },
-    { id: 'pen', label: 'Pen', status: 'partial' },
+    { id: 'pen', label: 'Pen', status: 'ready' },
+    { id: 'brush', label: 'Brush', status: 'ready' },
   ] as const
 
   // Store data
@@ -34,6 +36,7 @@ export function CanvasWorkspace() {
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
   const updateViewport = useStore((state) => state.updateViewport)
+  const deleteSelectedNodes = useStore((state) => state.deleteSelectedNodes)
 
   // Zundo temporal hooks
   const pastStatesLength = useTemporalStore((state) => state.pastStates.length)
@@ -48,6 +51,14 @@ export function CanvasWorkspace() {
   const handleRedo = useCallback(() => {
     useStore.temporal.getState().redo()
   }, [])
+
+  const handleToolSelect = useCallback(
+    (toolId: 'pointer' | 'pen' | 'brush') => {
+      sceneControllerRef.current?.setActiveTool(toolId)
+      setActiveToolId(toolId)
+    },
+    []
+  )
 
   const buildPointRefs = useCallback(() => {
     if (!fontData || !selectedGlyphId) {
@@ -97,7 +108,7 @@ export function CanvasWorkspace() {
           : node.type === 'qcurve'
             ? 'offCurveQuad'
             : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
-        smooth: node.type === 'smooth',
+        smooth: getEffectiveNodeType(pathData, node) === 'smooth',
       }))
 
       contours.push({
@@ -212,6 +223,7 @@ export function CanvasWorkspace() {
 
     return () => {
       canvas.removeEventListener('viewBoxChanged', syncViewportFromCanvas)
+      sceneController.destroy()
       controller.destroy()
       canvasControllerRef.current = null
       sceneControllerRef.current = null
@@ -275,15 +287,28 @@ export function CanvasWorkspace() {
           e.preventDefault()
           handleRedo()
         }
+      } else if (
+        (e.key === 'Backspace' || e.key === 'Delete') &&
+        selectedGlyphId &&
+        selectedNodeIds.length > 0
+      ) {
+        e.preventDefault()
+        deleteSelectedNodes(selectedGlyphId, selectedNodeIds)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleUndo, handleRedo])
+  }, [deleteSelectedNodes, handleUndo, handleRedo, selectedGlyphId, selectedNodeIds])
 
   return (
-    <Box position="relative" w="100%" h="100%" bg="white" overflow="hidden">
+    <Box
+      position="relative"
+      w="100%"
+      h="100%"
+      bg="white"
+      overflow="hidden"
+    >
       <canvas
         ref={canvasRef}
         style={{
@@ -341,17 +366,27 @@ export function CanvasWorkspace() {
 
         <HStack mt={2} spacing={2} align="center">
           {availableTools.map((tool) => (
-            <Box
+            <Button
               key={tool.id}
+              size="xs"
               px={2}
               py={1}
               borderRadius="md"
-              bg={tool.status === 'ready' ? 'whiteAlpha.200' : 'orange.300'}
-              color={tool.status === 'ready' ? 'whiteAlpha.900' : 'black'}
+              variant={activeToolId === tool.id ? 'solid' : 'ghost'}
+              colorScheme={activeToolId === tool.id ? 'teal' : undefined}
+              bg={
+                activeToolId === tool.id
+                  ? undefined
+                  : tool.status === 'ready'
+                  ? 'whiteAlpha.200'
+                  : 'orange.300'
+              }
+              color={activeToolId === tool.id ? undefined : tool.status === 'ready' ? 'whiteAlpha.900' : 'black'}
               fontSize="xs"
+              onClick={() => handleToolSelect(tool.id)}
             >
-              {tool.label} {tool.status === 'partial' ? '(partial)' : ''}
-            </Box>
+              {tool.label}
+            </Button>
           ))}
         </HStack>
       </Flex>

@@ -11,7 +11,8 @@ import {
   Text,
   useToast,
 } from '@chakra-ui/react';
-import { deterministicStringify, useStore, type NodeType } from '../store';
+import { CornerNodeIcon, SmoothNodeIcon } from '../icons';
+import { deterministicStringify, getEffectiveNodeType, isPathEndpointNode, useStore, type NodeType } from '../store';
 
 const parseSelectedNode = (selectedNodeId: string | undefined) => {
   if (!selectedNodeId) {
@@ -44,6 +45,9 @@ export function RightPanel() {
   const nodeRef = parseSelectedNode(selectedNodeIds[0]);
   const selectedPath = glyph && nodeRef ? glyph.paths.find((path) => path.id === nodeRef.pathId) : null;
   const selectedNode = selectedPath && nodeRef ? selectedPath.nodes.find((node) => node.id === nodeRef.nodeId) : null;
+  const effectiveNodeType = selectedPath && selectedNode ? getEffectiveNodeType(selectedPath, selectedNode) : undefined;
+  const isOnCurveNode = effectiveNodeType === 'corner' || effectiveNodeType === 'smooth';
+  const isEndpointNode = selectedPath && selectedNode ? isPathEndpointNode(selectedPath, selectedNode.id) : false;
 
   const handleCoordinateChange = (axis: 'x' | 'y', value: string) => {
     if (!glyph || !nodeRef || !selectedNode) {
@@ -178,24 +182,42 @@ export function RightPanel() {
                     </GridItem>
                   </Grid>
 
-                  <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-                    <Button
-                      size="sm"
-                      variant={selectedNode.type === 'corner' ? 'solid' : 'outline'}
-                      colorScheme="orange"
-                      onClick={() => handleNodeTypeChange('corner')}
-                    >
-                      Corner
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={selectedNode.type === 'smooth' ? 'solid' : 'outline'}
-                      colorScheme="blue"
-                      onClick={() => handleNodeTypeChange('smooth')}
-                    >
-                      Smooth
-                    </Button>
-                  </Grid>
+                  {!isOnCurveNode ? (
+                    <Text fontSize="sm" color="gray.500">
+                      目前選到的是控制把手。把手本身沒有方形／圓形節點類型。
+                    </Text>
+                  ) : (
+                    <Stack spacing={2}>
+                      <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
+                        <Button
+                          size="sm"
+                          variant={effectiveNodeType === 'corner' ? 'solid' : 'outline'}
+                          colorScheme="orange"
+                          onClick={() => handleNodeTypeChange('corner')}
+                          leftIcon={<CornerNodeIcon />}
+                        >
+                          折線
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={effectiveNodeType === 'smooth' ? 'solid' : 'outline'}
+                          colorScheme="blue"
+                          onClick={() => handleNodeTypeChange('smooth')}
+                          isDisabled={isEndpointNode}
+                          leftIcon={<SmoothNodeIcon />}
+                        >
+                          平滑
+                        </Button>
+                      </Grid>
+                      <Text fontSize="xs" color="gray.500">
+                        {isEndpointNode
+                          ? '開放路徑的起點與終點只有一根手把，所以固定為折線。'
+                          : effectiveNodeType === 'smooth'
+                            ? '平滑節點的兩根手把會連動，維持曲線方向。'
+                            : '折線節點的兩根手把可分開移動，會視為折線轉折。'}
+                      </Text>
+                    </Stack>
+                  )}
                 </Stack>
               )}
             </Box>

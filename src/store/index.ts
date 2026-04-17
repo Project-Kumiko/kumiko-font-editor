@@ -18,6 +18,29 @@ export interface PathData {
   closed: boolean
 }
 
+export const isPathEndpointNode = (path: PathData, nodeId: string) => {
+  if (path.closed || path.nodes.length === 0) {
+    return false
+  }
+
+  return path.nodes[0]?.id === nodeId || path.nodes[path.nodes.length - 1]?.id === nodeId
+}
+
+export const getEffectiveNodeType = (
+  path: PathData | undefined,
+  node: PathNode | undefined
+): NodeType | undefined => {
+  if (!path || !node) {
+    return node?.type
+  }
+
+  if (node.type === 'smooth' && isPathEndpointNode(path, node.id)) {
+    return 'corner'
+  }
+
+  return node.type
+}
+
 export interface GlyphComponentRef {
   id: string
   glyphId: string
@@ -101,6 +124,29 @@ export interface GlobalState {
     type: NodeType
   ) => void
   updateGlyphMetrics: (glyphId: string, metrics: Partial<GlyphMetrics>) => void
+  createPath: (glyphId: string, path: PathData) => void
+  appendNodesToPath: (
+    glyphId: string,
+    pathId: string,
+    nodes: PathNode[],
+    prepend?: boolean
+  ) => void
+  replacePathNodes: (
+    glyphId: string,
+    pathId: string,
+    startNodeId: string,
+    endNodeId: string,
+    nodes: PathNode[]
+  ) => void
+  closePath: (glyphId: string, pathId: string) => void
+  connectOpenPaths: (
+    glyphId: string,
+    sourcePathId: string,
+    sourceNodeId: string,
+    targetPathId: string,
+    targetNodeId: string
+  ) => { pathId: string; nodeIds: string[] } | null
+  deleteSelectedNodes: (glyphId: string, selectedNodeIds: string[]) => void
   loadProjectState: (id: string, title: string, fontData: FontData) => void
   closeProjectState: () => void
 }
@@ -365,6 +411,32 @@ const findPath = (glyph: GlyphData, pathId: string) =>
 const findNode = (path: PathData | undefined, nodeId: string) =>
   path?.nodes.find((node) => node.id === nodeId)
 
+const generateId = (prefix: string) =>
+  `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+
+const orientOpenPathNodesForConnection = (
+  path: PathData,
+  endpointNodeId: string,
+  placeEndpointAt: 'start' | 'end'
+) => {
+  const nodes = [...path.nodes]
+  if (nodes.length === 0) {
+    return nodes
+  }
+
+  const isStart = nodes[0]?.id === endpointNodeId
+  const isEnd = nodes[nodes.length - 1]?.id === endpointNodeId
+  if (!isStart && !isEnd) {
+    return nodes
+  }
+
+  if ((placeEndpointAt === 'end' && isEnd) || (placeEndpointAt === 'start' && isStart)) {
+    return nodes
+  }
+
+  return [...nodes].reverse()
+}
+
 export const deterministicStringify = (value: unknown) => {
   const sortValue = (input: unknown): unknown => {
     if (Array.isArray(input)) {
@@ -467,8 +539,18 @@ export const useStore = create<GlobalState>()(
             return
           }
 
-          const node = findNode(findPath(glyph, pathId), nodeId)
+          const path = findPath(glyph, pathId)
+          const node = findNode(path, nodeId)
           if (node) {
+            if (node.type === 'offcurve' || node.type === 'qcurve') {
+              return
+            }
+
+            if (type === 'smooth' && path && isPathEndpointNode(path, nodeId)) {
+              node.type = 'corner'
+              return
+            }
+
             node.type = type
           }
         }),
@@ -484,6 +566,164 @@ export const useStore = create<GlobalState>()(
             ...glyph.metrics,
             ...metrics,
           }
+        }),
+
+      createPath: (glyphId, path) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph) {
+            return
+          }
+
+          glyph.paths.push({
+            ...path,
+            id: path.id || generateId('path'),
+            nodes: path.nodes.map((node) => ({
+              ...node,
+              id: node.id || generateId('node'),
+            })),
+          })
+        }),
+
+      appendNodesToPath: (glyphId, pathId, nodes, prepend = false) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          const path = glyph ? findPath(glyph, pathId) : undefined
+          if (!path) {
+            return
+          }
+
+          const normalizedNodes = nodes.map((node) => ({
+            ...node,
+            id: node.id || generateId('node'),
+          }))
+
+          path.nodes = prepend
+            ? [...normalizedNodes, ...path.nodes]
+            : [...path.nodes, ...normalizedNodes]
+        }),
+
+      replacePathNodes: (glyphId, pathId, startNodeId, endNodeId, nodes) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          const path = glyph ? findPath(glyph, pathId) : undefined
+          if (!path) {
+            return
+          }
+
+          const startIndex = path.nodes.findIndex((node) => node.id === startNodeId)
+          const endIndex = path.nodes.findIndex((node) => node.id === endNodeId)
+          if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) {
+            return
+          }
+
+          const normalizedNodes = nodes.map((node) => ({
+            ...node,
+            id: node.id || generateId('node'),
+          }))
+
+          path.nodes = [
+            ...path.nodes.slice(0, startIndex),
+            ...normalizedNodes,
+            ...path.nodes.slice(endIndex + 1),
+          ]
+        }),
+
+      closePath: (glyphId, pathId) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          const path = glyph ? findPath(glyph, pathId) : undefined
+          if (!path || path.closed || path.nodes.length < 2) {
+            return
+          }
+
+          path.closed = true
+        }),
+
+      connectOpenPaths: (glyphId, sourcePathId, sourceNodeId, targetPathId, targetNodeId) => {
+        let result: { pathId: string; nodeIds: string[] } | null = null
+
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          const sourcePath = glyph ? findPath(glyph, sourcePathId) : undefined
+          const targetPath = glyph ? findPath(glyph, targetPathId) : undefined
+          if (
+            !glyph ||
+            !sourcePath ||
+            !targetPath ||
+            sourcePath.closed ||
+            targetPath.closed ||
+            !isPathEndpointNode(sourcePath, sourceNodeId) ||
+            !isPathEndpointNode(targetPath, targetNodeId)
+          ) {
+            return
+          }
+
+          if (sourcePathId === targetPathId) {
+            if (sourceNodeId === targetNodeId) {
+              return
+            }
+            sourcePath.closed = true
+            result = { pathId: sourcePathId, nodeIds: sourcePath.nodes.map((node) => node.id) }
+            return
+          }
+
+          const sourceNodes = orientOpenPathNodesForConnection(
+            sourcePath,
+            sourceNodeId,
+            'end'
+          )
+          const targetNodes = orientOpenPathNodesForConnection(
+            targetPath,
+            targetNodeId,
+            'start'
+          )
+
+          sourcePath.nodes = [...sourceNodes, ...targetNodes]
+          sourcePath.closed = false
+          glyph.paths = glyph.paths.filter((path) => path.id !== targetPathId)
+
+          result = {
+            pathId: sourcePathId,
+            nodeIds: sourcePath.nodes.map((node) => node.id),
+          }
+        })
+
+        return result
+      },
+
+      deleteSelectedNodes: (glyphId, selectedNodeIds) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph || selectedNodeIds.length === 0) {
+            return
+          }
+
+          const selectedByPath = new Map<string, Set<string>>()
+          for (const selectedNodeId of selectedNodeIds) {
+            const [pathId, nodeId] = selectedNodeId.split(':')
+            if (!pathId || !nodeId) {
+              continue
+            }
+            const ids = selectedByPath.get(pathId) ?? new Set<string>()
+            ids.add(nodeId)
+            selectedByPath.set(pathId, ids)
+          }
+
+          glyph.paths = glyph.paths
+            .map((path) => {
+              const nodeIds = selectedByPath.get(path.id)
+              if (!nodeIds) {
+                return path
+              }
+              return {
+                ...path,
+                nodes: path.nodes.filter((node) => !nodeIds.has(node.id)),
+              }
+            })
+            .filter((path) => path.nodes.length > 0)
+
+          state.selectedNodeIds = []
         }),
 
       loadProjectState: (id, title, fontData) =>

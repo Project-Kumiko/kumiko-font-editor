@@ -4,6 +4,7 @@ import type { CanvasController } from '../canvas/CanvasController'
 import type { PathHitInfo, Point, SceneModel } from '../canvas/SceneView'
 import { PointerTool } from './PointerTool'
 import { PenTool } from './PenTool'
+import { BrushTool } from './BrushTool'
 import type { BaseTool, ToolEvent } from './BaseTool'
 
 export interface SceneControllerOptions {
@@ -52,7 +53,13 @@ export class SceneController {
 
   private tools: Map<string, BaseTool> = new Map()
   private activeTool: BaseTool | null = null
+  activeToolIdentifier = 'pointer'
   private _eventStream: EventStreamImpl | null = null
+  private readonly boundHandleMouseDown = this.handleMouseDown.bind(this)
+  private readonly boundHandleMouseMove = this.handleMouseMove.bind(this)
+  private readonly boundHandleMouseUp = this.handleMouseUp.bind(this)
+  private readonly boundHandleDoubleClick = this.handleDoubleClick.bind(this)
+  private readonly boundPreventContextMenu = (e: MouseEvent) => e.preventDefault()
   private onSelectionChange: SceneControllerOptions['onSelectionChange']
   onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
   onCommitNodePositions: SceneControllerOptions['onCommitNodePositions']
@@ -70,8 +77,16 @@ export class SceneController {
       'pointer',
       new PointerTool(this.canvasController, this as any, this.sceneModel)
     )
-    this.tools.set('pen', new PenTool(this.canvasController, this as any, this.sceneModel))
+    this.tools.set(
+      'pen',
+      new PenTool(this.canvasController, this as any, this.sceneModel)
+    )
+    this.tools.set(
+      'brush',
+      new BrushTool(this.canvasController, this as any, this.sceneModel)
+    )
 
+    this.sceneModel.activeToolIdentifier = 'pointer'
     this.setActiveTool('pointer')
     this.bindEvents()
   }
@@ -81,10 +96,17 @@ export class SceneController {
       this.activeTool.deactivate()
     }
 
+    this.sceneModel.selectionRect = undefined
+    this.setHoverSelection(new Set())
+    this.setHoverPathHit(undefined)
+
     this.activeTool = this.tools.get(toolName) || null
     if (this.activeTool) {
+      this.activeToolIdentifier = toolName
+      this.sceneModel.activeToolIdentifier = toolName
       this.activeTool.activate()
     }
+    this.canvasController.requestUpdate()
   }
 
   setSelection(selection: Set<string>) {
@@ -115,11 +137,22 @@ export class SceneController {
 
   private bindEvents() {
     const canvas = this.canvasController.canvas
-    canvas.addEventListener('mousedown', this.handleMouseDown.bind(this))
-    canvas.addEventListener('mousemove', this.handleMouseMove.bind(this))
-    canvas.addEventListener('mouseup', this.handleMouseUp.bind(this))
-    canvas.addEventListener('dblclick', this.handleDoubleClick.bind(this))
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault())
+    canvas.addEventListener('mousedown', this.boundHandleMouseDown)
+    canvas.addEventListener('mousemove', this.boundHandleMouseMove)
+    canvas.addEventListener('mouseup', this.boundHandleMouseUp)
+    canvas.addEventListener('dblclick', this.boundHandleDoubleClick)
+    canvas.addEventListener('contextmenu', this.boundPreventContextMenu)
+  }
+
+  destroy() {
+    const canvas = this.canvasController.canvas
+    canvas.removeEventListener('mousedown', this.boundHandleMouseDown)
+    canvas.removeEventListener('mousemove', this.boundHandleMouseMove)
+    canvas.removeEventListener('mouseup', this.boundHandleMouseUp)
+    canvas.removeEventListener('dblclick', this.boundHandleDoubleClick)
+    canvas.removeEventListener('contextmenu', this.boundPreventContextMenu)
+    this._eventStream?.end()
+    this._eventStream = null
   }
 
   private handleMouseDown(event: MouseEvent) {
