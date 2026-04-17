@@ -23,8 +23,10 @@ export interface PathHitInfo {
 
 export interface PositionedGlyph {
   glyph: GlyphData
+  glyphId?: string
   x: number
   y: number
+  pointRefs?: Array<{ pathId: string; nodeId: string }>
   isEditing?: boolean
   isEmpty?: boolean
   isHovered?: boolean
@@ -36,6 +38,11 @@ export interface GlyphData {
     iterPoints(): Generator<Point & { index: number }, void>
     iterHandles(): Generator<[Point, Point], void>
     iterContours(): Generator<{ points: Point[]; isClosed: boolean }, void>
+    iterContourSegments?(contourIndex: number): Generator<{ points: Point[]; pointIndices: number[] }, void>
+    appendUnpackedContour?(contour: { points: Point[]; isClosed: boolean }): void
+    setPoint?(index: number, point: Point): void
+    pointTypes?: Uint8Array
+    coordinates?: Float64Array
     toPath2D(): Path2D
     getControlBounds(): { xMin: number; yMin: number; xMax: number; yMax: number } | undefined
     numContours: number
@@ -208,7 +215,7 @@ export function registerVisualizationLayerDefinition(
 }
 
 export function glyphSelector(selectionMode: string) {
-  return (visContext: VisContext, layer: VisualizationLayerDefinition) => {
+  return (visContext: VisContext, _layer: VisualizationLayerDefinition) => {
     const glyphs = visContext.glyphsBySelectionMode[selectionMode] || []
     return glyphs
   }

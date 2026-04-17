@@ -79,6 +79,14 @@ export interface GlobalState {
     nodeId: string,
     newPos: { x: number; y: number }
   ) => void
+  updateNodePositions: (
+    glyphId: string,
+    updates: Array<{
+      pathId: string
+      nodeId: string
+      newPos: { x: number; y: number }
+    }>
+  ) => void
   updateNodeType: (
     glyphId: string,
     pathId: string,
@@ -377,7 +385,7 @@ export const useStore = create<GlobalState>()(
       fontData: null,
       projectId: null,
       projectTitle: '',
-      idsDictionary: {},
+      idsDictionary: IDS_DICTIONARY,
       currentSearchQuery: '',
       filteredGlyphList: [],
       selectedGlyphId: null,
@@ -425,6 +433,24 @@ export const useStore = create<GlobalState>()(
 
           node.x = Math.round(newPos.x)
           node.y = Math.round(newPos.y)
+        }),
+
+      updateNodePositions: (glyphId, updates) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          if (!glyph) {
+            return
+          }
+
+          for (const update of updates) {
+            const node = findNode(findPath(glyph, update.pathId), update.nodeId)
+            if (!node) {
+              continue
+            }
+
+            node.x = Math.round(update.newPos.x)
+            node.y = Math.round(update.newPos.y)
+          }
         }),
 
       updateNodeType: (glyphId, pathId, nodeId, type) =>

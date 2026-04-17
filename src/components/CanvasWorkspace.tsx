@@ -56,6 +56,24 @@ export function CanvasWorkspace() {
     useStore.temporal.getState().redo()
   }, [])
 
+  const buildPointRefs = useCallback(() => {
+    if (!fontData || !selectedGlyphId) {
+      return []
+    }
+
+    const glyph = fontData.glyphs[selectedGlyphId]
+    if (!glyph) {
+      return []
+    }
+
+    return glyph.paths.flatMap((path) =>
+      path.nodes.map((node) => ({
+        pathId: path.id,
+        nodeId: node.id,
+      }))
+    )
+  }, [fontData, selectedGlyphId])
+
   // Convert current glyph data to Fontra format
   const getPositionedGlyph = useCallback((): PositionedGlyph | undefined => {
     console.log('getPositionedGlyph called', {
@@ -74,6 +92,7 @@ export function CanvasWorkspace() {
       pathsCount: glyph.paths?.length,
     })
     if (!glyph) return undefined
+    const pointRefs = buildPointRefs()
 
     // Convert paths to VarPackedPath
     const contours: {
@@ -119,12 +138,14 @@ export function CanvasWorkspace() {
 
     return {
       glyph: glyphData,
+      glyphId: glyph.id,
       x: 0,
       y: 0,
+      pointRefs,
       isEditing: true,
       isEmpty: glyph.paths.length === 0,
     }
-  }, [fontData, selectedGlyphId])
+  }, [buildPointRefs, fontData, selectedGlyphId])
 
   // Initialize canvas
   useEffect(() => {
@@ -175,13 +196,16 @@ export function CanvasWorkspace() {
       model: sceneModel,
       onSelectionChange: (selection) => {
         console.log('Selection changed:', selection)
+        const pointRefs = sceneController.sceneModel.glyph?.pointRefs ?? []
         const nodeIds: string[] = []
         for (const item of selection) {
           const match = item.match(/^point\/(\d+)$/)
           if (match) {
-            const pathIndex = 0 // Simplified for now
             const nodeIndex = parseInt(match[1], 10)
-            nodeIds.push(`${pathIndex}:${nodeIndex}`)
+            const pointRef = pointRefs[nodeIndex]
+            if (pointRef) {
+              nodeIds.push(`${pointRef.pathId}:${pointRef.nodeId}`)
+            }
           }
         }
         setSelectedNodeIds(nodeIds)
@@ -189,7 +213,13 @@ export function CanvasWorkspace() {
       onUpdateNodePosition: (glyphId, pathId, nodeId, newPos) => {
         console.log('Updating node position via callback:', { glyphId, pathId, nodeId, newPos })
         useStore.getState().updateNodePosition(glyphId, pathId, nodeId, newPos)
-      }
+      },
+      onCommitNodePositions: (glyphId, updates) => {
+        useStore.getState().updateNodePositions(glyphId, updates)
+      },
+      onUpdateNodeType: (glyphId, pathId, nodeId, type) => {
+        useStore.getState().updateNodeType(glyphId, pathId, nodeId, type)
+      },
     })
 
     sceneControllerRef.current = sceneController

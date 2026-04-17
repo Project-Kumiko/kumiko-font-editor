@@ -2,10 +2,6 @@
 // 從 Fontra edit-tools-pointer.js 移植
 
 import { BaseTool, type ToolEvent, type EventStream } from './BaseTool'
-import type { CanvasController } from '../canvas/CanvasController'
-
-const TRANSFORM_HANDLE_MARGIN = 6
-const TRANSFORM_HANDLE_SIZE = 8
 
 export class PointerTool extends BaseTool {
   identifier = 'pointer-tool'
@@ -15,11 +11,13 @@ export class PointerTool extends BaseTool {
     startPoint: { x: number; y: number }
     initialSelection: Set<string>
     selectedPointIndices: number[]
+    didMove: boolean
   } = {
     isDragging: false,
     startPoint: { x: 0, y: 0 },
     initialSelection: new Set(),
     selectedPointIndices: [],
+    didMove: false,
   }
 
   handleHover(event: ToolEvent): void {
@@ -52,7 +50,7 @@ export class PointerTool extends BaseTool {
     const point = this.localPoint(initialEvent)
     const size = this.sceneController.mouseClickMargin
 
-    const { selection, pathHit } = this.sceneController.selectionAtPoint(
+    const { selection, pathHit: _pathHit } = this.sceneController.selectionAtPoint(
       point,
       size,
       this.sceneController.selection,
@@ -70,7 +68,7 @@ export class PointerTool extends BaseTool {
 
     // If no glyph is being edited, just select
     if (!this.sceneModel.canEdit) {
-      this.sceneController.selection = selection
+      this.sceneController.setSelection(selection)
       eventStream.done()
       return
     }
@@ -81,6 +79,7 @@ export class PointerTool extends BaseTool {
       startPoint: point,
       initialSelection: new Set(this.sceneController.selection),
       selectedPointIndices: [],
+      didMove: false,
     }
 
     // Parse selection to get point indices
@@ -93,7 +92,7 @@ export class PointerTool extends BaseTool {
 
     // If clicked on unselected point, select it
     if (selection.size > 0 && !this.hasIntersection(this.sceneController.selection, selection)) {
-      this.sceneController.selection = selection
+      this.sceneController.setSelection(selection)
       this.dragState.selectedPointIndices = []
       for (const item of selection) {
         const match = item.match(/^point\/(\d+)$/)
@@ -126,6 +125,10 @@ export class PointerTool extends BaseTool {
     const dx = currentPoint.x - this.dragState.startPoint.x
     const dy = currentPoint.y - this.dragState.startPoint.y
 
+    if (dx !== 0 || dy !== 0) {
+      this.dragState.didMove = true
+    }
+
     // Update drag start point for next move
     this.dragState.startPoint = currentPoint
 
@@ -150,12 +153,39 @@ export class PointerTool extends BaseTool {
     this.canvasController.requestUpdate()
   }
 
-  private async handleDragEnd(event: ToolEvent): Promise<void> {
-    // Commit changes to store
-    // This will be handled by the store integration
+  private async handleDragEnd(_event: ToolEvent): Promise<void> {
+    if (!this.dragState.didMove || !this.sceneModel.glyph?.glyph.path) {
+      return
+    }
+
+    const glyphId = this.sceneModel.glyph.glyphId
+    const pointRefs = this.sceneModel.glyph.pointRefs ?? []
+    if (!glyphId || !this.sceneController.onCommitNodePositions) {
+      return
+    }
+
+    const updates = this.dragState.selectedPointIndices.flatMap((idx) => {
+      const pointRef = pointRefs[idx]
+      const pt = this.getPointByIndex(this.sceneModel.glyph!.glyph.path, idx)
+      if (!pointRef || !pt) {
+        return []
+      }
+
+      return [
+        {
+          pathId: pointRef.pathId,
+          nodeId: pointRef.nodeId,
+          newPos: { x: pt.x, y: pt.y },
+        },
+      ]
+    })
+
+    if (updates.length > 0) {
+      this.sceneController.onCommitNodePositions(glyphId, updates)
+    }
   }
 
-  private async handleDoubleClick(selection: Set<string>, point: { x: number; y: number }): Promise<void> {
+  private async handleDoubleClick(selection: Set<string>, _point: { x: number; y: number }): Promise<void> {
     // Toggle smooth/corner for clicked point
     for (const item of selection) {
       const match = item.match(/^point\/(\d+)$/)
@@ -167,6 +197,16 @@ export class PointerTool extends BaseTool {
         if (pt && pt.type === 'onCurve') {
           // Toggle smooth
           this.toggleSmooth(path, idx)
+          const pointRef = this.sceneModel.glyph.pointRefs?.[idx]
+          const glyphId = this.sceneModel.glyph.glyphId
+          if (glyphId && pointRef && this.sceneController.onUpdateNodeType) {
+            this.sceneController.onUpdateNodeType(
+              glyphId,
+              pointRef.pathId,
+              pointRef.nodeId,
+              pt.smooth ? 'corner' : 'smooth'
+            )
+          }
           this.invalidateGlyphPaths()
           this.canvasController.requestUpdate()
         }
@@ -201,16 +241,6 @@ export class PointerTool extends BaseTool {
       path.coordinates[index * 2 + 1] = y
     }
 
-    // Notify store of the position change for undo/redo functionality
-    if (this.sceneController.onUpdateNodePosition && this.sceneModel.glyph) {
-      // We need to determine the glyphId, pathId, and nodeId
-      // For now, we'll use simplified indices as in CanvasWorkspace
-      const glyphId = this.sceneModel.glyph?.id || 'unknown'
-      const pathId = path.id || 'unknown' // Assuming path has an id property
-      const nodeId = String(index) // Using index as nodeId for simplicity
-
-      this.sceneController.onUpdateNodePosition(glyphId, pathId, nodeId, { x, y })
-    }
   }
 
   private toggleSmooth(

@@ -1,11 +1,10 @@
 // 場景控制器 - 管理編輯狀態和互動
 
 import type { CanvasController } from '../canvas/CanvasController'
-import type { GlyphData, PositionedGlyph, SceneModel } from '../canvas/SceneView'
+import type { SceneModel } from '../canvas/SceneView'
 import { PointerTool } from './PointerTool'
 import { PenTool } from './PenTool'
 import type { BaseTool, ToolEvent } from './BaseTool'
-import { useStore } from '../store'
 
 export interface SceneControllerOptions {
   canvasController: CanvasController
@@ -16,6 +15,20 @@ export interface SceneControllerOptions {
     pathId: string,
     nodeId: string,
     newPos: { x: number; y: number }
+  ) => void
+  onCommitNodePositions?: (
+    glyphId: string,
+    updates: Array<{
+      pathId: string
+      nodeId: string
+      newPos: { x: number; y: number }
+    }>
+  ) => void
+  onUpdateNodeType?: (
+    glyphId: string,
+    pathId: string,
+    nodeId: string,
+    type: 'corner' | 'smooth'
   ) => void
 }
 
@@ -33,13 +46,17 @@ export class SceneController {
   private activeTool: BaseTool | null = null
   private _eventStream: EventStreamImpl | null = null
   private onSelectionChange: SceneControllerOptions['onSelectionChange']
-  private onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
+  onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
+  onCommitNodePositions: SceneControllerOptions['onCommitNodePositions']
+  onUpdateNodeType: SceneControllerOptions['onUpdateNodeType']
 
   constructor(options: SceneControllerOptions) {
     this.canvasController = options.canvasController
     this.sceneModel = options.model
     this.onSelectionChange = options.onSelectionChange
     this.onUpdateNodePosition = options.onUpdateNodePosition
+    this.onCommitNodePositions = options.onCommitNodePositions
+    this.onUpdateNodeType = options.onUpdateNodeType
 
     // Initialize tools
     this.tools.set(
@@ -66,6 +83,11 @@ export class SceneController {
     if (this.activeTool) {
       this.activeTool.activate()
     }
+  }
+
+  setSelection(selection: Set<string>) {
+    this.selection = selection
+    this.onSelectionChange?.(selection)
   }
 
   private bindEvents() {
@@ -107,14 +129,14 @@ export class SceneController {
     }
   }
 
-  private handleMouseUp(event: MouseEvent) {
+  private handleMouseUp(_event: MouseEvent) {
     if (this._eventStream) {
       this._eventStream.end()
       this._eventStream = null
     }
   }
 
-  private handleDoubleClick(event: MouseEvent) {
+  private handleDoubleClick(_event: MouseEvent) {
     // Handled in mousedown via detail count
   }
 
@@ -146,9 +168,9 @@ export class SceneController {
   selectionAtPoint(
     point: { x: number; y: number },
     size: number,
-    currentSelection: Set<string>,
-    hoverSelection: Set<string>,
-    altKey: boolean
+    _currentSelection: Set<string>,
+    _hoverSelection: Set<string>,
+    _altKey: boolean
   ): { selection: Set<string>; pathHit?: { segment: { points: { x: number; y: number }[] }; x: number; y: number } } {
     const selection = new Set<string>()
 
@@ -187,6 +209,10 @@ export class SceneController {
 
     // Check segments
     for (let i = 0; i < path.numContours; i++) {
+      if (!path.iterContourSegments) {
+        return null
+      }
+
       for (const segment of path.iterContourSegments(i)) {
         const pts = segment.points
         if (pts.length < 2) continue

@@ -128,7 +128,6 @@ export function parseOpenStep(input: string): any {
       return parseString(c);
     } else if (c === 0x3C) { // '<'
       pos++;
-      const start = pos;
       const end = input.indexOf('>', pos);
       pos = end === -1 ? len : end + 1;
       return null; // ignore hex data

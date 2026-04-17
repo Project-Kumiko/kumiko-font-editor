@@ -47,6 +47,21 @@ export interface SceneControllerInterface {
     nodeId: string,
     newPos: { x: number; y: number }
   ) => void
+  onCommitNodePositions?: (
+    glyphId: string,
+    updates: Array<{
+      pathId: string
+      nodeId: string
+      newPos: { x: number; y: number }
+    }>
+  ) => void
+  onUpdateNodeType?: (
+    glyphId: string,
+    pathId: string,
+    nodeId: string,
+    type: 'corner' | 'smooth'
+  ) => void
+  setSelection(selection: Set<string>): void
 }
 
 export abstract class BaseTool {

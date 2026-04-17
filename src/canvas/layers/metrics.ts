@@ -4,6 +4,8 @@ import {
   registerVisualizationLayerDefinition,
   glyphSelector,
 } from '../SceneView'
+import type { PositionedGlyph, SceneModel } from '../SceneView'
+import type { CanvasController } from '../CanvasController'
 
 function strokeLine(
   context: CanvasRenderingContext2D,
@@ -29,7 +31,7 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 2 },
   colors: { strokeColor: '#000' },
   colorsDarkMode: { strokeColor: '#FFF' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
     context.lineWidth = parameters.strokeWidth as number
@@ -58,7 +60,7 @@ registerVisualizationLayerDefinition({
     zoneColor: '#00BFFF18',
     zoneStrokeColor: '#80DFFF18',
   },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number
 
@@ -102,7 +104,7 @@ registerVisualizationLayerDefinition({
     lsbColor: '#f6ad55',
     widthColor: '#68d391',
   },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel) => {
     const glyph = positionedGlyph.glyph
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number

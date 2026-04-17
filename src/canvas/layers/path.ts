@@ -4,7 +4,8 @@ import {
   registerVisualizationLayerDefinition,
   glyphSelector,
 } from '../SceneView'
-import type { Point } from '../SceneView'
+import type { Point, PositionedGlyph, SceneModel } from '../SceneView'
+import type { CanvasController } from '../CanvasController'
 
 function strokeLine(
   context: CanvasRenderingContext2D,
@@ -28,7 +29,7 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { fillColor: '#0001' },
   colorsDarkMode: { fillColor: '#FFF3' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path) return
@@ -47,7 +48,7 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 2 },
   colors: { strokeColor: '#000' },
   colorsDarkMode: { strokeColor: '#FFF' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path) return
@@ -67,7 +68,7 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 1 },
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#777' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterHandles) return
@@ -90,7 +91,7 @@ registerVisualizationLayerDefinition({
   screenParameters: { cornerSize: 8, smoothSize: 8, handleSize: 6.5 },
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#BBB' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return
@@ -131,7 +132,7 @@ registerVisualizationLayerDefinition({
     selectedColor: '#FFF',
     underColor: '#0008',
   },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return

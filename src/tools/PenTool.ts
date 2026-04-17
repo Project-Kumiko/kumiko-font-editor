@@ -2,7 +2,7 @@
 // 從 Fontra edit-tools-pen.js 移植
 
 import { BaseTool, type ToolEvent, type EventStream } from './BaseTool'
-import type { UnpackedContour, VarPackedPath } from '../font/VarPackedPath'
+import type { VarPackedPath } from '../font/VarPackedPath'
 
 export class PenTool extends BaseTool {
   identifier = 'pen-tool'
@@ -81,9 +81,6 @@ export class PenTool extends BaseTool {
   private async _handleInsertPoint(): Promise<void> {
     if (!this.pathInsertHandles || !this.sceneModel.glyph?.glyph.path) return
 
-    const path = this.sceneModel.glyph.glyph.path
-    const hit = this.pathInsertHandles.hit
-
     // Insert new point at the hit location
     // This requires implementation based on VarPackedPath
 
@@ -120,11 +117,11 @@ export class PenTool extends BaseTool {
   }
 
   private addPointToPath(
-    path: VarPackedPath,
+    path: { appendUnpackedContour?: VarPackedPath['appendUnpackedContour'] },
     point: { x: number; y: number },
     isNewContour: boolean
   ): void {
-    if (isNewContour) {
+    if (isNewContour && path.appendUnpackedContour) {
       path.appendUnpackedContour({
         points: [{ x: point.x, y: point.y, type: 'onCurve' }],
         isClosed: false,
