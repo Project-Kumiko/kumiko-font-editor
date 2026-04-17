@@ -10,17 +10,67 @@ export class PenTool extends BaseTool {
   identifier = 'pen'
 
   override activate(): void {
-    this.setCursor('crosshair')
+    this.setCursor()
     this.canvasController.requestUpdate()
   }
 
   override deactivate(): void {
     super.deactivate()
+    this.clearPreviewState()
     this.canvasController.requestUpdate()
   }
 
-  handleHover(_event: ToolEvent): void {
-    this.setCursor('crosshair')
+  handleHover(event: ToolEvent): void {
+    const glyphId = this.sceneModel.glyph?.glyphId
+    if (!glyphId) {
+      this.setCursor()
+      return
+    }
+
+    const hit = this.sceneController.hitTestAtPoint(
+      this.localPoint(event),
+      this.sceneController.mouseClickMargin,
+      this.sceneController.selection
+    )
+    const appendTarget = this.getAppendTarget(glyphId)
+    this.sceneModel.pathConnectTargetPoint = undefined
+    this.sceneModel.pathInsertHandles = undefined
+
+    if (appendTarget && hit.type === 'point') {
+      const endpointHit = this.getEndpointHit(hit.pointIndex)
+      if (endpointHit && endpointHit.nodeId !== appendTarget.anchorNodeId) {
+        const point = this.getPointFromRef(endpointHit)
+        if (point) {
+          this.sceneModel.pathConnectTargetPoint = {
+            x: point.x,
+            y: point.y,
+            kind: endpointHit.pathId === appendTarget.pathId ? 'close' : 'connect',
+          }
+          this.setCursor('pointer')
+          this.canvasController.requestUpdate()
+          return
+        }
+      }
+    }
+
+    if (hit.type === 'line-segment' || hit.type === 'curve-segment') {
+      this.sceneModel.pathConnectTargetPoint = {
+        x: hit.pathHit.x,
+        y: hit.pathHit.y,
+        kind: 'insert',
+      }
+      if (event.altKey && hit.type === 'line-segment') {
+        const [p0, p1] = hit.pathHit.segment.points
+        this.sceneModel.pathInsertHandles = {
+          points: [lerpPoint(p0, p1, 1 / 3), lerpPoint(p0, p1, 2 / 3)],
+        }
+      }
+      this.setCursor('pointer')
+      this.canvasController.requestUpdate()
+      return
+    }
+
+    this.setCursor()
     this.canvasController.requestUpdate()
   }
 
@@ -40,6 +90,10 @@ export class PenTool extends BaseTool {
       this.sceneController.selection
     )
     const appendTarget = this.getAppendTarget(glyphId)
+    const isDraggingSelectedPoint =
+      (hit.type === 'point' || hit.type === 'handle') &&
+      this.sceneController.selection.has(`point/${hit.pointIndex}`)
+    const isSegmentInteraction = hit.type === 'line-segment' || hit.type === 'curve-segment'
 
     let endPoint = downPoint
     let didDrag = false
@@ -50,21 +104,32 @@ export class PenTool extends BaseTool {
       if (!didDrag && BaseTool.shouldInitiateDrag(downPoint, endPoint)) {
         didDrag = true
       }
+      if (didDrag && !isDraggingSelectedPoint && !isSegmentInteraction) {
+        const previewAnchor =
+          appendTarget && this.getAnchorPoint(glyphId, appendTarget)
+            ? this.getAnchorPoint(glyphId, appendTarget)!
+            : downPoint
+        this.sceneModel.penPreviewPath = this.buildPreviewPath2D(
+          this.buildSegmentNodes(previewAnchor, endPoint, downPoint, true)
+        )
+        this.canvasController.requestUpdate()
+      }
     }
 
     const store = useStore.getState()
 
-    if (!didDrag && (hit.type === 'point' || hit.type === 'handle')) {
-      const pointRef = this.sceneModel.glyph?.pointRefs?.[hit.pointIndex]
-      if (pointRef) {
-        store.setSelectedNodeIds([`${pointRef.pathId}:${pointRef.nodeId}`])
-        this.sceneController.setSelection(new Set([`point/${hit.pointIndex}`]))
-        this.canvasController.requestUpdate()
-        return
-      }
+    if (
+      didDrag &&
+      (hit.type === 'point' || hit.type === 'handle') &&
+      this.sceneController.selection.has(`point/${hit.pointIndex}`)
+    ) {
+      this.moveExistingSelection(glyphId, endPoint.x - downPoint.x, endPoint.y - downPoint.y)
+      this.clearPreviewState()
+      this.canvasController.requestUpdate()
+      return
     }
 
-    if (!appendTarget && (hit.type === 'line-segment' || hit.type === 'curve-segment')) {
+    if (hit.type === 'line-segment' || hit.type === 'curve-segment') {
       if (initialEvent.altKey && hit.type === 'line-segment') {
         const insertedNodeIds = this.insertHandlesOnLineSegment(glyphId, hit.pathHit)
         if (insertedNodeIds) {
@@ -72,6 +137,22 @@ export class PenTool extends BaseTool {
             insertedNodeIds.nodeIds.map((nodeId) => `${insertedNodeIds.pathId}:${nodeId}`)
           )
         }
+        this.clearPreviewState()
+        this.canvasController.requestUpdate()
+        return
+      }
+
+      if (didDrag) {
+        const draggedPoint = this.insertAndDragPointOnSegment(
+          glyphId,
+          hit.pathHit,
+          endPoint.x - downPoint.x,
+          endPoint.y - downPoint.y
+        )
+        if (draggedPoint) {
+          store.setSelectedNodeIds([`${draggedPoint.pathId}:${draggedPoint.nodeId}`])
+        }
+        this.clearPreviewState()
         this.canvasController.requestUpdate()
         return
       }
@@ -80,6 +161,7 @@ export class PenTool extends BaseTool {
       if (insertedPoint) {
         store.setSelectedNodeIds([`${insertedPoint.pathId}:${insertedPoint.nodeId}`])
       }
+      this.clearPreviewState()
       this.canvasController.requestUpdate()
       return
     }
@@ -97,6 +179,7 @@ export class PenTool extends BaseTool {
       ) {
         store.closePath(glyphId, appendTarget.pathId)
         store.setSelectedNodeIds([`${appendTarget.pathId}:${appendTarget.anchorNodeId}`])
+        this.clearPreviewState()
         this.canvasController.requestUpdate()
         return
       }
@@ -117,9 +200,21 @@ export class PenTool extends BaseTool {
           store.setSelectedNodeIds(
             [`${result.pathId}:${appendTarget.anchorNodeId}`, `${result.pathId}:${endpointHit.nodeId}`]
           )
+          this.clearPreviewState()
           this.canvasController.requestUpdate()
           return
         }
+      }
+    }
+
+    if (!didDrag && (hit.type === 'point' || hit.type === 'handle')) {
+      const pointRef = this.sceneModel.glyph?.pointRefs?.[hit.pointIndex]
+      if (pointRef) {
+        store.setSelectedNodeIds([`${pointRef.pathId}:${pointRef.nodeId}`])
+        this.sceneController.setSelection(new Set([`point/${hit.pointIndex}`]))
+        this.clearPreviewState()
+        this.canvasController.requestUpdate()
+        return
       }
     }
 
@@ -134,6 +229,7 @@ export class PenTool extends BaseTool {
         }
         store.createPath(glyphId, path)
         store.setSelectedNodeIds([`${pathId}:${node.id}`])
+        this.clearPreviewState()
         this.canvasController.requestUpdate()
         return
       }
@@ -146,6 +242,7 @@ export class PenTool extends BaseTool {
       }
       store.createPath(glyphId, path)
       store.setSelectedNodeIds([`${pathId}:${path.nodes.at(-1)!.id}`])
+      this.clearPreviewState()
       this.canvasController.requestUpdate()
       return
     }
@@ -170,6 +267,7 @@ export class PenTool extends BaseTool {
         appendTarget.mode === 'prepend' ? createdNodes[0]!.id : createdNodes.at(-1)!.id
       }`,
     ])
+    this.clearPreviewState()
     this.canvasController.requestUpdate()
   }
 
@@ -250,6 +348,76 @@ export class PenTool extends BaseTool {
     const splitNodes = this.splitCurveSegment(pathHit)
     if (!splitNodes) {
       return null
+    }
+
+    store.replacePathNodes(
+      glyphId,
+      pathId,
+      segmentNodes[0].nodeId,
+      segmentNodes[segmentNodes.length - 1].nodeId,
+      splitNodes.nodes
+    )
+    return { pathId, nodeId: splitNodes.insertedNodeId }
+  }
+
+  private insertAndDragPointOnSegment(
+    glyphId: string,
+    pathHit: PathHitInfo,
+    dx: number,
+    dy: number
+  ) {
+    const segmentNodes = this.getSegmentNodeRefs(pathHit.segment.pointIndices)
+    if (!segmentNodes || segmentNodes.length < 2) {
+      return null
+    }
+
+    const pathId = segmentNodes[0].pathId
+    const store = useStore.getState()
+
+    if (pathHit.segment.type === 'line' && segmentNodes.length === 2) {
+      const startNode = segmentNodes[0].node
+      const endNode = segmentNodes[1].node
+      const inserted = this.createNode(pathHit.x + dx, pathHit.y + dy, 'smooth')
+      const handleIn = this.createNode(inserted.x - dx, inserted.y - dy, 'offcurve')
+      const handleOut = this.createNode(inserted.x + dx, inserted.y + dy, 'offcurve')
+      const startHandle = this.createNode(
+        startNode.x + (inserted.x - startNode.x) / 3,
+        startNode.y + (inserted.y - startNode.y) / 3,
+        'offcurve'
+      )
+      const endHandle = this.createNode(
+        inserted.x + (endNode.x - inserted.x) / 3,
+        inserted.y + (endNode.y - inserted.y) / 3,
+        'offcurve'
+      )
+
+      store.replacePathNodes(glyphId, pathId, startNode.id, endNode.id, [
+        { ...startNode, type: 'corner' },
+        startHandle,
+        handleIn,
+        inserted,
+        handleOut,
+        endHandle,
+        { ...endNode, type: 'corner' },
+      ])
+      return { pathId, nodeId: inserted.id }
+    }
+
+    const splitNodes = this.splitCurveSegment(pathHit)
+    if (!splitNodes) {
+      return null
+    }
+
+    const insertedIndex = splitNodes.nodes.findIndex((node) => node.id === splitNodes.insertedNodeId)
+    for (const index of [insertedIndex - 1, insertedIndex, insertedIndex + 1]) {
+      if (index < 0 || index >= splitNodes.nodes.length) {
+        continue
+      }
+      splitNodes.nodes[index] = {
+        ...splitNodes.nodes[index],
+        x: Math.round(splitNodes.nodes[index].x + dx),
+        y: Math.round(splitNodes.nodes[index].y + dy),
+      }
     }
 
     store.replacePathNodes(
@@ -437,6 +605,71 @@ export class PenTool extends BaseTool {
       ),
       this.createNode(endPoint.x, endPoint.y, 'smooth'),
     ]
+  }
+
+  private getPointFromRef(pointRef: { pathId: string; nodeId: string }) {
+    const glyphId = this.sceneModel.glyph?.glyphId
+    const glyph = glyphId ? useStore.getState().fontData?.glyphs[glyphId] : undefined
+    return glyph?.paths
+      .find((path) => path.id === pointRef.pathId)
+      ?.nodes.find((node) => node.id === pointRef.nodeId)
+  }
+
+  private clearPreviewState() {
+    this.sceneModel.pathConnectTargetPoint = undefined
+    this.sceneModel.pathInsertHandles = undefined
+    this.sceneModel.penPreviewPath = undefined
+  }
+
+  private moveExistingSelection(glyphId: string, dx: number, dy: number) {
+    const pointRefs = this.sceneModel.glyph?.pointRefs ?? []
+    const path = this.sceneModel.glyph?.glyph.path
+    if (!path?.getPoint) {
+      return
+    }
+
+    const updates: Array<{ pathId: string; nodeId: string; newPos: { x: number; y: number } }> = []
+    for (const item of this.sceneController.selection) {
+      const match = item.match(/^point\/(\d+)$/)
+      if (!match) {
+        continue
+      }
+
+      const pointIndex = parseInt(match[1], 10)
+      const pointRef = pointRefs[pointIndex]
+      const point = path.getPoint(pointIndex)
+      if (!pointRef || !point) {
+        continue
+      }
+
+      updates.push({
+        pathId: pointRef.pathId,
+        nodeId: pointRef.nodeId,
+        newPos: {
+          x: Math.round(point.x + dx),
+          y: Math.round(point.y + dy),
+        },
+      })
+    }
+
+    if (updates.length > 0) {
+      useStore.getState().updateNodePositions(glyphId, updates)
+    }
+  }
+
+  private buildPreviewPath2D(nodes: PathNode[]) {
+    const path = new Path2D()
+    if (nodes.length === 0) {
+      return path
+    }
+
+    path.moveTo(nodes[0].x, nodes[0].y)
+    if (nodes.length === 2) {
+      path.lineTo(nodes[1].x, nodes[1].y)
+    } else if (nodes.length >= 4) {
+      path.bezierCurveTo(nodes[1].x, nodes[1].y, nodes[2].x, nodes[2].y, nodes[3].x, nodes[3].y)
+    }
+    return path
   }
 
   private normalizeNodes(nodes: PathNode[]) {

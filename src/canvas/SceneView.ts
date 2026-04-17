@@ -24,6 +24,10 @@ export interface SceneModel {
   hoverPathHit?: PathHitInfo
   selectedPathHit?: PathHitInfo
   activeToolIdentifier?: string
+  pathConnectTargetPoint?: { x: number; y: number; kind?: 'insert' | 'close' | 'connect' }
+  pathInsertHandles?: { points: Array<{ x: number; y: number }> }
+  penPreviewPath?: Path2D
+  alignmentGuides?: Array<{ x1: number; y1: number; x2: number; y2: number }>
   initialClickedPointIndex?: number
   canEdit?: boolean
 }

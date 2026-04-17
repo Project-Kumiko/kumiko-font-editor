@@ -20,6 +20,10 @@ function strokeLine(
   context.stroke()
 }
 
+function isHandTool(model: SceneModel) {
+  return model.activeToolIdentifier === 'hand'
+}
+
 // 編輯路徑填充
 registerVisualizationLayerDefinition({
   identifier: 'fontra.edit.path.fill',
@@ -60,6 +64,98 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
+  identifier: 'fontra.connect-insert.point',
+  name: 'Connect/Insert Point',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 545,
+  screenParameters: {
+    connectRadius: 7,
+    insertHandlesRadius: 3.5,
+    strokeWidth: 2,
+  },
+  colors: { color: '#3080FF80', closeColor: '#d9485f99' },
+  colorsDarkMode: { color: '#50A0FF80', closeColor: '#fc818199' },
+  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    if (isHandTool(model)) {
+      return
+    }
+    const targetPoint = model.pathConnectTargetPoint
+    const insertHandles = model.pathInsertHandles
+    if (!targetPoint && !insertHandles) {
+      return
+    }
+
+    const context = canvasController.context
+    const color =
+      targetPoint?.kind === 'close' ? (parameters.closeColor as string) : (parameters.color as string)
+
+    context.fillStyle = color
+    context.strokeStyle = color
+    context.lineWidth = parameters.strokeWidth as number
+    context.lineCap = 'round'
+
+    if (targetPoint) {
+      fillRoundNode(context, targetPoint, (parameters.connectRadius as number) * 2)
+    }
+    for (const point of insertHandles?.points || []) {
+      fillRoundNode(context, point, (parameters.insertHandlesRadius as number) * 2)
+    }
+  },
+})
+
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.pen.preview',
+  name: 'Pen Preview',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 546,
+  screenParameters: { strokeWidth: 2, lineDash: [6, 4] },
+  colors: { strokeColor: '#0f766e' },
+  colorsDarkMode: { strokeColor: '#81e6d9' },
+  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    if (isHandTool(model)) {
+      return
+    }
+    if (!model.penPreviewPath) {
+      return
+    }
+
+    const context = canvasController.context
+    context.strokeStyle = parameters.strokeColor as string
+    context.lineWidth = parameters.strokeWidth as number
+    context.setLineDash(parameters.lineDash as number[])
+    context.stroke(model.penPreviewPath)
+    context.setLineDash([])
+  },
+})
+
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.alignment.guides',
+  name: 'Alignment Guides',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 547,
+  screenParameters: { strokeWidth: 1.25, lineDash: [5, 5] },
+  colors: { strokeColor: '#dd6b20' },
+  colorsDarkMode: { strokeColor: '#f6ad55' },
+  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    if (isHandTool(model)) {
+      return
+    }
+    if (!model.alignmentGuides?.length) {
+      return
+    }
+
+    const context = canvasController.context
+    context.strokeStyle = parameters.strokeColor as string
+    context.lineWidth = parameters.strokeWidth as number
+    context.setLineDash(parameters.lineDash as number[])
+    for (const guide of model.alignmentGuides) {
+      strokeLine(context, guide.x1, guide.y1, guide.x2, guide.y2)
+    }
+    context.setLineDash([])
+  },
+})
+
+registerVisualizationLayerDefinition({
   identifier: 'fontra.selected.segments',
   name: 'Selected Segments',
   selectionFunc: glyphSelector('editing'),
@@ -74,6 +170,9 @@ registerVisualizationLayerDefinition({
     hoveredColor: '#90cdf4',
   },
   draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
+    if (isHandTool(model)) {
+      return
+    }
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterContourSegments) return
@@ -108,6 +207,9 @@ registerVisualizationLayerDefinition({
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#777' },
   draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
+    if (isHandTool(model)) {
+      return
+    }
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterHandles) return
@@ -142,6 +244,9 @@ registerVisualizationLayerDefinition({
   colors: { color: '#BBB' },
   colorsDarkMode: { color: '#BBB' },
   draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+    if (isHandTool(_model)) {
+      return
+    }
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return
@@ -183,6 +288,9 @@ registerVisualizationLayerDefinition({
     underColor: '#0008',
   },
   draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, _controller: CanvasController) => {
+    if (isHandTool(model)) {
+      return
+    }
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
     if (!glyph.path?.iterPoints) return
@@ -247,6 +355,9 @@ registerVisualizationLayerDefinition({
   colors: { strokeColor: '#8888' },
   colorsDarkMode: { strokeColor: '#AAA8' },
   draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel, controller: CanvasController) => {
+    if (isHandTool(model)) {
+      return
+    }
     if (model.initialClickedPointIndex === undefined) return
 
     const glyph = positionedGlyph.glyph
@@ -277,6 +388,7 @@ registerVisualizationLayerDefinition({
   colorsDarkMode: { strokeColor: '#90cdf4', fillColor: '#90cdf433' },
   draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, model: SceneModel) => {
     if (
+      isHandTool(model) ||
       !model.selectionRect ||
       model.selectionRect.owner !== 'pointer' ||
       model.activeToolIdentifier !== 'pointer'
@@ -325,6 +437,16 @@ function fillNode(
     context.closePath()
   }
 
+  context.fill()
+}
+
+function fillRoundNode(
+  context: CanvasRenderingContext2D,
+  pt: { x: number; y: number },
+  size: number
+) {
+  context.beginPath()
+  context.arc(pt.x, pt.y, size / 2, 0, Math.PI * 2)
   context.fill()
 }
 

@@ -22,11 +22,13 @@ export function CanvasWorkspace() {
   const canvasControllerRef = useRef<CanvasController | null>(null)
   const sceneControllerRef = useRef<SceneController | null>(null)
   const sceneViewRef = useRef<SceneView | null>(null)
-  const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush'>('pointer')
+  const temporaryToolRef = useRef<'pointer' | 'pen' | 'brush' | 'hand' | null>(null)
+  const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush' | 'hand'>('pointer')
   const availableTools = [
     { id: 'pointer', label: 'Pointer', status: 'ready' },
     { id: 'pen', label: 'Pen', status: 'ready' },
     { id: 'brush', label: 'Brush', status: 'ready' },
+    { id: 'hand', label: 'Hand', status: 'ready' },
   ] as const
 
   // Store data
@@ -35,8 +37,33 @@ export function CanvasWorkspace() {
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
+  const setSelectedSegment = useStore((state) => state.setSelectedSegment)
   const updateViewport = useStore((state) => state.updateViewport)
   const deleteSelectedNodes = useStore((state) => state.deleteSelectedNodes)
+
+  const getPreviousPenSelection = useCallback(() => {
+    if (
+      activeToolId !== 'pen' ||
+      !fontData ||
+      !selectedGlyphId ||
+      selectedNodeIds.length !== 1
+    ) {
+      return null
+    }
+
+    const [pathId, nodeId] = selectedNodeIds[0].split(':')
+    const path = fontData.glyphs[selectedGlyphId]?.paths.find((candidate) => candidate.id === pathId)
+    if (!path) {
+      return null
+    }
+
+    const currentIndex = path.nodes.findIndex((node) => node.id === nodeId)
+    if (currentIndex <= 0) {
+      return null
+    }
+
+    return `${pathId}:${path.nodes[currentIndex - 1].id}`
+  }, [activeToolId, fontData, selectedGlyphId, selectedNodeIds])
 
   // Zundo temporal hooks
   const pastStatesLength = useTemporalStore((state) => state.pastStates.length)
@@ -53,7 +80,7 @@ export function CanvasWorkspace() {
   }, [])
 
   const handleToolSelect = useCallback(
-    (toolId: 'pointer' | 'pen' | 'brush') => {
+    (toolId: 'pointer' | 'pen' | 'brush' | 'hand') => {
       sceneControllerRef.current?.setActiveTool(toolId)
       setActiveToolId(toolId)
     },
@@ -194,6 +221,31 @@ export function CanvasWorkspace() {
           }
         }
         setSelectedNodeIds(nodeIds)
+        if (nodeIds.length > 0) {
+          setSelectedSegment(null)
+        }
+      },
+      onSelectedPathHitChange: (pathHit) => {
+        const pointRefs = sceneController.sceneModel.glyph?.pointRefs ?? []
+        if (!pathHit || pathHit.segment.pointIndices.length < 2) {
+          setSelectedSegment(null)
+          return
+        }
+
+        const [startIndex, endIndex] = pathHit.segment.pointIndices
+        const startRef = pointRefs[startIndex]
+        const endRef = pointRefs[endIndex]
+        if (!startRef || !endRef || startRef.pathId !== endRef.pathId) {
+          setSelectedSegment(null)
+          return
+        }
+
+        setSelectedSegment({
+          pathId: startRef.pathId,
+          startNodeId: startRef.nodeId,
+          endNodeId: endRef.nodeId,
+          type: pathHit.segment.type ?? 'line',
+        })
       },
       onUpdateNodePosition: (glyphId, pathId, nodeId, newPos) => {
         useStore.getState().updateNodePosition(glyphId, pathId, nodeId, newPos)
@@ -229,7 +281,7 @@ export function CanvasWorkspace() {
       sceneControllerRef.current = null
       sceneViewRef.current = null
     }
-  }, [setSelectedNodeIds, updateViewport])
+  }, [setSelectedNodeIds, setSelectedSegment, updateViewport])
 
   // Update scene model when data changes
   useEffect(() => {
@@ -293,13 +345,55 @@ export function CanvasWorkspace() {
         selectedNodeIds.length > 0
       ) {
         e.preventDefault()
+        const nextPenSelection = getPreviousPenSelection()
         deleteSelectedNodes(selectedGlyphId, selectedNodeIds)
+        if (nextPenSelection) {
+          setSelectedNodeIds([nextPenSelection])
+        }
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault()
+        temporaryToolRef.current = null
+        handleToolSelect('pointer')
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault()
+        temporaryToolRef.current = null
+        handleToolSelect('pen')
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault()
+        temporaryToolRef.current = null
+        handleToolSelect('brush')
+      } else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault()
+        temporaryToolRef.current = null
+        handleToolSelect('hand')
+      } else if (e.key === ' ' && !e.repeat) {
+        e.preventDefault()
+        if (!temporaryToolRef.current) {
+          temporaryToolRef.current = activeToolId
+          handleToolSelect('hand')
+        }
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== ' ') {
+        return
+      }
+
+      if (temporaryToolRef.current) {
+        const previousTool = temporaryToolRef.current
+        temporaryToolRef.current = null
+        handleToolSelect(previousTool)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [deleteSelectedNodes, handleUndo, handleRedo, selectedGlyphId, selectedNodeIds])
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [activeToolId, deleteSelectedNodes, getPreviousPenSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedNodeIds, setSelectedNodeIds])
 
   return (
     <Box
@@ -315,7 +409,7 @@ export function CanvasWorkspace() {
           width: '100%',
           height: '100%',
           display: 'block',
-          cursor: 'crosshair',
+          cursor: 'default',
         }}
       />
 
@@ -340,7 +434,7 @@ export function CanvasWorkspace() {
           滾輪縮放，拖曳空白區平移視角
         </Text>
         <Text fontSize="xs" color="whiteAlpha.700">
-          點擊節點選取，拖曳移動
+          `V` 游標，`P` 鋼筆，`B` 筆刷，`H` 移動畫布
         </Text>
 
         <HStack mt={2}>
@@ -413,6 +507,10 @@ export function CanvasWorkspace() {
           Drag
         </Box>
         <Text>Pan / Move Node</Text>
+        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
+          Space
+        </Box>
+        <Text>Hold Hand Tool</Text>
       </Flex>
     </Box>
   )

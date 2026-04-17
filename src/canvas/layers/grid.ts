@@ -20,7 +20,7 @@ function strokeLine(
   context.stroke()
 }
 
-// UPM 格線 (每單位一個格線)
+// UPM 格點 (每單位一個點)
 registerVisualizationLayerDefinition({
   identifier: 'fontra.upm.grid',
   name: 'UPM Grid',
@@ -28,28 +28,26 @@ registerVisualizationLayerDefinition({
   userSwitchable: true,
   defaultOn: true,
   zIndex: 0,
-  screenParameters: { strokeWidth: 2 },
-  colors: { strokeColor: '#FFF' },
-  colorsDarkMode: { strokeColor: '#3C3C3C' },
+  screenParameters: { dotSize: 0.12 },
+  colors: { fillColor: '#0003' },
+  colorsDarkMode: { fillColor: '#FFF3' },
   draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, controller: CanvasController) => {
-    if (controller.magnification < 4) {
+    if (controller.magnification < 24) {
       return
     }
 
     const context = canvasController.context
-    context.strokeStyle = parameters.strokeColor as string
-    context.lineWidth = parameters.strokeWidth as number
+    context.fillStyle = parameters.fillColor as string
 
     const { xMin, yMin, xMax, yMax } = controller.getViewBox()
+    const dotSize = parameters.dotSize as number
 
-    // Draw vertical grid lines
     for (let x = Math.floor(xMin); x < Math.ceil(xMax); x++) {
-      strokeLine(context, x, yMin, x, yMax)
-    }
-
-    // Draw horizontal grid lines
-    for (let y = Math.floor(yMin); y < Math.ceil(yMax); y++) {
-      strokeLine(context, xMin, y, xMax, y)
+      for (let y = Math.floor(yMin); y < Math.ceil(yMax); y++) {
+        context.beginPath()
+        context.arc(x, y, dotSize / 2, 0, Math.PI * 2)
+        context.fill()
+      }
     }
   },
 })
@@ -66,7 +64,7 @@ registerVisualizationLayerDefinition({
   colors: { strokeColor: '#0002' },
   colorsDarkMode: { strokeColor: '#FFF2' },
   draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, controller: CanvasController) => {
-    if (controller.magnification < 1) {
+    if (controller.magnification < 10) {
       return
     }
 

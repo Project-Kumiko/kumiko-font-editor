@@ -5,7 +5,7 @@ import type { SceneView } from './SceneView'
 import type { SceneModel } from './SceneView'
 
 const MIN_MAGNIFICATION = 0.005
-const MAX_MAGNIFICATION = 200
+const MAX_MAGNIFICATION = 800
 
 export interface Point {
   x: number
@@ -194,6 +194,13 @@ export class CanvasController {
       this._updateRequested = false
       this.draw()
     })
+  }
+
+  panBy(deltaX: number, deltaY: number) {
+    this.origin.x += deltaX
+    this.origin.y += deltaY
+    this.requestUpdate()
+    this._dispatchEvent('viewBoxChanged', 'origin')
   }
 
   // Event handlers

@@ -5,12 +5,14 @@ import type { PathHitInfo, Point, SceneModel } from '../canvas/SceneView'
 import { PointerTool } from './PointerTool'
 import { PenTool } from './PenTool'
 import { BrushTool } from './BrushTool'
+import { HandTool } from './HandTool'
 import type { BaseTool, ToolEvent } from './BaseTool'
 
 export interface SceneControllerOptions {
   canvasController: CanvasController
   model: SceneModel
   onSelectionChange?: (selection: Set<string>) => void
+  onSelectedPathHitChange?: (pathHit?: PathHitInfo) => void
   onUpdateNodePosition?: (
     glyphId: string,
     pathId: string,
@@ -61,6 +63,7 @@ export class SceneController {
   private readonly boundHandleDoubleClick = this.handleDoubleClick.bind(this)
   private readonly boundPreventContextMenu = (e: MouseEvent) => e.preventDefault()
   private onSelectionChange: SceneControllerOptions['onSelectionChange']
+  private onSelectedPathHitChange: SceneControllerOptions['onSelectedPathHitChange']
   onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
   onCommitNodePositions: SceneControllerOptions['onCommitNodePositions']
   onUpdateNodeType: SceneControllerOptions['onUpdateNodeType']
@@ -69,6 +72,7 @@ export class SceneController {
     this.canvasController = options.canvasController
     this.sceneModel = options.model
     this.onSelectionChange = options.onSelectionChange
+    this.onSelectedPathHitChange = options.onSelectedPathHitChange
     this.onUpdateNodePosition = options.onUpdateNodePosition
     this.onCommitNodePositions = options.onCommitNodePositions
     this.onUpdateNodeType = options.onUpdateNodeType
@@ -84,6 +88,10 @@ export class SceneController {
     this.tools.set(
       'brush',
       new BrushTool(this.canvasController, this as any, this.sceneModel)
+    )
+    this.tools.set(
+      'hand',
+      new HandTool(this.canvasController, this as any, this.sceneModel)
     )
 
     this.sceneModel.activeToolIdentifier = 'pointer'
@@ -128,6 +136,7 @@ export class SceneController {
   setSelectedPathHit(pathHit?: PathHitInfo) {
     this.selectedPathHit = pathHit
     this.sceneModel.selectedPathHit = pathHit
+    this.onSelectedPathHitChange?.(pathHit)
   }
 
   setHoverPathHit(pathHit?: PathHitInfo) {

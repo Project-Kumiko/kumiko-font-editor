@@ -3,6 +3,7 @@
 import { BaseTool, type EventStream, type ToolEvent } from './BaseTool'
 import type { Point, PathHitInfo } from '../canvas/SceneView'
 import type { HitTestResult } from './SceneController'
+import { useStore } from '../store'
 
 type DragMode =
   | 'pending'
@@ -26,6 +27,11 @@ export class PointerTool extends BaseTool {
     selectionToRestore: Set<string>
     activePointIndices: number[]
     pathSnapshot: Map<number, Point>
+    snappedDelta: {
+      x: number
+      y: number
+      guides: Array<{ x1: number; y1: number; x2: number; y2: number }>
+    }
     linkedHandle?:
       | {
           draggedHandleIndex: number
@@ -34,6 +40,7 @@ export class PointerTool extends BaseTool {
         }
       | undefined
     didMove: boolean
+    altKey: boolean
     pointToggleOnClick?: { selectionKey: string; remove: boolean }
   } = this.createInitialDragState()
 
@@ -92,7 +99,9 @@ export class PointerTool extends BaseTool {
       selectionToRestore: new Set(),
       activePointIndices: [],
       pathSnapshot: new Map(),
+      snappedDelta: { x: 0, y: 0, guides: [] },
       didMove: false,
+      altKey: initialEvent.altKey,
       pointToggleOnClick: undefined,
     }
 
@@ -142,6 +151,9 @@ export class PointerTool extends BaseTool {
 
     const dx = currentPoint.x - this.dragState.anchorPoint.x
     const dy = currentPoint.y - this.dragState.anchorPoint.y
+    const snappedDelta = this.getSnappedDelta(path, dx, dy)
+    this.dragState.snappedDelta = snappedDelta
+    this.sceneModel.alignmentGuides = snappedDelta.guides
 
     if (
       this.dragState.mode === 'point-drag' ||
@@ -151,14 +163,20 @@ export class PointerTool extends BaseTool {
       for (const index of this.dragState.activePointIndices) {
         const snapshotPoint = this.dragState.pathSnapshot.get(index)
         if (!snapshotPoint) continue
-        this.updatePointPosition(path, index, snapshotPoint.x + dx, snapshotPoint.y + dy)
+        this.updatePointPosition(
+          path,
+          index,
+          snapshotPoint.x + snappedDelta.x,
+          snapshotPoint.y + snappedDelta.y
+        )
       }
 
       if (this.dragState.mode === 'point-drag' && this.dragState.linkedHandle) {
-        this.updateLinkedSmoothHandle(path, dx, dy)
+        this.updateLinkedSmoothHandle(path, snappedDelta.x, snappedDelta.y)
       }
     } else if (this.dragState.mode === 'curve-segment-deform') {
       this.deformDraggedSegment(path, this.dragState.activePointIndices, dx, dy)
+      this.sceneModel.alignmentGuides = []
     }
 
     this.invalidateGlyphPaths()
@@ -186,10 +204,12 @@ export class PointerTool extends BaseTool {
     this.restoreSelectionAfterDrag(finalRectSelection)
     this.sceneController.setHoverSelection(new Set())
     this.sceneController.setHoverPathHit(undefined)
+    this.sceneModel.alignmentGuides = []
     this.canvasController.requestUpdate()
   }
 
   private handleClick(hit: HitTestResult) {
+    const glyphId = this.sceneModel.glyph?.glyphId
     if (hit.type === 'point' || hit.type === 'handle') {
       const selectionKey = `point/${hit.pointIndex}`
       if (this.dragState.pointToggleOnClick) {
@@ -214,6 +234,28 @@ export class PointerTool extends BaseTool {
     }
 
     if (hit.type === 'line-segment' || hit.type === 'curve-segment') {
+      if (this.dragState.altKey && hit.type === 'line-segment') {
+        const pointRefs = this.sceneModel.glyph?.pointRefs ?? []
+        const [startIndex, endIndex] = hit.pathHit.segment.pointIndices
+        const startRef = pointRefs[startIndex]
+        const endRef = pointRefs[endIndex]
+        if (
+          glyphId &&
+          startRef &&
+          endRef &&
+          startRef.pathId === endRef.pathId
+        ) {
+          useStore.getState().convertLineSegmentToCurve(
+            glyphId,
+            startRef.pathId,
+            startRef.nodeId,
+            endRef.nodeId
+          )
+          this.sceneController.setSelection(new Set())
+          this.sceneController.setSelectedPathHit(undefined)
+          return
+        }
+      }
       this.sceneController.setSelection(new Set())
       this.sceneController.setSelectedPathHit(hit.pathHit)
       return
@@ -461,8 +503,8 @@ export class PointerTool extends BaseTool {
           new Set([...uniquePointIndices, this.dragState.linkedHandle.oppositeHandleIndex])
         )
       : uniquePointIndices
-    const dx = this.dragState.currentPoint.x - this.dragState.anchorPoint.x
-    const dy = this.dragState.currentPoint.y - this.dragState.anchorPoint.y
+    const dx = this.dragState.snappedDelta.x
+    const dy = this.dragState.snappedDelta.y
     const updates = committedPointIndices.flatMap((idx) => {
       const pointRef = pointRefs[idx]
       const snapshotPoint = this.dragState.pathSnapshot.get(idx)
@@ -526,7 +568,9 @@ export class PointerTool extends BaseTool {
       selectionToRestore: new Set<string>(),
       activePointIndices: [],
       pathSnapshot: new Map<number, Point>(),
+      snappedDelta: { x: 0, y: 0, guides: [] },
       didMove: false,
+      altKey: false,
       linkedHandle: undefined,
       pointToggleOnClick: undefined,
     }
@@ -886,6 +930,10 @@ export class PointerTool extends BaseTool {
     x: number,
     y: number
   ) {
+    if (this.shouldSnapToGrid()) {
+      x = Math.round(x)
+      y = Math.round(y)
+    }
     if (path.setPoint) {
       const existingPoint = path.getPoint?.(index)
       path.setPoint(index, {
@@ -898,6 +946,90 @@ export class PointerTool extends BaseTool {
       path.coordinates[index * 2] = x
       path.coordinates[index * 2 + 1] = y
     }
+  }
+
+  private shouldSnapToGrid() {
+    return this.canvasController.magnification >= 24
+  }
+
+  private getSnappedDelta(
+    path: {
+      getPoint?(index: number): Point
+      iterPoints?(): Generator<Point & { index: number }, void>
+    },
+    dx: number,
+    dy: number
+  ) {
+    let snappedDx = this.shouldSnapToGrid() ? Math.round(dx) : dx
+    let snappedDy = this.shouldSnapToGrid() ? Math.round(dy) : dy
+    const guides: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
+
+    if (
+      !path.getPoint ||
+      !path.iterPoints ||
+      !(
+        this.dragState.mode === 'point-drag' ||
+        this.dragState.mode === 'line-segment-drag' ||
+        this.dragState.mode === 'curve-segment-drag'
+      )
+    ) {
+      return { x: snappedDx, y: snappedDy, guides }
+    }
+
+    const movingIndices = new Set(this.dragState.activePointIndices)
+    const movingPoints = Array.from(movingIndices)
+      .map((index) => ({
+        index,
+        point: this.dragState.pathSnapshot.get(index) ?? path.getPoint?.(index),
+      }))
+      .filter((entry) => entry.point?.type === 'onCurve')
+
+    if (!movingPoints.length) {
+      return { x: snappedDx, y: snappedDy, guides }
+    }
+
+    const candidates = Array.from(path.iterPoints()).filter(
+      (point) => point.type === 'onCurve' && !movingIndices.has(point.index)
+    )
+    const tolerance = 8 / this.canvasController.magnification
+
+    let bestX: { diff: number; guideX: number; y1: number; y2: number } | null = null
+    let bestY: { diff: number; guideY: number; x1: number; x2: number } | null = null
+
+    for (const moving of movingPoints) {
+      for (const candidate of candidates) {
+        const diffX = candidate.x - (moving.point!.x + snappedDx)
+        if (Math.abs(diffX) <= tolerance && (!bestX || Math.abs(diffX) < Math.abs(bestX.diff))) {
+          bestX = {
+            diff: diffX,
+            guideX: candidate.x,
+            y1: Math.min(candidate.y, moving.point!.y + snappedDy),
+            y2: Math.max(candidate.y, moving.point!.y + snappedDy),
+          }
+        }
+
+        const diffY = candidate.y - (moving.point!.y + snappedDy)
+        if (Math.abs(diffY) <= tolerance && (!bestY || Math.abs(diffY) < Math.abs(bestY.diff))) {
+          bestY = {
+            diff: diffY,
+            guideY: candidate.y,
+            x1: Math.min(candidate.x, moving.point!.x + snappedDx),
+            x2: Math.max(candidate.x, moving.point!.x + snappedDx),
+          }
+        }
+      }
+    }
+
+    if (bestX) {
+      snappedDx += bestX.diff
+      guides.push({ x1: bestX.guideX, y1: bestX.y1, x2: bestX.guideX, y2: bestX.y2 })
+    }
+    if (bestY) {
+      snappedDy += bestY.diff
+      guides.push({ x1: bestY.x1, y1: bestY.guideY, x2: bestY.x2, y2: bestY.guideY })
+    }
+
+    return { x: snappedDx, y: snappedDy, guides }
   }
 
   private toggleSmooth(

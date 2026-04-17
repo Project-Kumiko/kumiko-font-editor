@@ -36,10 +36,12 @@ export function RightPanel() {
   const toast = useToast();
   const selectedGlyphId = useStore((state) => state.selectedGlyphId);
   const selectedNodeIds = useStore((state) => state.selectedNodeIds);
+  const selectedSegment = useStore((state) => state.selectedSegment);
   const fontData = useStore((state) => state.fontData);
   const updateNodePosition = useStore((state) => state.updateNodePosition);
   const updateNodeType = useStore((state) => state.updateNodeType);
   const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics);
+  const convertLineSegmentToCurve = useStore((state) => state.convertLineSegmentToCurve);
 
   const glyph = selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null;
   const nodeRef = parseSelectedNode(selectedNodeIds[0]);
@@ -76,6 +78,19 @@ export function RightPanel() {
     updateGlyphMetrics(glyph.id, {
       [field]: parseNumberInput(value),
     });
+  };
+
+  const handleConvertSelectedSegment = () => {
+    if (!glyph || !selectedSegment || selectedSegment.type !== 'line') {
+      return;
+    }
+
+    convertLineSegmentToCurve(
+      glyph.id,
+      selectedSegment.pathId,
+      selectedSegment.startNodeId,
+      selectedSegment.endNodeId
+    );
   };
 
   const handleManualExport = async () => {
@@ -148,9 +163,29 @@ export function RightPanel() {
                 節點檢視
               </Heading>
               {!selectedNode || !nodeRef ? (
-                <Text fontSize="sm" color="gray.500">
-                  目前沒有選取節點。點擊畫布上的節點即可在這裡微調座標與節點類型。
-                </Text>
+                selectedSegment ? (
+                  <Stack spacing={3}>
+                    <Text fontSize="sm" color="gray.600">
+                      Segment <Tag size="sm" ml={2}>{selectedSegment.pathId}</Tag>
+                    </Text>
+                    <Text fontSize="sm" color="gray.500">
+                      目前高亮的是一段{selectedSegment.type === 'line' ? '直線' : '曲線'}。
+                    </Text>
+                    {selectedSegment.type === 'line' ? (
+                      <Button size="sm" colorScheme="blue" onClick={handleConvertSelectedSegment}>
+                        轉成曲線
+                      </Button>
+                    ) : (
+                      <Text fontSize="sm" color="gray.500">
+                        這段已經是曲線，不需要再轉換。
+                      </Text>
+                    )}
+                  </Stack>
+                ) : (
+                  <Text fontSize="sm" color="gray.500">
+                    目前沒有選取節點。點擊畫布上的節點即可在這裡微調座標與節點類型。
+                  </Text>
+                )
               ) : (
                 <Stack spacing={3}>
                   <Text fontSize="sm" color="gray.600">

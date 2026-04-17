@@ -82,6 +82,13 @@ export interface SelectedNodeRef {
   nodeId: string
 }
 
+export interface SelectedSegmentState {
+  pathId: string
+  startNodeId: string
+  endNodeId: string
+  type: 'line' | 'quad' | 'cubic' | 'quadBlob'
+}
+
 export interface ViewportState {
   zoom: number
   pan: { x: number; y: number }
@@ -97,11 +104,13 @@ export interface GlobalState {
   selectedGlyphId: string | null
   selectedLayerId: string | null
   selectedNodeIds: string[]
+  selectedSegment: SelectedSegmentState | null
   viewport: ViewportState
 
   setSearchQuery: (query: string) => void
   setSelectedGlyphId: (id: string | null) => void
   setSelectedNodeIds: (ids: string[]) => void
+  setSelectedSegment: (segment: SelectedSegmentState | null) => void
   updateViewport: (zoom: number, panX: number, panY: number) => void
   updateNodePosition: (
     glyphId: string,
@@ -146,6 +155,12 @@ export interface GlobalState {
     targetPathId: string,
     targetNodeId: string
   ) => { pathId: string; nodeIds: string[] } | null
+  convertLineSegmentToCurve: (
+    glyphId: string,
+    pathId: string,
+    startNodeId: string,
+    endNodeId: string
+  ) => void
   deleteSelectedNodes: (glyphId: string, selectedNodeIds: string[]) => void
   loadProjectState: (id: string, title: string, fontData: FontData) => void
   closeProjectState: () => void
@@ -414,6 +429,8 @@ const findNode = (path: PathData | undefined, nodeId: string) =>
 const generateId = (prefix: string) =>
   `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 
+const lerp = (start: number, end: number, t: number) => start + (end - start) * t
+
 const orientOpenPathNodesForConnection = (
   path: PathData,
   endpointNodeId: string,
@@ -470,6 +487,7 @@ export const useStore = create<GlobalState>()(
       selectedGlyphId: null,
       selectedLayerId: 'default',
       selectedNodeIds: [],
+      selectedSegment: null,
       viewport: {
         zoom: 0.46,
         pan: { x: 0, y: 30 },
@@ -485,16 +503,28 @@ export const useStore = create<GlobalState>()(
         set((state) => {
           state.selectedGlyphId = id
           state.selectedNodeIds = []
+          state.selectedSegment = null
         }),
 
       setSelectedNodeIds: (ids) =>
         set((state) => {
           state.selectedNodeIds = ids
+          if (ids.length > 0) {
+            state.selectedSegment = null
+          }
+        }),
+
+      setSelectedSegment: (segment) =>
+        set((state) => {
+          state.selectedSegment = segment
+          if (segment) {
+            state.selectedNodeIds = []
+          }
         }),
 
       updateViewport: (zoom, panX, panY) =>
         set((state) => {
-          state.viewport.zoom = Math.min(4, Math.max(0.1, zoom))
+          state.viewport.zoom = Math.min(800, Math.max(0.1, zoom))
           state.viewport.pan = { x: panX, y: panY }
         }),
 
@@ -692,6 +722,55 @@ export const useStore = create<GlobalState>()(
         return result
       },
 
+      convertLineSegmentToCurve: (glyphId, pathId, startNodeId, endNodeId) =>
+        set((state) => {
+          const glyph = state.fontData?.glyphs[glyphId]
+          const path = glyph ? findPath(glyph, pathId) : undefined
+          if (!glyph || !path) {
+            return
+          }
+
+          const startIndex = path.nodes.findIndex((node) => node.id === startNodeId)
+          const endIndex = path.nodes.findIndex((node) => node.id === endNodeId)
+          if (startIndex < 0 || endIndex !== startIndex + 1) {
+            return
+          }
+
+          const startNode = path.nodes[startIndex]
+          const endNode = path.nodes[endIndex]
+          if (
+            startNode.type === 'offcurve' ||
+            startNode.type === 'qcurve' ||
+            endNode.type === 'offcurve' ||
+            endNode.type === 'qcurve'
+          ) {
+            return
+          }
+
+          const handle1: PathNode = {
+            id: generateId('node'),
+            x: Math.round(lerp(startNode.x, endNode.x, 1 / 3)),
+            y: Math.round(lerp(startNode.y, endNode.y, 1 / 3)),
+            type: 'offcurve',
+          }
+          const handle2: PathNode = {
+            id: generateId('node'),
+            x: Math.round(lerp(startNode.x, endNode.x, 2 / 3)),
+            y: Math.round(lerp(startNode.y, endNode.y, 2 / 3)),
+            type: 'offcurve',
+          }
+
+          path.nodes = [
+            ...path.nodes.slice(0, startIndex),
+            { ...startNode, type: 'smooth' },
+            handle1,
+            handle2,
+            { ...endNode, type: 'smooth' },
+            ...path.nodes.slice(endIndex + 1),
+          ]
+          state.selectedSegment = null
+        }),
+
       deleteSelectedNodes: (glyphId, selectedNodeIds) =>
         set((state) => {
           const glyph = state.fontData?.glyphs[glyphId]
@@ -724,6 +803,7 @@ export const useStore = create<GlobalState>()(
             .filter((path) => path.nodes.length > 0)
 
           state.selectedNodeIds = []
+          state.selectedSegment = null
         }),
 
       loadProjectState: (id, title, fontData) =>
@@ -739,6 +819,7 @@ export const useStore = create<GlobalState>()(
           ) {
             state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
             state.selectedNodeIds = []
+            state.selectedSegment = null
           } else if (!state.selectedGlyphId) {
             state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
           }
@@ -750,6 +831,8 @@ export const useStore = create<GlobalState>()(
           state.projectId = null
           state.projectTitle = ''
           state.filteredGlyphList = []
+          state.selectedNodeIds = []
+          state.selectedSegment = null
         }),
     })),
     {
