@@ -2,6 +2,14 @@ import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { temporal, type TemporalState } from 'zundo'
+import {
+  clearProjectArchive,
+  getArchivedGlyphLayer,
+  getHotGlyphLayerSnapshot,
+  getGlyphLayerSnapshot,
+  getProjectArchiveFirstMasterId,
+  ingestProjectData,
+} from '../lib/projectArchive'
 
 export type NodeType = 'corner' | 'smooth' | 'offcurve' | 'qcurve'
 
@@ -51,19 +59,57 @@ export interface GlyphComponentRef {
   rotation: number
 }
 
+export interface GlyphAnchor {
+  id: string
+  name: string
+  x: number
+  y: number
+}
+
+export interface GlyphGuideline {
+  id: string
+  x: number
+  y: number
+  angle: number
+  locked?: boolean
+  name?: string
+}
+
 export interface GlyphMetrics {
   lsb: number
   rsb: number
   width: number
 }
 
-export interface GlyphData {
+export interface GlyphLayerData {
   id: string
   name: string
+  associatedMasterId?: string | null
   paths: PathData[]
   components: string[]
   componentRefs: GlyphComponentRef[]
+  anchors: GlyphAnchor[]
+  guidelines: GlyphGuideline[]
   metrics: GlyphMetrics
+}
+
+export interface GlyphData {
+  id: string
+  name: string
+  activeLayerId?: string | null
+  paths: PathData[]
+  components: string[]
+  componentRefs: GlyphComponentRef[]
+  anchors?: GlyphAnchor[]
+  guidelines?: GlyphGuideline[]
+  metrics: GlyphMetrics
+  layers?: Record<string, GlyphLayerData>
+  layerOrder?: string[]
+  unicode?: string | null
+  export?: boolean
+  category?: string | null
+  subCategory?: string | null
+  production?: string | null
 }
 
 export interface FontData {
@@ -98,6 +144,7 @@ export interface GlobalState {
   fontData: FontData | null
   projectId: string | null
   projectTitle: string
+  isDirty: boolean
   idsDictionary: Record<string, string[]>
   currentSearchQuery: string
   filteredGlyphList: GlyphData[]
@@ -111,6 +158,7 @@ export interface GlobalState {
   setSelectedGlyphId: (id: string | null) => void
   setSelectedNodeIds: (ids: string[]) => void
   setSelectedSegment: (segment: SelectedSegmentState | null) => void
+  setSelectedLayerId: (id: string | null) => void
   updateViewport: (zoom: number, panX: number, panY: number) => void
   updateNodePosition: (
     glyphId: string,
@@ -162,8 +210,15 @@ export interface GlobalState {
     endNodeId: string
   ) => void
   deleteSelectedNodes: (glyphId: string, selectedNodeIds: string[]) => void
-  loadProjectState: (id: string, title: string, fontData: FontData) => void
+  loadProjectState: (
+    id: string,
+    title: string,
+    fontData: FontData,
+    projectMetadata?: Record<string, unknown> | null,
+    projectSourceFormat?: 'glyphs' | null
+  ) => void
   closeProjectState: () => void
+  markProjectSaved: () => void
 }
 
 const IDS_DICTIONARY: Record<string, string[]> = {
@@ -423,6 +478,42 @@ const syncFilteredGlyphList = (state: GlobalState) => {
 const findPath = (glyph: GlyphData, pathId: string) =>
   glyph.paths.find((path) => path.id === pathId)
 
+export const getGlyphLayer = (glyph: GlyphData | undefined, layerId: string | null | undefined) => {
+  if (!glyph) {
+    return null
+  }
+
+  const requestedLayerId = layerId ?? glyph.activeLayerId ?? null
+  if (glyph.activeLayerId && glyph.activeLayerId === requestedLayerId) {
+    return getHotGlyphLayerSnapshot(glyph, glyph.activeLayerId)
+  }
+
+  const archivedLayer = getArchivedGlyphLayer(glyph.id, requestedLayerId)
+  if (archivedLayer) {
+    return archivedLayer
+  }
+
+  return getGlyphLayerSnapshot(glyph, requestedLayerId)
+}
+
+const syncGlyphTopLevelFromLayer = (
+  glyph: GlyphData | undefined,
+  layerId: string | null | undefined
+) => {
+  const layer = getGlyphLayer(glyph, layerId)
+  if (!glyph || !layer) {
+    return
+  }
+
+  glyph.paths = layer.paths
+  glyph.components = layer.components
+  glyph.componentRefs = layer.componentRefs
+  glyph.anchors = layer.anchors
+  glyph.guidelines = layer.guidelines
+  glyph.metrics = layer.metrics
+  glyph.activeLayerId = layer.id
+}
+
 const findNode = (path: PathData | undefined, nodeId: string) =>
   path?.nodes.find((node) => node.id === nodeId)
 
@@ -481,6 +572,7 @@ export const useStore = create<GlobalState>()(
       fontData: null,
       projectId: null,
       projectTitle: '',
+      isDirty: false,
       idsDictionary: IDS_DICTIONARY,
       currentSearchQuery: '',
       filteredGlyphList: [],
@@ -504,6 +596,9 @@ export const useStore = create<GlobalState>()(
           state.selectedGlyphId = id
           state.selectedNodeIds = []
           state.selectedSegment = null
+          if (id) {
+            syncGlyphTopLevelFromLayer(state.fontData?.glyphs[id], state.selectedLayerId)
+          }
         }),
 
       setSelectedNodeIds: (ids) =>
@@ -520,6 +615,20 @@ export const useStore = create<GlobalState>()(
           if (segment) {
             state.selectedNodeIds = []
           }
+        }),
+
+      setSelectedLayerId: (id) =>
+        set((state) => {
+          state.selectedLayerId = id
+          state.selectedNodeIds = []
+          state.selectedSegment = null
+          if (state.selectedGlyphId) {
+            syncGlyphTopLevelFromLayer(
+              state.fontData?.glyphs[state.selectedGlyphId],
+              state.selectedLayerId
+            )
+          }
+          useStore.temporal.getState().clear()
         }),
 
       updateViewport: (zoom, panX, panY) =>
@@ -542,6 +651,7 @@ export const useStore = create<GlobalState>()(
 
           node.x = Math.round(newPos.x)
           node.y = Math.round(newPos.y)
+          state.isDirty = true
         }),
 
       updateNodePositions: (glyphId, updates) =>
@@ -560,6 +670,7 @@ export const useStore = create<GlobalState>()(
             node.x = Math.round(update.newPos.x)
             node.y = Math.round(update.newPos.y)
           }
+          state.isDirty = true
         }),
 
       updateNodeType: (glyphId, pathId, nodeId, type) =>
@@ -582,6 +693,7 @@ export const useStore = create<GlobalState>()(
             }
 
             node.type = type
+            state.isDirty = true
           }
         }),
 
@@ -596,6 +708,7 @@ export const useStore = create<GlobalState>()(
             ...glyph.metrics,
             ...metrics,
           }
+          state.isDirty = true
         }),
 
       createPath: (glyphId, path) =>
@@ -613,6 +726,7 @@ export const useStore = create<GlobalState>()(
               id: node.id || generateId('node'),
             })),
           })
+          state.isDirty = true
         }),
 
       appendNodesToPath: (glyphId, pathId, nodes, prepend = false) =>
@@ -631,6 +745,7 @@ export const useStore = create<GlobalState>()(
           path.nodes = prepend
             ? [...normalizedNodes, ...path.nodes]
             : [...path.nodes, ...normalizedNodes]
+          state.isDirty = true
         }),
 
       replacePathNodes: (glyphId, pathId, startNodeId, endNodeId, nodes) =>
@@ -657,6 +772,7 @@ export const useStore = create<GlobalState>()(
             ...normalizedNodes,
             ...path.nodes.slice(endIndex + 1),
           ]
+          state.isDirty = true
         }),
 
       closePath: (glyphId, pathId) =>
@@ -668,6 +784,7 @@ export const useStore = create<GlobalState>()(
           }
 
           path.closed = true
+          state.isDirty = true
         }),
 
       connectOpenPaths: (glyphId, sourcePathId, sourceNodeId, targetPathId, targetNodeId) => {
@@ -695,6 +812,7 @@ export const useStore = create<GlobalState>()(
             }
             sourcePath.closed = true
             result = { pathId: sourcePathId, nodeIds: sourcePath.nodes.map((node) => node.id) }
+            state.isDirty = true
             return
           }
 
@@ -717,6 +835,7 @@ export const useStore = create<GlobalState>()(
             pathId: sourcePathId,
             nodeIds: sourcePath.nodes.map((node) => node.id),
           }
+          state.isDirty = true
         })
 
         return result
@@ -769,6 +888,7 @@ export const useStore = create<GlobalState>()(
             ...path.nodes.slice(endIndex + 1),
           ]
           state.selectedSegment = null
+          state.isDirty = true
         }),
 
       deleteSelectedNodes: (glyphId, selectedNodeIds) =>
@@ -804,24 +924,45 @@ export const useStore = create<GlobalState>()(
 
           state.selectedNodeIds = []
           state.selectedSegment = null
+          state.isDirty = true
         }),
 
-      loadProjectState: (id, title, fontData) =>
+      loadProjectState: (id, title, fontData, projectMetadata = null, projectSourceFormat = null) =>
         set((state) => {
+          const hotFontData = ingestProjectData(
+            fontData,
+            projectMetadata,
+            projectSourceFormat
+          )
           state.projectId = id
           state.projectTitle = title
-          state.fontData = fontData
+          state.fontData = hotFontData
+          state.isDirty = false
+          const firstGlyph = Object.values(hotFontData.glyphs)[0]
+          const firstMasterId = getProjectArchiveFirstMasterId()
+          state.selectedLayerId =
+            (firstMasterId && firstGlyph && getArchivedGlyphLayer(firstGlyph.id, firstMasterId)
+              ? firstMasterId
+              : null) ||
+            (firstGlyph ? getArchivedGlyphLayer(firstGlyph.id, null)?.id ?? null : null) ||
+            null
           syncFilteredGlyphList(state)
 
           if (
             state.selectedGlyphId &&
-            !fontData.glyphs[state.selectedGlyphId]
+            !hotFontData.glyphs[state.selectedGlyphId]
           ) {
-            state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
+            state.selectedGlyphId = Object.keys(hotFontData.glyphs)[0] ?? null
             state.selectedNodeIds = []
             state.selectedSegment = null
           } else if (!state.selectedGlyphId) {
-            state.selectedGlyphId = Object.keys(fontData.glyphs)[0] ?? null
+            state.selectedGlyphId = Object.keys(hotFontData.glyphs)[0] ?? null
+          }
+          if (state.selectedGlyphId) {
+            syncGlyphTopLevelFromLayer(
+              state.fontData?.glyphs[state.selectedGlyphId],
+              state.selectedLayerId
+            )
           }
         }),
 
@@ -830,9 +971,18 @@ export const useStore = create<GlobalState>()(
           state.fontData = null
           state.projectId = null
           state.projectTitle = ''
+          state.isDirty = false
           state.filteredGlyphList = []
           state.selectedNodeIds = []
           state.selectedSegment = null
+          state.selectedLayerId = null
+          clearProjectArchive()
+          useStore.temporal.getState().clear()
+        }),
+
+      markProjectSaved: () =>
+        set((state) => {
+          state.isDirty = false
         }),
     })),
     {

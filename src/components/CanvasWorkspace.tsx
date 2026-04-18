@@ -1,6 +1,6 @@
 // 新的 CanvasWorkspace - 使用 Fontra 架構
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { Box, Flex, Button, Text, HStack } from '@chakra-ui/react'
 import {
   CanvasController,
@@ -13,7 +13,7 @@ import {
 } from '../canvas'
 import { SceneController } from '../tools'
 import { VarPackedPath } from '../font/VarPackedPath'
-import { getEffectiveNodeType, useStore, useTemporalStore } from '../store'
+import { getEffectiveNodeType, getGlyphLayer, useStore, useTemporalStore } from '../store'
 import {
   buildClipboardPayloadFromSelection,
   materializeClipboardPaths,
@@ -28,6 +28,18 @@ export function CanvasWorkspace() {
   const canvasControllerRef = useRef<CanvasController | null>(null)
   const sceneControllerRef = useRef<SceneController | null>(null)
   const sceneViewRef = useRef<SceneView | null>(null)
+  const layerGeometryCacheRef = useRef(
+    new Map<
+      string,
+      {
+        layerRef: object
+        pointRefs: Array<{ pathId: string; nodeId: string }>
+        varPath: InstanceType<typeof VarPackedPath>
+        components: NonNullable<GlyphData['components']>
+        guidelines: NonNullable<GlyphData['guidelines']>
+      }
+    >()
+  )
   const temporaryToolRef = useRef<'pointer' | 'pen' | 'brush' | 'hand' | null>(null)
   const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush' | 'hand'>('pointer')
   const availableTools = [
@@ -40,6 +52,7 @@ export function CanvasWorkspace() {
   // Store data
   const fontData = useStore((state) => state.fontData)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
+  const selectedLayerId = useStore((state) => state.selectedLayerId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const selectedSegment = useStore((state) => state.selectedSegment)
   const viewport = useStore((state) => state.viewport)
@@ -142,84 +155,167 @@ export function CanvasWorkspace() {
     []
   )
 
-  const buildPointRefs = useCallback(() => {
+  const positionedGlyph = useMemo((): PositionedGlyph | undefined => {
     if (!fontData || !selectedGlyphId) {
-      return []
+      return undefined
     }
-
     const glyph = fontData.glyphs[selectedGlyphId]
-    if (!glyph) {
-      return []
+    if (!glyph) return undefined
+    const activeLayer = getGlyphLayer(glyph, selectedLayerId)
+    if (!activeLayer) {
+      return undefined
+    }
+    const cacheKey = `${glyph.id}:${activeLayer.id}`
+    const cachedGeometry = layerGeometryCacheRef.current.get(cacheKey)
+    if (cachedGeometry && cachedGeometry.layerRef === activeLayer) {
+      return {
+        glyph: {
+          path: cachedGeometry.varPath,
+          xAdvance: activeLayer.metrics.width,
+          components: cachedGeometry.components,
+          guidelines: cachedGeometry.guidelines,
+          flattenedPath2d: undefined,
+          closedContoursPath2d: undefined,
+        },
+        glyphId: glyph.id,
+        x: 0,
+        y: 0,
+        pointRefs: cachedGeometry.pointRefs,
+        isEditing: true,
+        isEmpty: activeLayer.paths.length === 0,
+      }
     }
 
-    return glyph.paths.flatMap((path) =>
+    const pointRefs = activeLayer.paths.flatMap((path) =>
       path.nodes.map((node) => ({
         pathId: path.id,
         nodeId: node.id,
       }))
     )
-  }, [fontData, selectedGlyphId])
 
-  // Convert current glyph data to Fontra format
-  const getPositionedGlyph = useCallback((): PositionedGlyph | undefined => {
-    if (!fontData || !selectedGlyphId) {
-      console.log('Missing fontData or selectedGlyphId')
-      return undefined
+    const pathDataToVarPackedPath = (paths: typeof activeLayer.paths) => {
+      const contours: {
+        points: {
+          x: number
+          y: number
+          type: 'onCurve' | 'offCurveQuad' | 'offCurveCubic'
+          smooth?: boolean
+        }[]
+        isClosed: boolean
+      }[] = []
+
+      for (const pathData of paths) {
+        const points = pathData.nodes.map((node) => ({
+          x: node.x,
+          y: node.y,
+          type: (node.type === 'offcurve'
+            ? 'offCurveCubic'
+            : node.type === 'qcurve'
+              ? 'offCurveQuad'
+              : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
+          smooth: getEffectiveNodeType(pathData, node) === 'smooth',
+        }))
+
+        contours.push({
+          points,
+          isClosed: pathData.closed,
+        })
+      }
+
+      return VarPackedPath.fromUnpackedContours(contours)
     }
-    const glyph = fontData.glyphs[selectedGlyphId]
-    if (!glyph) return undefined
-    const pointRefs = buildPointRefs()
 
-    // Convert paths to VarPackedPath
-    const contours: {
-      points: {
-        x: number
-        y: number
-        type: 'onCurve' | 'offCurveQuad' | 'offCurveCubic'
-        smooth?: boolean
-      }[]
-      isClosed: boolean
-    }[] = []
+    const buildComponentPath2D = (
+      componentGlyphId: string,
+      depth = 0,
+      visited = new Set<string>()
+    ): Path2D | undefined => {
+      if (depth > 8 || visited.has(componentGlyphId)) {
+        return undefined
+      }
 
-    for (const pathData of glyph.paths) {
-      const points = pathData.nodes.map((node) => ({
-        x: node.x,
-        y: node.y,
-        type: (node.type === 'offcurve'
-          ? 'offCurveCubic'
-          : node.type === 'qcurve'
-            ? 'offCurveQuad'
-            : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
-        smooth: getEffectiveNodeType(pathData, node) === 'smooth',
-      }))
+      const sourceGlyph = fontData.glyphs[componentGlyphId]
+      const sourceLayer = getGlyphLayer(sourceGlyph, selectedLayerId)
+      if (!sourceGlyph || !sourceLayer) {
+        return undefined
+      }
 
-      contours.push({
-        points,
-        isClosed: pathData.closed,
+      const nextVisited = new Set(visited)
+      nextVisited.add(componentGlyphId)
+      const sourceCacheKey = `${componentGlyphId}:${sourceLayer.id}`
+      const sourceCachedGeometry = layerGeometryCacheRef.current.get(sourceCacheKey)
+      const sourceVarPath =
+        sourceCachedGeometry && sourceCachedGeometry.layerRef === sourceLayer
+          ? sourceCachedGeometry.varPath
+          : pathDataToVarPackedPath(sourceLayer.paths)
+      const combinedPath = new Path2D(sourceVarPath.toSVGPath())
+
+      for (const componentRef of sourceLayer.componentRefs) {
+        const nestedPath = buildComponentPath2D(componentRef.glyphId, depth + 1, nextVisited)
+        if (!nestedPath) {
+          continue
+        }
+        const matrix = new DOMMatrix()
+          .translateSelf(componentRef.x, componentRef.y)
+          .rotateSelf(componentRef.rotation)
+          .scaleSelf(componentRef.scaleX, componentRef.scaleY)
+        combinedPath.addPath(nestedPath, matrix)
+      }
+
+      return combinedPath
+    }
+
+    const varPath = pathDataToVarPackedPath(activeLayer.paths)
+    const components: NonNullable<GlyphData['components']> = []
+    for (const componentRef of activeLayer.componentRefs) {
+      const path2d = buildComponentPath2D(componentRef.glyphId)
+      if (!path2d) {
+        continue
+      }
+      components.push({
+        name: componentRef.glyphId,
+        transformation: {
+          translateX: componentRef.x,
+          translateY: componentRef.y,
+          scaleX: componentRef.scaleX,
+          scaleY: componentRef.scaleY,
+          rotation: componentRef.rotation,
+        },
+        path2d,
       })
     }
+    const guidelines = (activeLayer.guidelines ?? []).map((guide) => ({
+        x: guide.x,
+        y: guide.y,
+        angle: guide.angle,
+        locked: guide.locked,
+      }))
 
-    const varPath = VarPackedPath.fromUnpackedContours(contours)
-
-    const glyphData: GlyphData = {
-      path: varPath,
-      xAdvance: glyph.metrics.width,
-      components: [],
-      guidelines: [],
-      flattenedPath2d: undefined,
-      closedContoursPath2d: undefined,
-    }
+    layerGeometryCacheRef.current.set(cacheKey, {
+      layerRef: activeLayer,
+      pointRefs,
+      varPath,
+      components,
+      guidelines,
+    })
 
     return {
-      glyph: glyphData,
+      glyph: {
+        path: varPath,
+        xAdvance: activeLayer.metrics.width,
+        components,
+        guidelines,
+        flattenedPath2d: undefined,
+        closedContoursPath2d: undefined,
+      },
       glyphId: glyph.id,
       x: 0,
       y: 0,
       pointRefs,
       isEditing: true,
-      isEmpty: glyph.paths.length === 0,
+      isEmpty: activeLayer.paths.length === 0,
     }
-  }, [buildPointRefs, fontData, selectedGlyphId])
+  }, [fontData, selectedGlyphId, selectedLayerId])
 
   // Initialize canvas
   useEffect(() => {
@@ -346,8 +442,6 @@ export function CanvasWorkspace() {
       return
     }
 
-    const positionedGlyph = getPositionedGlyph()
-
     // Update scene model
     sceneController.sceneModel.glyph = positionedGlyph
     sceneController.sceneModel.lineMetricsHorizontalLayout =
@@ -374,7 +468,7 @@ export function CanvasWorkspace() {
 
     // Request redraw
     controller?.requestUpdate()
-  }, [fontData, selectedGlyphId, selectedNodeIds, viewport, getPositionedGlyph])
+  }, [fontData, positionedGlyph, selectedGlyphId, selectedNodeIds, viewport])
 
   // Keyboard shortcuts
   useEffect(() => {

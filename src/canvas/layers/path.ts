@@ -55,6 +55,11 @@ registerVisualizationLayerDefinition({
     context.fillStyle = isHandTool(model)
       ? '#000'
       : (parameters.fillColor as string)
+    for (const component of glyph.components || []) {
+      if (component.path2d) {
+        context.fill(component.path2d)
+      }
+    }
     context.fill(glyph.path.toPath2D())
   },
 })
@@ -87,6 +92,11 @@ registerVisualizationLayerDefinition({
       canvasController,
       parameters.strokeWidth as number
     )
+    for (const component of glyph.components || []) {
+      if (component.path2d) {
+        context.stroke(component.path2d)
+      }
+    }
     context.stroke(glyph.path.toPath2D())
   },
 })

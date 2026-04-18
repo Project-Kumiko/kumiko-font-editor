@@ -1,4 +1,10 @@
 import {
+  getArchivedGlyphLayerEntries,
+  getProjectArchiveMetadata,
+  getProjectArchiveSourceFormat,
+  hydrateProjectFontData,
+} from '../lib/projectArchive';
+import {
   Box,
   Button,
   Divider,
@@ -6,13 +12,15 @@ import {
   GridItem,
   Heading,
   Input,
+  Select,
   Stack,
   Tag,
   Text,
   useToast,
 } from '@chakra-ui/react';
 import { CornerNodeIcon, SmoothNodeIcon } from '../icons';
-import { deterministicStringify, getEffectiveNodeType, isPathEndpointNode, useStore, type NodeType } from '../store';
+import { saveProject } from '../lib/persistence';
+import { deterministicStringify, getEffectiveNodeType, getGlyphLayer, isPathEndpointNode, useStore, type NodeType } from '../store';
 
 const parseSelectedNode = (selectedNodeId: string | undefined) => {
   if (!selectedNodeId) {
@@ -35,17 +43,25 @@ const parseNumberInput = (value: string) => {
 export function RightPanel() {
   const toast = useToast();
   const selectedGlyphId = useStore((state) => state.selectedGlyphId);
+  const selectedLayerId = useStore((state) => state.selectedLayerId);
   const selectedNodeIds = useStore((state) => state.selectedNodeIds);
   const selectedSegment = useStore((state) => state.selectedSegment);
   const fontData = useStore((state) => state.fontData);
+  const projectId = useStore((state) => state.projectId);
+  const projectTitle = useStore((state) => state.projectTitle);
+  const isDirty = useStore((state) => state.isDirty);
   const updateNodePosition = useStore((state) => state.updateNodePosition);
   const updateNodeType = useStore((state) => state.updateNodeType);
   const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics);
   const convertLineSegmentToCurve = useStore((state) => state.convertLineSegmentToCurve);
+  const setSelectedLayerId = useStore((state) => state.setSelectedLayerId);
+  const markProjectSaved = useStore((state) => state.markProjectSaved);
 
   const glyph = selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null;
+  const activeLayer = getGlyphLayer(glyph ?? undefined, selectedLayerId);
+  const availableLayers = glyph ? getArchivedGlyphLayerEntries(glyph.id) : [];
   const nodeRef = parseSelectedNode(selectedNodeIds[0]);
-  const selectedPath = glyph && nodeRef ? glyph.paths.find((path) => path.id === nodeRef.pathId) : null;
+  const selectedPath = activeLayer && nodeRef ? activeLayer.paths.find((path) => path.id === nodeRef.pathId) : null;
   const selectedNode = selectedPath && nodeRef ? selectedPath.nodes.find((node) => node.id === nodeRef.nodeId) : null;
   const effectiveNodeType = selectedPath && selectedNode ? getEffectiveNodeType(selectedPath, selectedNode) : undefined;
   const isOnCurveNode = effectiveNodeType === 'corner' || effectiveNodeType === 'smooth';
@@ -99,7 +115,9 @@ export function RightPanel() {
     }
 
     try {
-      await navigator.clipboard.writeText(deterministicStringify(fontData));
+      await navigator.clipboard.writeText(
+        deterministicStringify(hydrateProjectFontData(fontData))
+      );
       toast({
         title: '已複製 deterministic JSON',
         description: '可直接貼到版本控制或匯出流程中。',
@@ -116,6 +134,40 @@ export function RightPanel() {
         isClosable: true,
       });
       console.warn('Clipboard export failed.', error);
+    }
+  };
+
+  const handleSaveProject = async () => {
+    if (!fontData || !projectId || !projectTitle) {
+      return;
+    }
+
+    try {
+      await saveProject({
+        id: projectId,
+        title: projectTitle,
+        lastModified: Date.now(),
+        fontData: hydrateProjectFontData(fontData),
+        projectMetadata: getProjectArchiveMetadata(),
+        projectSourceFormat: getProjectArchiveSourceFormat(),
+      });
+      markProjectSaved();
+      toast({
+        title: '已儲存專案',
+        description: '目前變更已寫入本機草稿。',
+        status: 'success',
+        duration: 2200,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: '儲存失敗',
+        description: '無法寫入本機草稿，請稍後再試。',
+        status: 'error',
+        duration: 3200,
+        isClosable: true,
+      });
+      console.warn('Manual project save failed.', error);
     }
   };
 
@@ -152,9 +204,48 @@ export function RightPanel() {
                 <Text fontSize="sm" color="gray.500">
                   {glyph.id}
                 </Text>
-                <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
-                  Layer {useStore.getState().selectedLayerId}
-                </Tag>
+                <Stack direction="row" spacing={2} align="center">
+                  <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
+                    Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
+                  </Tag>
+                  <Tag alignSelf="start" colorScheme={isDirty ? 'orange' : 'green'} variant="subtle">
+                    {isDirty ? '未儲存' : '已儲存'}
+                  </Tag>
+                </Stack>
+                {availableLayers.length > 0 && (
+                  <Box>
+                    <Text fontSize="xs" color="gray.500" mb={1}>
+                      圖層 / Master
+                    </Text>
+                    <Select
+                      size="sm"
+                      bg="white"
+                      value={activeLayer?.id ?? ''}
+                      onChange={(event) => setSelectedLayerId(event.target.value)}
+                    >
+                      {availableLayers.map((layer) => {
+                        return (
+                          <option key={layer.id} value={layer.id}>
+                            {layer.name || layer.id}
+                          </option>
+                        );
+                      })}
+                    </Select>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+
+            <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
+              <Stack spacing={3}>
+                <Heading size="sm">專案儲存</Heading>
+                <Button
+                  colorScheme="blue"
+                  onClick={handleSaveProject}
+                  isDisabled={!fontData || !projectId || !projectTitle || !isDirty}
+                >
+                  儲存目前專案
+                </Button>
               </Stack>
             </Box>
 
@@ -269,7 +360,7 @@ export function RightPanel() {
                   <Input
                     size="sm"
                     type="number"
-                    value={glyph.metrics.lsb}
+                    value={activeLayer?.metrics.lsb ?? glyph.metrics.lsb}
                     onChange={(event) => handleMetricsChange('lsb', event.target.value)}
                   />
                 </GridItem>
@@ -280,7 +371,7 @@ export function RightPanel() {
                   <Input
                     size="sm"
                     type="number"
-                    value={glyph.metrics.width}
+                    value={activeLayer?.metrics.width ?? glyph.metrics.width}
                     onChange={(event) => handleMetricsChange('width', event.target.value)}
                   />
                 </GridItem>
@@ -291,7 +382,7 @@ export function RightPanel() {
                   <Input
                     size="sm"
                     type="number"
-                    value={glyph.metrics.rsb}
+                    value={activeLayer?.metrics.rsb ?? glyph.metrics.rsb}
                     onChange={(event) => handleMetricsChange('rsb', event.target.value)}
                   />
                 </GridItem>

@@ -107,7 +107,11 @@ export interface ComponentData {
   transformation: {
     translateX: number
     translateY: number
+    scaleX?: number
+    scaleY?: number
+    rotation?: number
   }
+  path2d?: Path2D
 }
 
 export interface GuidelineData {

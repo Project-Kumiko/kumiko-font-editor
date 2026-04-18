@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Button, Heading, Text, VStack, Input, HStack, Divider } from '@chakra-ui/react';
 import { parseOpenStep } from '../lib/openstepParser';
 import { useStore } from '../store';
-import type { FontData, PathData, PathNode } from '../store';
+import type { FontData, GlyphAnchor, GlyphComponentRef, GlyphGuideline, GlyphLayerData, GlyphMetrics, PathData, PathNode } from '../store';
 import { getAllProjects, saveProject, deleteProject } from '../lib/persistence';
 import type { ProjectDraft } from '../lib/persistence';
 
@@ -29,17 +29,27 @@ export function Home() {
         // 我們的客製化 parser 具備 O(N) 一次掃描能力
         // 不再發生 JSON.parse 與字串過大的卡頓，也不需要過濾字元了
         const parsed = parseOpenStep(rawText) as any;
-        const fontData = mapGlyphsToFontData(parsed);
+        const { fontData, projectMetadata, projectSourceFormat } = mapGlyphsToProjectData(parsed);
         
         const newProject: ProjectDraft = {
           id: file.name + '-' + Date.now(),
           title: file.name,
           lastModified: Date.now(),
-          fontData
+          fontData,
+          projectMetadata,
+          projectSourceFormat,
         };
         
         await saveProject(newProject);
-        loadProjectState(newProject.id, newProject.title, newProject.fontData);
+        if (newProject.fontData) {
+          loadProjectState(
+            newProject.id,
+            newProject.title,
+            newProject.fontData,
+            newProject.projectMetadata,
+            newProject.projectSourceFormat
+          );
+        }
       } catch (error: any) {
         console.error(error);
         alert(`讀取失敗: ${error.message || "未知解析錯誤"}`);
@@ -49,8 +59,18 @@ export function Home() {
     }, 100);
   };
 
-  const handleOpenProject = (project: ProjectDraft) => {
-    loadProjectState(project.id, project.title, project.fontData);
+  const handleOpenProject = async (project: ProjectDraft) => {
+    const fullProject = await import('../lib/persistence').then(({ loadProject }) => loadProject(project.id));
+    if (!fullProject?.fontData) {
+      return;
+    }
+    loadProjectState(
+      fullProject.id,
+      fullProject.title,
+      fullProject.fontData,
+      fullProject.projectMetadata ?? null,
+      fullProject.projectSourceFormat ?? null
+    );
   };
 
   const handleDeleteProject = async (id: string, event: React.MouseEvent) => {
@@ -115,10 +135,26 @@ export function Home() {
   );
 }
 
-function mapGlyphsToFontData(raw: any): FontData {
+function mapGlyphsToProjectData(raw: any): {
+  fontData: FontData
+  projectMetadata: Record<string, unknown>
+  projectSourceFormat: 'glyphs'
+} {
   const fontData: FontData = {
     glyphs: {},
     lineMetricsHorizontalLayout: getLineMetricsHorizontalLayout(raw),
+  };
+  const projectMetadata: Record<string, unknown> = {
+    familyName: raw?.familyName ?? null,
+    unitsPerEm: raw?.unitsPerEm ?? null,
+    versionMajor: raw?.versionMajor ?? null,
+    versionMinor: raw?.versionMinor ?? null,
+    customParameters: raw?.customParameters ?? null,
+    featurePrefixes: raw?.featurePrefixes ?? null,
+    classes: raw?.classes ?? null,
+    features: raw?.features ?? null,
+    instances: raw?.instances ?? null,
+    fontMasters: raw?.fontMaster ?? null,
   };
 
   const parseNumeric = (value: unknown) => {
@@ -152,92 +188,205 @@ function mapGlyphsToFontData(raw: any): FontData {
     return { xMin, xMax };
   };
 
+  const createMetricsFromPaths = (
+    paths: PathData[],
+    width: number,
+    rawLsb: number | null,
+    rawRsb: number | null
+  ): GlyphMetrics => {
+    const bounds = getPathBounds(paths);
+    return {
+      width,
+      lsb: rawLsb ?? Math.round(bounds?.xMin ?? 0),
+      rsb: rawRsb ?? Math.round(width - (bounds?.xMax ?? width)),
+    };
+  };
+
+  const parseTransformNumbers = (value: unknown) => {
+    if (Array.isArray(value)) {
+      const numbers = value.map((item) => parseNumeric(item)).filter((item): item is number => item !== null);
+      return numbers.length >= 6 ? numbers.slice(0, 6) : null;
+    }
+
+    if (typeof value === 'string') {
+      const numbers = [...value.matchAll(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g)]
+        .map((match) => Number.parseFloat(match[0]))
+        .filter((item) => Number.isFinite(item));
+      return numbers.length >= 6 ? numbers.slice(0, 6) : null;
+    }
+
+    return null;
+  };
+
+  const parseComponentRef = (component: any, index: number): GlyphComponentRef | null => {
+    if (!component?.name) {
+      return null;
+    }
+
+    const transform = parseTransformNumbers(component.transform);
+    const x = transform?.[4] ?? parseNumeric(component.x) ?? parseNumeric(component.pos?.x) ?? 0;
+    const y = transform?.[5] ?? parseNumeric(component.y) ?? parseNumeric(component.pos?.y) ?? 0;
+    const scaleX = transform?.[0] ?? parseNumeric(component.scale?.x) ?? parseNumeric(component.scaleX) ?? 1;
+    const scaleY = transform?.[3] ?? parseNumeric(component.scale?.y) ?? parseNumeric(component.scaleY) ?? 1;
+    const rotation =
+      parseNumeric(component.rotation) ??
+      parseNumeric(component.angle) ??
+      (transform ? Math.atan2(transform[1] ?? 0, transform[0] ?? 1) * (180 / Math.PI) : 0);
+
+    return {
+      id: component.id ?? `c${index}`,
+      glyphId: component.name,
+      x,
+      y,
+      scaleX,
+      scaleY,
+      rotation,
+    };
+  };
+
+  const parseAnchors = (layer: any): GlyphAnchor[] =>
+    Array.isArray(layer?.anchors)
+      ? layer.anchors
+          .map((anchor: any, index: number) => {
+            const x = parseNumeric(anchor?.x);
+            const y = parseNumeric(anchor?.y);
+            if (x === null || y === null) {
+              return null;
+            }
+            return {
+              id: anchor?.id ?? `a${index}`,
+              name: anchor?.name ?? `anchor-${index}`,
+              x,
+              y,
+            };
+          })
+          .filter((anchor: GlyphAnchor | null): anchor is GlyphAnchor => anchor !== null)
+      : [];
+
+  const parseGuidelines = (layer: any): GlyphGuideline[] =>
+    Array.isArray(layer?.guides || layer?.guidelines)
+      ? (layer.guides || layer.guidelines)
+          .map((guide: any, index: number) => {
+            const x = parseNumeric(guide?.x) ?? 0;
+            const y = parseNumeric(guide?.y) ?? 0;
+            return {
+              id: guide?.id ?? `g${index}`,
+              x,
+              y,
+              angle: parseNumeric(guide?.angle) ?? 0,
+              locked: Boolean(guide?.locked),
+              name: guide?.name ?? undefined,
+            };
+          })
+      : [];
+
+  const parsePaths = (layer: any): PathData[] => {
+    const paths: PathData[] = [];
+    if (layer?.paths && Array.isArray(layer.paths)) {
+      layer.paths.forEach((p: any, pIdx: number) => {
+        const nodes: PathNode[] = [];
+        if (p.nodes && Array.isArray(p.nodes)) {
+          p.nodes.forEach((n: any) => {
+            if (typeof n === 'string') {
+              const parsedNode = parseGlyphsNode(n, nodes.length);
+              if (parsedNode) {
+                nodes.push(parsedNode);
+              }
+            }
+          });
+        }
+        paths.push({ id: p.id ?? `p${pIdx}`, closed: p.closed !== 0, nodes });
+      });
+    }
+    return paths;
+  };
+
+  const getLayerId = (layer: any, index: number) =>
+    layer?.layerId ?? layer?.associatedMasterId ?? layer?.name ?? `layer_${index}`;
+
+  const firstMasterId =
+    Array.isArray(raw?.fontMaster) && raw.fontMaster.length > 0
+      ? raw.fontMaster[0]?.id ?? null
+      : null;
+
   if (raw && raw.glyphs && Array.isArray(raw.glyphs)) {
     raw.glyphs.forEach((g: any) => {
       const name = g.glyphname || 'unknown';
       const id = g.unicode ? `uni${g.unicode}` : name;
-      
-      const paths: PathData[] = [];
-      const components: string[] = [];
-      
-      if (g.layers && Array.isArray(g.layers) && g.layers.length > 0) {
-        const layer = g.layers[0];
-        
-        if (layer.paths && Array.isArray(layer.paths)) {
-           layer.paths.forEach((p: any, pIdx: number) => {
-             const nodes: PathNode[] = [];
-             if (p.nodes && Array.isArray(p.nodes)) {
-               p.nodes.forEach((n: any) => {
-                 if (typeof n === 'string') {
-                   const parsedNode = parseGlyphsNode(n, nodes.length);
-                   if (parsedNode) {
-                     nodes.push(parsedNode);
-                   }
-                 }
-               });
-             }
-             paths.push({ id: `p${pIdx}`, closed: p.closed !== 0, nodes });
-           });
-        }
-        
-        if (layer.components && Array.isArray(layer.components)) {
-           layer.components.forEach((c: any) => {
-             if (c.name) components.push(c.name);
-           });
-        }
 
-        const layerWidth = parseNumeric(layer.width);
-        const glyphWidth = parseNumeric(g.width);
-        const width = layerWidth ?? glyphWidth ?? 1000;
-        const rawLsb =
-          parseNumeric(layer.LSB) ??
-          parseNumeric(layer.lsb) ??
-          parseNumeric(g.LSB) ??
-          parseNumeric(g.lsb);
-        const rawRsb =
-          parseNumeric(layer.RSB) ??
-          parseNumeric(layer.rsb) ??
-          parseNumeric(g.RSB) ??
-          parseNumeric(g.rsb);
-        const bounds = getPathBounds(paths);
-        const lsb = rawLsb ?? Math.round(bounds?.xMin ?? 0);
-        const rsb =
-          rawRsb ??
-          Math.round(width - (bounds?.xMax ?? width));
-
-        fontData.glyphs[id] = {
-          id,
-          name,
-          paths,
-          components,
-          componentRefs: [],
-          metrics: {
-            width,
-            lsb,
-            rsb,
-          },
-        };
-        return;
+      const layerMap: Record<string, GlyphLayerData> = {};
+      const layerOrder: string[] = [];
+      if (Array.isArray(g.layers) && g.layers.length > 0) {
+        g.layers.forEach((layer: any, layerIndex: number) => {
+          const layerId = getLayerId(layer, layerIndex);
+          const paths = parsePaths(layer);
+          const componentRefs = Array.isArray(layer?.components)
+            ? layer.components
+                .map((component: any, componentIndex: number) =>
+                  parseComponentRef(component, componentIndex)
+                )
+                .filter((component: GlyphComponentRef | null): component is GlyphComponentRef => component !== null)
+            : [];
+          const components = componentRefs.map((component: GlyphComponentRef) => component.glyphId);
+          const width = parseNumeric(layer.width) ?? parseNumeric(g.width) ?? 1000;
+          const rawLsb =
+            parseNumeric(layer.LSB) ??
+            parseNumeric(layer.lsb) ??
+            parseNumeric(g.LSB) ??
+            parseNumeric(g.lsb);
+          const rawRsb =
+            parseNumeric(layer.RSB) ??
+            parseNumeric(layer.rsb) ??
+            parseNumeric(g.RSB) ??
+            parseNumeric(g.rsb);
+          layerMap[layerId] = {
+            id: layerId,
+            name: layer?.name ?? layerId,
+            associatedMasterId: layer?.associatedMasterId ?? null,
+            paths,
+            components,
+            componentRefs,
+            anchors: parseAnchors(layer),
+            guidelines: parseGuidelines(layer),
+            metrics: createMetricsFromPaths(paths, width, rawLsb, rawRsb),
+          };
+          layerOrder.push(layerId);
+        });
       }
 
-      const bounds = getPathBounds(paths);
-      const width = 1000;
+      const defaultLayerId =
+        (firstMasterId && layerMap[firstMasterId] ? firstMasterId : null) ??
+        layerOrder[0] ??
+        null;
+      const defaultLayer = defaultLayerId ? layerMap[defaultLayerId] : null;
+      const fallbackWidth = parseNumeric(g.width) ?? 1000;
+      const fallbackMetrics = createMetricsFromPaths([], fallbackWidth, null, null);
+
       fontData.glyphs[id] = {
         id,
         name,
-        paths,
-        components,
-        componentRefs: [],
-        metrics: {
-          width,
-          lsb: Math.round(bounds?.xMin ?? 0),
-          rsb: Math.round(width - (bounds?.xMax ?? width)),
-        },
+        paths: defaultLayer?.paths ?? [],
+        components: defaultLayer?.components ?? [],
+        componentRefs: defaultLayer?.componentRefs ?? [],
+        anchors: defaultLayer?.anchors ?? [],
+        guidelines: defaultLayer?.guidelines ?? [],
+        metrics: defaultLayer?.metrics ?? fallbackMetrics,
+        layers: layerMap,
+        layerOrder,
+        unicode: g.unicode ? String(g.unicode) : null,
+        export: g.export !== 0,
+        category: g.category ?? null,
+        subCategory: g.subCategory ?? null,
+        production: g.production ?? null,
       };
     });
   }
   
-  return fontData;
+  return {
+    fontData,
+    projectMetadata,
+    projectSourceFormat: 'glyphs',
+  };
 }
 
 function parseGlyphsNode(nodeString: string, index: number): PathNode | null {
