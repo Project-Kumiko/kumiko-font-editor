@@ -3,6 +3,7 @@ import { Grid, GridItem, useBreakpointValue } from '@chakra-ui/react';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
+import { FontOverviewScreen } from './components/FontOverviewScreen';
 import { Home } from './components/Home';
 import { useStore } from './store';
 import { saveDraftSnapshot } from './lib/draftSave';
@@ -15,6 +16,7 @@ function App() {
   const selectedLayerId = useStore((state) => state.selectedLayerId);
   const isDirty = useStore((state) => state.isDirty);
   const markProjectSaved = useStore((state) => state.markProjectSaved);
+  const workspaceView = useStore((state) => state.workspaceView);
   const isDesktop = useBreakpointValue({ base: false, lg: true });
   const autosaveTimerRef = useRef<number | null>(null);
 
@@ -63,6 +65,10 @@ function App() {
 
   if (!fontData) {
     return <Home />;
+  }
+
+  if (workspaceView === 'overview') {
+    return <FontOverviewScreen />;
   }
 
   return (

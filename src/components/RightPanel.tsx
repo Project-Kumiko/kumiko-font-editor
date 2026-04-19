@@ -26,6 +26,7 @@ import { CornerNodeIcon, SmoothNodeIcon } from '../icons';
 import { deterministicStringify, getEffectiveNodeType, getGlyphLayer, isPathEndpointNode, useStore, type NodeType } from '../store';
 import { loadUfoUiValue, saveUfoUiValue } from '../lib/ufoPersistence';
 import type { UfoLocalSaveManifest } from '../lib/ufoTypes';
+import { getGlyphBlockLabel, getGlyphDisplayCharacter, getGlyphOverviewStats, getGlyphScriptLabel } from '../lib/glyphOverview';
 
 const UFO_LOCAL_TARGET_KEY = 'localSaveTarget';
 const UFO_LOCAL_MANIFEST_KEY = 'localSaveManifest';
@@ -54,6 +55,7 @@ export function RightPanel() {
   const [ufoExportProgress, setUfoExportProgress] = useState<{ completed: number; total: number } | null>(null);
   const selectedGlyphId = useStore((state) => state.selectedGlyphId);
   const selectedLayerId = useStore((state) => state.selectedLayerId);
+  const workspaceView = useStore((state) => state.workspaceView);
   const selectedNodeIds = useStore((state) => state.selectedNodeIds);
   const selectedSegment = useStore((state) => state.selectedSegment);
   const fontData = useStore((state) => state.fontData);
@@ -67,6 +69,7 @@ export function RightPanel() {
   const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics);
   const convertLineSegmentToCurve = useStore((state) => state.convertLineSegmentToCurve);
   const setSelectedLayerId = useStore((state) => state.setSelectedLayerId);
+  const setWorkspaceView = useStore((state) => state.setWorkspaceView);
   const markProjectSaved = useStore((state) => state.markProjectSaved);
 
   const glyph = selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null;
@@ -75,6 +78,8 @@ export function RightPanel() {
     glyph && previewGlyphMetrics?.glyphId === glyph.id
       ? previewGlyphMetrics.metrics
       : (activeLayer?.metrics ?? glyph?.metrics);
+  const overviewStats = glyph ? getGlyphOverviewStats(glyph) : null;
+  const glyphDisplayCharacter = glyph ? getGlyphDisplayCharacter(glyph) : null;
   const availableLayers = glyph ? getArchivedGlyphLayerEntries(glyph.id) : [];
   const nodeRef = parseSelectedNode(selectedNodeIds[0]);
   const selectedPath = activeLayer && nodeRef ? activeLayer.paths.find((path) => path.id === nodeRef.pathId) : null;
@@ -298,6 +303,22 @@ export function RightPanel() {
                 <Text fontSize="sm" color="gray.500">
                   {glyph.id}
                 </Text>
+                {workspaceView === 'overview' && (
+                  <Box
+                    mt={1}
+                    px={3}
+                    py={4}
+                    borderRadius="lg"
+                    border="1px solid"
+                    borderColor="blackAlpha.100"
+                    bg="gray.50"
+                    textAlign="center"
+                  >
+                    <Text fontSize={glyphDisplayCharacter ? '5xl' : 'xl'} lineHeight={1} color="gray.800">
+                      {glyphDisplayCharacter ?? glyph.name}
+                    </Text>
+                  </Box>
+                )}
                 <Stack direction="row" spacing={2} align="center">
                   <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
                     Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
@@ -326,6 +347,33 @@ export function RightPanel() {
                       })}
                     </Select>
                   </Box>
+                )}
+                {workspaceView === 'overview' && (
+                  <>
+                    <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">Unicode</Text>
+                        <Text fontSize="sm" color="gray.700">{glyph.unicode ?? '未編碼'}</Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">Script</Text>
+                        <Text fontSize="sm" color="gray.700">{getGlyphScriptLabel(glyph)}</Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">Block</Text>
+                        <Text fontSize="sm" color="gray.700">{getGlyphBlockLabel(glyph)}</Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">Contours / Components</Text>
+                        <Text fontSize="sm" color="gray.700">
+                          {overviewStats?.contourCount ?? 0} / {overviewStats?.componentCount ?? 0}
+                        </Text>
+                      </GridItem>
+                    </Grid>
+                    <Button size="sm" colorScheme="teal" onClick={() => setWorkspaceView('editor')}>
+                      進入字符編輯器
+                    </Button>
+                  </>
                 )}
               </Stack>
             </Box>

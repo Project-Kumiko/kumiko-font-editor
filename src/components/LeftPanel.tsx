@@ -8,6 +8,7 @@ export function LeftPanel() {
   const filteredGlyphList = useStore((state) => state.filteredGlyphList);
   const selectedGlyphId = useStore((state) => state.selectedGlyphId);
   const setSelectedGlyphId = useStore((state) => state.setSelectedGlyphId);
+  const setWorkspaceView = useStore((state) => state.setWorkspaceView);
   const closeProjectState = useStore((state) => state.closeProjectState);
 
   return (
@@ -30,9 +31,14 @@ export function LeftPanel() {
               部件檢索
             </Heading>
           </Box>
-          <Button size="sm" variant="ghost" onClick={closeProjectState}>
-            ⬅︎ 首頁
-          </Button>
+          <VStack spacing={1} align="stretch">
+            <Button size="sm" variant="ghost" onClick={() => setWorkspaceView('overview')}>
+              ⬅︎ 所有字符
+            </Button>
+            <Button size="sm" variant="ghost" onClick={closeProjectState}>
+              ⌂ 首頁
+            </Button>
+          </VStack>
         </HStack>
 
         <Input

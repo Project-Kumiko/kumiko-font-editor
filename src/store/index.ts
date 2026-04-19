@@ -141,6 +141,8 @@ export interface ViewportState {
   pan: { x: number; y: number }
 }
 
+export type WorkspaceView = 'overview' | 'editor'
+
 export interface GlobalState {
   fontData: FontData | null
   projectId: string | null
@@ -155,10 +157,12 @@ export interface GlobalState {
   selectedLayerId: string | null
   selectedNodeIds: string[]
   selectedSegment: SelectedSegmentState | null
+  workspaceView: WorkspaceView
   viewport: ViewportState
 
   setSearchQuery: (query: string) => void
   setSelectedGlyphId: (id: string | null) => void
+  setWorkspaceView: (view: WorkspaceView) => void
   setSelectedNodeIds: (ids: string[]) => void
   setSelectedSegment: (segment: SelectedSegmentState | null) => void
   setSelectedLayerId: (id: string | null) => void
@@ -611,6 +615,7 @@ export const useStore = create<GlobalState>()(
       selectedLayerId: 'default',
       selectedNodeIds: [],
       selectedSegment: null,
+      workspaceView: 'overview',
       viewport: {
         zoom: 0.46,
         pan: { x: 0, y: 30 },
@@ -630,6 +635,13 @@ export const useStore = create<GlobalState>()(
           if (id) {
             syncGlyphTopLevelFromLayer(state.fontData?.glyphs[id], state.selectedLayerId)
           }
+        }),
+
+      setWorkspaceView: (view) =>
+        set((state) => {
+          state.workspaceView = view
+          state.selectedNodeIds = []
+          state.selectedSegment = null
         }),
 
       setSelectedNodeIds: (ids) =>
@@ -972,6 +984,7 @@ export const useStore = create<GlobalState>()(
           state.fontData = hotFontData
           state.isDirty = false
           state.dirtyGlyphIds = []
+          state.workspaceView = 'overview'
           const firstGlyph = Object.values(hotFontData.glyphs)[0]
           const firstMasterId = getProjectArchiveFirstMasterId()
           state.selectedLayerId =
@@ -1012,6 +1025,7 @@ export const useStore = create<GlobalState>()(
           state.selectedNodeIds = []
           state.selectedSegment = null
           state.selectedLayerId = null
+          state.workspaceView = 'overview'
           clearProjectArchive()
           useStore.temporal.getState().clear()
         }),
