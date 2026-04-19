@@ -1,4 +1,5 @@
 import type { FontData, GlyphData, GlyphLayerData } from '../store'
+import type { ProjectSourceFormat } from './projectFormats'
 
 interface GlyphLayerArchiveEntry {
   layerOrder: string[]
@@ -8,7 +9,7 @@ interface GlyphLayerArchiveEntry {
 interface ProjectArchiveState {
   glyphLayers: Record<string, GlyphLayerArchiveEntry>
   projectMetadata: Record<string, unknown> | null
-  projectSourceFormat: 'glyphs' | null
+  projectSourceFormat: ProjectSourceFormat | null
 }
 
 const archiveState: ProjectArchiveState = {
@@ -46,7 +47,7 @@ export const clearProjectArchive = () => {
 export const ingestProjectData = (
   fontData: FontData,
   projectMetadata: Record<string, unknown> | null = null,
-  projectSourceFormat: 'glyphs' | null = null
+  projectSourceFormat: ProjectSourceFormat | null = null
 ): FontData => {
   archiveState.glyphLayers = {}
   archiveState.projectMetadata = projectMetadata
@@ -142,6 +143,42 @@ export const hydrateProjectFontData = (fontData: FontData): FontData => ({
           ...glyph,
           layers,
           layerOrder: glyphArchive.layerOrder,
+        },
+      ]
+    })
+  ),
+})
+
+export const overlayHotFontData = (
+  persistedFontData: FontData,
+  hotFontData: FontData
+): FontData => ({
+  ...persistedFontData,
+  glyphs: Object.fromEntries(
+    Object.entries(persistedFontData.glyphs).map(([glyphId, persistedGlyph]) => {
+      const hotGlyph = hotFontData.glyphs[glyphId]
+      if (!hotGlyph) {
+        return [glyphId, persistedGlyph]
+      }
+
+      const activeLayerId =
+        hotGlyph.activeLayerId ??
+        persistedGlyph.activeLayerId ??
+        persistedGlyph.layerOrder?.[0] ??
+        null
+      const layers = { ...(persistedGlyph.layers ?? {}) }
+
+      if (activeLayerId) {
+        layers[activeLayerId] = getHotGlyphLayerSnapshot(hotGlyph, activeLayerId)
+      }
+
+      return [
+        glyphId,
+        {
+          ...persistedGlyph,
+          ...hotGlyph,
+          layers,
+          layerOrder: persistedGlyph.layerOrder,
         },
       ]
     })

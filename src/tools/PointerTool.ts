@@ -179,6 +179,7 @@ export class PointerTool extends BaseTool {
       this.sceneModel.alignmentGuides = []
     }
 
+    this.updatePreviewGlyphMetrics(path)
     this.invalidateGlyphPaths()
     this.canvasController.requestUpdate()
   }
@@ -191,6 +192,7 @@ export class PointerTool extends BaseTool {
     }
 
     if (!this.dragState.didMove) {
+      this.sceneController.onClearPreviewGlyphMetrics?.(this.sceneModel.glyph?.glyphId)
       this.handleClick(this.dragState.pendingHit)
       this.canvasController.requestUpdate()
       return
@@ -202,6 +204,7 @@ export class PointerTool extends BaseTool {
 
     this.commitMovedPoints()
     this.restoreSelectionAfterDrag(finalRectSelection)
+    this.sceneController.onClearPreviewGlyphMetrics?.(this.sceneModel.glyph?.glyphId)
     this.sceneController.setHoverSelection(new Set())
     this.sceneController.setHoverPathHit(undefined)
     this.sceneModel.alignmentGuides = []
@@ -574,6 +577,25 @@ export class PointerTool extends BaseTool {
       linkedHandle: undefined,
       pointToggleOnClick: undefined,
     }
+  }
+
+  private updatePreviewGlyphMetrics(
+    path: {
+      getControlBounds?(): { xMin: number; xMax: number } | undefined
+    }
+  ) {
+    const glyphId = this.sceneModel.glyph?.glyphId
+    const width = this.sceneModel.glyph?.glyph.xAdvance
+    const bounds = path.getControlBounds?.()
+    if (!glyphId || typeof width !== 'number') {
+      return
+    }
+
+    this.sceneController.onPreviewGlyphMetrics?.(glyphId, {
+      lsb: Math.round(bounds?.xMin ?? 0),
+      rsb: Math.round(width - (bounds?.xMax ?? width)),
+      width,
+    })
   }
 
   private restoreSelectionAfterDrag(finalRectSelection?: Set<string>) {

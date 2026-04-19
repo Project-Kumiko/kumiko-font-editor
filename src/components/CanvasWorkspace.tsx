@@ -55,11 +55,13 @@ export function CanvasWorkspace() {
   const selectedLayerId = useStore((state) => state.selectedLayerId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const selectedSegment = useStore((state) => state.selectedSegment)
+  const clearPreviewGlyphMetrics = useStore((state) => state.clearPreviewGlyphMetrics)
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
   const setSelectedSegment = useStore((state) => state.setSelectedSegment)
   const updateViewport = useStore((state) => state.updateViewport)
   const deleteSelectedNodes = useStore((state) => state.deleteSelectedNodes)
+  const updateNodePositions = useStore((state) => state.updateNodePositions)
 
   const getPreviousPenSelection = useCallback(() => {
     if (
@@ -407,6 +409,12 @@ export function CanvasWorkspace() {
       onUpdateNodeType: (glyphId, pathId, nodeId, type) => {
         useStore.getState().updateNodeType(glyphId, pathId, nodeId, type)
       },
+      onPreviewGlyphMetrics: (glyphId, metrics) => {
+        useStore.getState().setPreviewGlyphMetrics(glyphId, metrics)
+      },
+      onClearPreviewGlyphMetrics: (glyphId) => {
+        useStore.getState().clearPreviewGlyphMetrics(glyphId)
+      },
     })
 
     sceneControllerRef.current = sceneController
@@ -433,6 +441,12 @@ export function CanvasWorkspace() {
       sceneViewRef.current = null
     }
   }, [setSelectedNodeIds, setSelectedSegment, updateViewport])
+
+  useEffect(() => {
+    if (!selectedGlyphId) {
+      clearPreviewGlyphMetrics()
+    }
+  }, [clearPreviewGlyphMetrics, selectedGlyphId])
 
   // Update scene model when data changes
   useEffect(() => {
@@ -472,6 +486,53 @@ export function CanvasWorkspace() {
 
   // Keyboard shortcuts
   useEffect(() => {
+    const activeGlyph = selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null
+    const activeLayer = activeGlyph ? getGlyphLayer(activeGlyph, selectedLayerId) : null
+
+    const selectAllGlyphNodes = () => {
+      if (!activeLayer) {
+        return
+      }
+
+      const allNodeIds = activeLayer.paths.flatMap((path) =>
+        path.nodes.map((node) => `${path.id}:${node.id}`)
+      )
+      setSelectedSegment(null)
+      setSelectedNodeIds(allNodeIds)
+    }
+
+    const nudgeSelectedNodes = (dx: number, dy: number) => {
+      if (!selectedGlyphId || !activeLayer || selectedNodeIds.length === 0) {
+        return
+      }
+
+      const updates = selectedNodeIds.flatMap((selectedNodeId) => {
+        const [pathId, nodeId] = selectedNodeId.split(':')
+        const path = activeLayer.paths.find((candidate) => candidate.id === pathId)
+        const node = path?.nodes.find((candidate) => candidate.id === nodeId)
+        if (!path || !node) {
+          return []
+        }
+
+        return [
+          {
+            pathId,
+            nodeId,
+            newPos: {
+              x: node.x + dx,
+              y: node.y + dy,
+            },
+          },
+        ]
+      })
+
+      if (updates.length === 0) {
+        return
+      }
+
+      updateNodePositions(selectedGlyphId, updates)
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === ' ') {
         e.preventDefault()
@@ -498,6 +559,10 @@ export function CanvasWorkspace() {
         } else if (e.key === 'v' || e.key === 'V') {
           e.preventDefault()
           void handlePasteSelection()
+        } else if (e.key === 'a' || e.key === 'A') {
+          e.preventDefault()
+          e.stopPropagation()
+          selectAllGlyphNodes()
         }
       } else if (
         (e.key === 'Backspace' || e.key === 'Delete') &&
@@ -526,6 +591,22 @@ export function CanvasWorkspace() {
         e.preventDefault()
         temporaryToolRef.current = null
         handleToolSelect('hand')
+      } else if (selectedNodeIds.length > 0 && e.key === 'ArrowLeft') {
+        e.preventDefault()
+        e.stopPropagation()
+        nudgeSelectedNodes(-1, 0)
+      } else if (selectedNodeIds.length > 0 && e.key === 'ArrowRight') {
+        e.preventDefault()
+        e.stopPropagation()
+        nudgeSelectedNodes(1, 0)
+      } else if (selectedNodeIds.length > 0 && e.key === 'ArrowUp') {
+        e.preventDefault()
+        e.stopPropagation()
+        nudgeSelectedNodes(0, 1)
+      } else if (selectedNodeIds.length > 0 && e.key === 'ArrowDown') {
+        e.preventDefault()
+        e.stopPropagation()
+        nudgeSelectedNodes(0, -1)
       } else if (e.key === ' ' && !e.repeat) {
         e.preventDefault()
         if (!temporaryToolRef.current) {
@@ -558,7 +639,7 @@ export function CanvasWorkspace() {
       window.removeEventListener('keydown', handleKeyDown, true)
       window.removeEventListener('keyup', handleKeyUp, true)
     }
-  }, [activeToolId, deleteSelectedNodes, getPreviousPenSelection, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedNodeIds, setSelectedNodeIds])
+  }, [activeToolId, deleteSelectedNodes, fontData, getPreviousPenSelection, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedLayerId, selectedNodeIds, setSelectedNodeIds, setSelectedSegment, updateNodePositions])
 
   return (
     <Box

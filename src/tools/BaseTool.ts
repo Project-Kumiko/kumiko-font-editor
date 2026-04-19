@@ -149,6 +149,11 @@ export interface SceneControllerInterface {
     nodeId: string,
     type: 'corner' | 'smooth'
   ) => void
+  onPreviewGlyphMetrics?: (
+    glyphId: string,
+    metrics: { lsb: number; rsb: number; width: number }
+  ) => void
+  onClearPreviewGlyphMetrics?: (glyphId?: string) => void
   setSelection(selection: Set<string>): void
   previewSelection(selection: Set<string>): void
 }

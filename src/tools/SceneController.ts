@@ -33,6 +33,11 @@ export interface SceneControllerOptions {
     nodeId: string,
     type: 'corner' | 'smooth'
   ) => void
+  onPreviewGlyphMetrics?: (
+    glyphId: string,
+    metrics: { lsb: number; rsb: number; width: number }
+  ) => void
+  onClearPreviewGlyphMetrics?: (glyphId?: string) => void
 }
 
 export type HitTestResult =
@@ -67,6 +72,8 @@ export class SceneController {
   onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
   onCommitNodePositions: SceneControllerOptions['onCommitNodePositions']
   onUpdateNodeType: SceneControllerOptions['onUpdateNodeType']
+  onPreviewGlyphMetrics: SceneControllerOptions['onPreviewGlyphMetrics']
+  onClearPreviewGlyphMetrics: SceneControllerOptions['onClearPreviewGlyphMetrics']
 
   constructor(options: SceneControllerOptions) {
     this.canvasController = options.canvasController
@@ -76,6 +83,8 @@ export class SceneController {
     this.onUpdateNodePosition = options.onUpdateNodePosition
     this.onCommitNodePositions = options.onCommitNodePositions
     this.onUpdateNodeType = options.onUpdateNodeType
+    this.onPreviewGlyphMetrics = options.onPreviewGlyphMetrics
+    this.onClearPreviewGlyphMetrics = options.onClearPreviewGlyphMetrics
 
     this.tools.set(
       'pointer',

@@ -1,7 +1,14 @@
+import type { GlyphsDocument } from './glyphsDocument';
+import type { GlyphsPackageData } from './glyphsPackage';
+import type { ProjectSourceFormat } from './projectFormats';
 import type { FontData } from '../store';
 
 const DB_NAME = 'kumiko-font-editor';
 const STORE_NAME = 'projects';
+export const UFO_PROJECTS_STORE = 'ufo_projects';
+export const UFO_METADATA_STORE = 'ufo_metadata';
+export const UFO_GLYPHS_STORE = 'ufo_glyphs';
+export const UFO_UI_STATE_STORE = 'ufo_ui_state';
 
 export interface ProjectDraft {
   id: string;
@@ -9,7 +16,10 @@ export interface ProjectDraft {
   lastModified: number;
   fontData?: FontData;
   projectMetadata?: Record<string, unknown> | null;
-  projectSourceFormat?: 'glyphs' | null;
+  projectSourceFormat?: ProjectSourceFormat | null;
+  projectGlyphsText?: string | null;
+  projectGlyphsDocument?: GlyphsDocument | null;
+  projectGlyphsPackage?: GlyphsPackageData | null;
 }
 
 export interface ProjectSummary {
@@ -18,9 +28,9 @@ export interface ProjectSummary {
   lastModified: number;
 }
 
-const openDatabase = async () => {
+export const openDatabase = async () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = window.indexedDB.open(DB_NAME, 2);
+    const request = globalThis.indexedDB.open(DB_NAME, 4);
 
     request.onupgradeneeded = () => {
       const database = request.result;
@@ -29,6 +39,39 @@ const openDatabase = async () => {
       }
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains(UFO_PROJECTS_STORE)) {
+        database.createObjectStore(UFO_PROJECTS_STORE, { keyPath: 'projectId' });
+      }
+      if (!database.objectStoreNames.contains(UFO_METADATA_STORE)) {
+        database.createObjectStore(UFO_METADATA_STORE, { keyPath: ['projectId', 'ufoId'] });
+      }
+      if (!database.objectStoreNames.contains(UFO_GLYPHS_STORE)) {
+        const store = database.createObjectStore(UFO_GLYPHS_STORE, {
+          keyPath: ['projectId', 'ufoId', 'layerId', 'glyphName'],
+        });
+        store.createIndex('byProject', 'projectId', { unique: false });
+        store.createIndex('byProjectUfoLayer', ['projectId', 'ufoId', 'layerId'], {
+          unique: false,
+        });
+        store.createIndex('byUnicode', 'unicodes', {
+          unique: false,
+          multiEntry: true,
+        });
+        store.createIndex('byDirty', 'dirtyIndex', { unique: false });
+        store.createIndex('byProjectDirty', ['projectId', 'dirtyIndex'], { unique: false });
+      } else {
+        const transaction = request.transaction;
+        const store = transaction?.objectStore(UFO_GLYPHS_STORE);
+        if (store && !store.indexNames.contains('byDirty')) {
+          store.createIndex('byDirty', 'dirtyIndex', { unique: false });
+        }
+        if (store && !store.indexNames.contains('byProjectDirty')) {
+          store.createIndex('byProjectDirty', ['projectId', 'dirtyIndex'], { unique: false });
+        }
+      }
+      if (!database.objectStoreNames.contains(UFO_UI_STATE_STORE)) {
+        database.createObjectStore(UFO_UI_STATE_STORE, { keyPath: ['projectId', 'key'] });
       }
     };
 
