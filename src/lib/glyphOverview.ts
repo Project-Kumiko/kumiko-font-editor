@@ -1,3 +1,4 @@
+import { VarPackedPath } from '../font/VarPackedPath'
 import type { GlyphData } from '../store'
 
 export type OverviewGroupBy = 'none' | 'script' | 'block'
@@ -125,3 +126,99 @@ export const getGlyphOverviewStats = (glyph: GlyphData) => ({
   anchorCount: glyph.anchors?.length ?? 0,
   guidelineCount: glyph.guidelines?.length ?? 0,
 })
+
+export interface GlyphPreviewShape {
+  d: string
+  transform?: string
+}
+
+export interface GlyphPreviewData {
+  width: number
+  viewBox: string
+  shapes: GlyphPreviewShape[]
+}
+
+const PREVIEW_PADDING_X = 80
+const PREVIEW_ASCENDER = 900
+const PREVIEW_DESCENDER = -220
+
+const buildPathSvg = (glyph: GlyphData) => {
+  const contours = glyph.paths.map((path) => ({
+    isClosed: path.closed,
+    points: path.nodes.map((node) => ({
+      x: node.x,
+      y: node.y,
+      type: (
+        node.type === 'offcurve'
+          ? 'offCurveCubic'
+          : node.type === 'qcurve'
+            ? 'offCurveQuad'
+            : 'onCurve'
+      ) as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
+      smooth: node.type === 'smooth',
+    })),
+  }))
+
+  return VarPackedPath.fromUnpackedContours(contours).toSVGPath()
+}
+
+const buildGlyphPreviewShapes = (
+  glyph: GlyphData,
+  glyphMap: Record<string, GlyphData>,
+  visited = new Set<string>(),
+  depth = 0
+): GlyphPreviewShape[] => {
+  if (visited.has(glyph.id) || depth > 8) {
+    return []
+  }
+
+  const nextVisited = new Set(visited)
+  nextVisited.add(glyph.id)
+
+  const shapes: GlyphPreviewShape[] = []
+  if (glyph.paths.length > 0) {
+    shapes.push({ d: buildPathSvg(glyph) })
+  }
+
+  for (const component of glyph.componentRefs) {
+    const baseGlyph = glyphMap[component.glyphId]
+    if (!baseGlyph) {
+      continue
+    }
+
+    const transform = [
+      `translate(${component.x} ${component.y})`,
+      component.rotation ? `rotate(${component.rotation})` : '',
+      component.scaleX !== 1 || component.scaleY !== 1
+        ? `scale(${component.scaleX} ${component.scaleY})`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+    const nestedShapes = buildGlyphPreviewShapes(baseGlyph, glyphMap, nextVisited, depth + 1)
+    for (const nestedShape of nestedShapes) {
+      shapes.push({
+        d: nestedShape.d,
+        transform: [transform, nestedShape.transform].filter(Boolean).join(' '),
+      })
+    }
+  }
+
+  return shapes
+}
+
+export const buildGlyphPreviewData = (
+  glyph: GlyphData,
+  glyphMap: Record<string, GlyphData>
+): GlyphPreviewData => {
+  const width = Math.max(glyph.metrics.width || 0, 240)
+  const shapes = buildGlyphPreviewShapes(glyph, glyphMap)
+  const viewBox = `${-PREVIEW_PADDING_X} ${PREVIEW_DESCENDER} ${width + PREVIEW_PADDING_X * 2} ${PREVIEW_ASCENDER - PREVIEW_DESCENDER}`
+
+  return {
+    width,
+    viewBox,
+    shapes,
+  }
+}

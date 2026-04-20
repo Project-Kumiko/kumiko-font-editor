@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, forwardRef, useEffect, useMemo, useRef, type HTMLAttributes } from 'react'
 import {
   Box,
   Button,
@@ -10,40 +10,79 @@ import {
   HStack,
   Input,
   Select,
-  SimpleGrid,
   Stack,
   Tag,
   Text,
   VStack,
 } from '@chakra-ui/react'
+import { VirtuosoGrid, type GridStateSnapshot, type ListRange, type VirtuosoGridHandle } from 'react-virtuoso'
 import { useStore, type GlyphData } from '../store'
 import {
   getGlyphBlockLabel,
-  getGlyphDisplayCharacter,
   getGlyphOverviewSections,
-  getGlyphOverviewStats,
   getGlyphScriptLabel,
+  buildGlyphPreviewData,
   type OverviewGroupBy,
 } from '../lib/glyphOverview'
 import { RightPanel } from './RightPanel'
 
-function GlyphCard({
+const GlyphPreview = memo(function GlyphPreview({
   glyph,
+  glyphMap,
+}: {
+  glyph: GlyphData
+  glyphMap: Record<string, GlyphData>
+}) {
+  const preview = useMemo(() => buildGlyphPreviewData(glyph, glyphMap), [glyph, glyphMap])
+
+  if (!preview.shapes.length) {
+    return (
+      <Text
+        fontSize="4xl"
+        fontWeight="medium"
+        color="gray.800"
+        lineHeight={1}
+        userSelect="none"
+      >
+        {glyph.name}
+      </Text>
+    )
+  }
+
+  return (
+    <Box as="svg" viewBox={preview.viewBox} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      <g transform="matrix(1 0 0 -1 0 800)">
+        {preview.shapes.map((shape, index) => (
+          <path
+            key={`${glyph.id}-shape-${index}`}
+            d={shape.d}
+            transform={shape.transform}
+            fill="currentColor"
+            stroke="none"
+          />
+        ))}
+      </g>
+    </Box>
+  )
+})
+
+const GlyphCard = memo(function GlyphCard({
+  glyph,
+  glyphMap,
   isSelected,
   onClick,
   onDoubleClick,
 }: {
   glyph: GlyphData
+  glyphMap: Record<string, GlyphData>
   isSelected: boolean
   onClick: () => void
   onDoubleClick: () => void
 }) {
-  const displayCharacter = getGlyphDisplayCharacter(glyph)
-  const stats = getGlyphOverviewStats(glyph)
-
   return (
     <Box
       p={3}
+      h="156px"
       borderRadius="xl"
       border="1px solid"
       borderColor={isSelected ? 'teal.300' : 'blackAlpha.100'}
@@ -59,53 +98,28 @@ function GlyphCard({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <Stack spacing={3}>
+      <Stack spacing={3} h="100%">
         <Flex
           align="center"
           justify="center"
-          h="92px"
+          h="104px"
           borderRadius="lg"
           bg="linear-gradient(180deg, rgba(248,250,252,1) 0%, rgba(241,245,249,1) 100%)"
           border="1px solid"
           borderColor="blackAlpha.100"
         >
-          <Text
-            fontSize={displayCharacter ? '4xl' : 'xl'}
-            fontWeight="medium"
-            color="gray.800"
-            lineHeight={1}
-            userSelect="none"
-          >
-            {displayCharacter ?? glyph.name}
-          </Text>
+          <Box w="100%" h="100%" color="gray.900" p={2}>
+            <GlyphPreview glyph={glyph} glyphMap={glyphMap} />
+          </Box>
         </Flex>
 
-        <Box minW={0}>
-          <Text fontSize="sm" fontWeight="bold" color="gray.800" noOfLines={1}>
-            {glyph.name}
-          </Text>
-          <Text fontSize="xs" color="gray.500" noOfLines={1}>
-            {glyph.id}
-          </Text>
-        </Box>
-
-        <HStack spacing={2} flexWrap="wrap">
-          <Tag size="sm" colorScheme="blue" variant="subtle">
-            {glyph.metrics.width}
-          </Tag>
-          <Tag size="sm" colorScheme="gray" variant="subtle">
-            {stats.contourCount} contours
-          </Tag>
-          {stats.componentCount > 0 && (
-            <Tag size="sm" colorScheme="purple" variant="subtle">
-              {stats.componentCount} comps
-            </Tag>
-          )}
-        </HStack>
+        <Text fontSize="xs" color="gray.500" noOfLines={1} textAlign="center">
+          {glyph.id}
+        </Text>
       </Stack>
     </Box>
   )
-}
+})
 
 export function FontOverviewScreen() {
   const currentSearchQuery = useStore((state) => state.currentSearchQuery)
@@ -116,9 +130,16 @@ export function FontOverviewScreen() {
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const closeProjectState = useStore((state) => state.closeProjectState)
   const projectTitle = useStore((state) => state.projectTitle)
+  const fontData = useStore((state) => state.fontData)
 
-  const [groupBy, setGroupBy] = useState<OverviewGroupBy>('script')
-  const [selectedSectionId, setSelectedSectionId] = useState<string>('all')
+  const groupBy = useStore((state) => state.overviewGroupBy) as OverviewGroupBy
+  const setOverviewGrouping = useStore((state) => state.setOverviewGrouping)
+  const selectedSectionId = useStore((state) => state.overviewSectionId)
+  const setOverviewSectionId = useStore((state) => state.setOverviewSectionId)
+  const overviewGridState = useStore((state) => state.overviewGridState) as GridStateSnapshot | null
+  const setOverviewGridState = useStore((state) => state.setOverviewGridState)
+  const gridRef = useRef<VirtuosoGridHandle | null>(null)
+  const restoreSnapshotRef = useRef<GridStateSnapshot | null>(overviewGridState)
 
   const sections = useMemo(
     () => getGlyphOverviewSections(filteredGlyphList, groupBy),
@@ -132,13 +153,36 @@ export function FontOverviewScreen() {
     return sections.filter((section) => section.id === selectedSectionId)
   }, [sections, selectedSectionId])
 
+  const activeSection = useMemo(() => {
+    if (selectedSectionId === 'all') {
+      return {
+        id: 'all',
+        label: groupBy === 'none' ? '全部字符' : '全部分組結果',
+        glyphs: filteredGlyphList,
+      }
+    }
+
+    return (
+      sections.find((section) => section.id === selectedSectionId) ?? {
+        id: 'all',
+        label: '全部字符',
+        glyphs: filteredGlyphList,
+      }
+    )
+  }, [filteredGlyphList, groupBy, sections, selectedSectionId])
+
   useEffect(() => {
     if (selectedSectionId !== 'all' && !sections.some((section) => section.id === selectedSectionId)) {
-      setSelectedSectionId('all')
+      setOverviewSectionId('all')
     }
-  }, [sections, selectedSectionId])
+  }, [sections, selectedSectionId, setOverviewSectionId])
+
+  useEffect(() => {
+    restoreSnapshotRef.current = overviewGridState
+  }, [overviewGridState])
 
   const selectedGlyph = filteredGlyphList.find((glyph) => glyph.id === selectedGlyphId) ?? null
+  const glyphMap = fontData?.glyphs ?? {}
 
   return (
     <Grid
@@ -201,8 +245,8 @@ export function FontOverviewScreen() {
                 bg="white"
                 value={groupBy}
                 onChange={(event) => {
-                  setGroupBy(event.target.value as OverviewGroupBy)
-                  setSelectedSectionId('all')
+                  setOverviewGrouping(event.target.value as OverviewGroupBy)
+                  setOverviewSectionId('all')
                 }}
               >
                 <option value="script">語系 / Script</option>
@@ -238,7 +282,7 @@ export function FontOverviewScreen() {
                 justifyContent="space-between"
                 variant={selectedSectionId === 'all' ? 'solid' : 'ghost'}
                 colorScheme={selectedSectionId === 'all' ? 'teal' : undefined}
-                onClick={() => setSelectedSectionId('all')}
+                onClick={() => setOverviewSectionId('all')}
               >
                 <Text>全部</Text>
                 <Tag size="sm">{filteredGlyphList.length}</Tag>
@@ -251,7 +295,7 @@ export function FontOverviewScreen() {
                   variant={selectedSectionId === section.id ? 'solid' : 'ghost'}
                   colorScheme={selectedSectionId === section.id ? 'teal' : undefined}
                   onClick={() => {
-                    setSelectedSectionId(section.id)
+                    setOverviewSectionId(section.id)
                     if (!selectedGlyph || !section.glyphs.some((glyph) => glyph.id === selectedGlyph.id)) {
                       setSelectedGlyphId(section.glyphs[0]?.id ?? null)
                     }
@@ -289,41 +333,65 @@ export function FontOverviewScreen() {
                 <Text color="gray.500">目前沒有符合條件的字符。</Text>
               </Box>
             ) : (
-              visibleSections.map((section) => (
-                <Box
-                  key={section.id}
-                  p={4}
-                  bg="white"
-                  borderRadius="2xl"
-                  border="1px solid"
-                  borderColor="blackAlpha.100"
-                  boxShadow="sm"
-                >
-                  <HStack justify="space-between" mb={4}>
-                    <Heading size="sm" color="gray.800">
-                      {section.label}
-                    </Heading>
-                    <Tag size="sm" colorScheme="gray" variant="subtle">
-                      {section.glyphs.length}
-                    </Tag>
-                  </HStack>
+              <Box
+                p={4}
+                bg="white"
+                borderRadius="2xl"
+                border="1px solid"
+                borderColor="blackAlpha.100"
+                boxShadow="sm"
+                h="calc(100vh - 172px)"
+                display="flex"
+                flexDirection="column"
+              >
+                <HStack justify="space-between" mb={4}>
+                  <Heading size="sm" color="gray.800">
+                    {activeSection.label}
+                  </Heading>
+                  <Tag size="sm" colorScheme="gray" variant="subtle">
+                    {activeSection.glyphs.length}
+                  </Tag>
+                </HStack>
 
-                  <SimpleGrid minChildWidth="140px" spacing={3}>
-                    {section.glyphs.map((glyph) => (
-                      <GlyphCard
-                        key={glyph.id}
-                        glyph={glyph}
-                        isSelected={glyph.id === selectedGlyphId}
-                        onClick={() => setSelectedGlyphId(glyph.id)}
-                        onDoubleClick={() => {
-                          setSelectedGlyphId(glyph.id)
-                          setWorkspaceView('editor')
-                        }}
-                      />
-                    ))}
-                  </SimpleGrid>
+                <Box flex={1} minH={0}>
+                  <VirtuosoGrid
+                    ref={gridRef}
+                    style={{ height: '100%', width: '100%' }}
+                    totalCount={activeSection.glyphs.length}
+                    restoreStateFrom={restoreSnapshotRef.current}
+                    stateChanged={(state) => {
+                      setOverviewGridState(state)
+                      restoreSnapshotRef.current = null
+                    }}
+                    rangeChanged={(_range: ListRange) => {
+                      restoreSnapshotRef.current = null
+                    }}
+                    components={{
+                      List: forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
+                        function OverviewGridList(props, ref) {
+                          return <Box ref={ref} display="grid" gridTemplateColumns="repeat(auto-fill, minmax(140px, 1fr))" gap={3} {...props} />
+                        }
+                      ),
+                      Item: (props) => <Box {...props} />,
+                    }}
+                    itemContent={(index) => {
+                      const glyph = activeSection.glyphs[index]
+                      return (
+                        <GlyphCard
+                          glyph={glyph}
+                          glyphMap={glyphMap}
+                          isSelected={glyph.id === selectedGlyphId}
+                          onClick={() => setSelectedGlyphId(glyph.id)}
+                          onDoubleClick={() => {
+                            setSelectedGlyphId(glyph.id)
+                            setWorkspaceView('editor')
+                          }}
+                        />
+                      )
+                    }}
+                  />
                 </Box>
-              ))
+              </Box>
             )}
           </Stack>
         </Box>

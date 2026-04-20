@@ -142,6 +142,7 @@ export interface ViewportState {
 }
 
 export type WorkspaceView = 'overview' | 'editor'
+export type OverviewGroupByState = 'none' | 'script' | 'block'
 
 export interface GlobalState {
   fontData: FontData | null
@@ -158,11 +159,19 @@ export interface GlobalState {
   selectedNodeIds: string[]
   selectedSegment: SelectedSegmentState | null
   workspaceView: WorkspaceView
+  overviewGroupBy: OverviewGroupByState
+  overviewSectionId: string
+  overviewGridState: unknown | null
+  overviewTopGlyphId: string | null
   viewport: ViewportState
 
   setSearchQuery: (query: string) => void
   setSelectedGlyphId: (id: string | null) => void
   setWorkspaceView: (view: WorkspaceView) => void
+  setOverviewGrouping: (groupBy: OverviewGroupByState) => void
+  setOverviewSectionId: (sectionId: string) => void
+  setOverviewGridState: (state: unknown | null) => void
+  setOverviewTopGlyphId: (glyphId: string | null) => void
   setSelectedNodeIds: (ids: string[]) => void
   setSelectedSegment: (segment: SelectedSegmentState | null) => void
   setSelectedLayerId: (id: string | null) => void
@@ -616,6 +625,10 @@ export const useStore = create<GlobalState>()(
       selectedNodeIds: [],
       selectedSegment: null,
       workspaceView: 'overview',
+      overviewGroupBy: 'script',
+      overviewSectionId: 'all',
+      overviewGridState: null,
+      overviewTopGlyphId: null,
       viewport: {
         zoom: 0.46,
         pan: { x: 0, y: 30 },
@@ -642,6 +655,26 @@ export const useStore = create<GlobalState>()(
           state.workspaceView = view
           state.selectedNodeIds = []
           state.selectedSegment = null
+        }),
+
+      setOverviewGrouping: (groupBy) =>
+        set((state) => {
+          state.overviewGroupBy = groupBy
+        }),
+
+      setOverviewSectionId: (sectionId) =>
+        set((state) => {
+          state.overviewSectionId = sectionId
+        }),
+
+      setOverviewGridState: (gridState) =>
+        set((state) => {
+          state.overviewGridState = gridState
+        }),
+
+      setOverviewTopGlyphId: (glyphId) =>
+        set((state) => {
+          state.overviewTopGlyphId = glyphId
         }),
 
       setSelectedNodeIds: (ids) =>
@@ -985,6 +1018,10 @@ export const useStore = create<GlobalState>()(
           state.isDirty = false
           state.dirtyGlyphIds = []
           state.workspaceView = 'overview'
+          state.overviewGroupBy = 'script'
+          state.overviewSectionId = 'all'
+          state.overviewGridState = null
+          state.overviewTopGlyphId = null
           const firstGlyph = Object.values(hotFontData.glyphs)[0]
           const firstMasterId = getProjectArchiveFirstMasterId()
           state.selectedLayerId =
@@ -1026,6 +1063,10 @@ export const useStore = create<GlobalState>()(
           state.selectedSegment = null
           state.selectedLayerId = null
           state.workspaceView = 'overview'
+          state.overviewGroupBy = 'script'
+          state.overviewSectionId = 'all'
+          state.overviewGridState = null
+          state.overviewTopGlyphId = null
           clearProjectArchive()
           useStore.temporal.getState().clear()
         }),
