@@ -2,10 +2,16 @@
 
 import type { CanvasController } from '../canvas/CanvasController'
 import type { PathHitInfo, Point, SceneModel } from '../canvas/SceneView'
+import {
+  getOnCurveContourPointSelection,
+  parsePointSelection,
+  pointSelectionKey,
+} from '../lib/glyphSelection'
 import { PointerTool } from './PointerTool'
 import { PenTool } from './PenTool'
 import { BrushTool } from './BrushTool'
 import { HandTool } from './HandTool'
+import { TextTool } from './TextTool'
 import type { BaseTool, ToolEvent } from './BaseTool'
 
 export interface SceneControllerOptions {
@@ -101,6 +107,10 @@ export class SceneController {
     this.tools.set(
       'hand',
       new HandTool(this.canvasController, this as any, this.sceneModel)
+    )
+    this.tools.set(
+      'text',
+      new TextTool(this.canvasController, this as any, this.sceneModel)
     )
 
     this.sceneModel.activeToolIdentifier = 'pointer'
@@ -330,13 +340,9 @@ export class SceneController {
       }
 
       const selection = new Set<string>()
-      const startPoint = contourIndex === 0 ? 0 : path.contourInfo[contourIndex - 1].endPoint + 1
-      const endPoint = path.contourInfo[contourIndex].endPoint
-      for (let i = startPoint; i <= endPoint; i += 1) {
-        const contourPoint = path.getPoint?.(i)
-        if (contourPoint?.type === 'onCurve') {
-          selection.add(`point/${i}`)
-        }
+      const contourSelection = getOnCurveContourPointSelection(path, contourIndex)
+      for (const key of contourSelection) {
+        selection.add(key)
       }
 
       return { type: 'contour-interior', contourIndex, selection }
@@ -352,16 +358,14 @@ export class SceneController {
     path: { iterPoints(): Generator<IndexedPoint, void> }
   ): Extract<HitTestResult, { type: 'point' | 'handle' }> | null {
     if (selection?.size) {
-      for (const item of selection) {
-        const match = item.match(/^point\/(\d+)$/)
-        if (!match) continue
-        const hitPoint = this.getPointByIndex(path, parseInt(match[1], 10))
+      for (const index of parsePointSelection(selection)) {
+        const hitPoint = this.getPointByIndex(path, index)
         if (!hitPoint) continue
         if (distance(point, hitPoint) <= threshold) {
           return {
             type: hitPoint.type === 'onCurve' ? 'point' : 'handle',
             pointIndex: hitPoint.index,
-            selection: new Set([`point/${hitPoint.index}`]),
+            selection: new Set([pointSelectionKey(hitPoint.index)]),
           }
         }
       }
@@ -372,7 +376,7 @@ export class SceneController {
         return {
           type: hitPoint.type === 'onCurve' ? 'point' : 'handle',
           pointIndex: hitPoint.index,
-          selection: new Set([`point/${hitPoint.index}`]),
+          selection: new Set([pointSelectionKey(hitPoint.index)]),
         }
       }
     }

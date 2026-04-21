@@ -34,6 +34,31 @@ function screenArray(canvasController: CanvasController, values: number[]) {
 
 // 編輯路徑填充
 registerVisualizationLayerDefinition({
+  identifier: 'fontra.context.path.fill',
+  name: 'Context Path Fill',
+  selectionFunc: glyphSelector('notediting'),
+  zIndex: 450,
+  colors: { fillColor: '#000' },
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>
+  ) => {
+    const context = canvasController.context
+    const glyph = positionedGlyph.glyph
+    if (!glyph.path) return
+
+    context.fillStyle = parameters.fillColor as string
+    for (const component of glyph.components || []) {
+      if (component.path2d) {
+        context.fill(component.path2d)
+      }
+    }
+    context.fill(glyph.path.toPath2D())
+  },
+})
+
+registerVisualizationLayerDefinition({
   identifier: 'fontra.edit.path.fill',
   name: 'Path Fill',
   selectionFunc: glyphSelector('editing'),
@@ -231,6 +256,42 @@ registerVisualizationLayerDefinition({
       strokeLine(context, guide.x1, guide.y1, guide.x2, guide.y2)
     }
     context.setLineDash([])
+  },
+})
+
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.text.cursor',
+  name: 'Text Cursor',
+  selectionFunc: glyphSelector('all'),
+  zIndex: 548,
+  screenParameters: { strokeWidth: 2 },
+  colors: { strokeColor: '#1E88A8' },
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
+    if (model.activeToolIdentifier !== 'text' || !model.textCursor) {
+      return
+    }
+    if (model.glyphs?.[0] && model.glyphs[0].glyphId !== positionedGlyph.glyphId) {
+      return
+    }
+
+    const context = canvasController.context
+    context.strokeStyle = parameters.strokeColor as string
+    context.lineWidth = screenLength(
+      canvasController,
+      parameters.strokeWidth as number
+    )
+    strokeLine(
+      context,
+      model.textCursor.x,
+      model.textCursor.yMin,
+      model.textCursor.x,
+      model.textCursor.yMax
+    )
   },
 })
 

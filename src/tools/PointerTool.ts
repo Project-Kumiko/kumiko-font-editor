@@ -2,6 +2,11 @@
 
 import { BaseTool, type EventStream, type ToolEvent } from './BaseTool'
 import type { Point, PathHitInfo } from '../canvas/SceneView'
+import {
+  getIndexedPointSelectionInRect,
+  parsePointSelection,
+  pointSelectionKey,
+} from '../lib/glyphSelection'
 import type { HitTestResult } from './SceneController'
 import { useStore } from '../store'
 
@@ -214,7 +219,7 @@ export class PointerTool extends BaseTool {
   private handleClick(hit: HitTestResult) {
     const glyphId = this.sceneModel.glyph?.glyphId
     if (hit.type === 'point' || hit.type === 'handle') {
-      const selectionKey = `point/${hit.pointIndex}`
+      const selectionKey = pointSelectionKey(hit.pointIndex)
       if (this.dragState.pointToggleOnClick) {
         const nextSelection = new Set(this.dragState.initialSelection)
         if (this.dragState.pointToggleOnClick.remove) {
@@ -310,26 +315,26 @@ export class PointerTool extends BaseTool {
     hit: Extract<HitTestResult, { type: 'point' | 'handle' }>,
     additiveSelection: boolean
   ) {
-    const selectionKey = `point/${hit.pointIndex}`
+    const normalizedSelectionKey = pointSelectionKey(hit.pointIndex)
     const currentSelection = new Set(this.sceneController.selection)
-    const isAlreadySelected = currentSelection.has(selectionKey)
+    const isAlreadySelected = currentSelection.has(normalizedSelectionKey)
 
     if (!additiveSelection) {
       if (!isAlreadySelected) {
-        this.sceneController.setSelection(new Set([selectionKey]))
+        this.sceneController.setSelection(new Set([normalizedSelectionKey]))
       }
       this.sceneController.setSelectedPathHit(undefined)
       return
     }
 
     if (!isAlreadySelected) {
-      currentSelection.add(selectionKey)
+      currentSelection.add(normalizedSelectionKey)
       this.sceneController.setSelection(currentSelection)
       this.sceneController.setSelectedPathHit(undefined)
       return
     }
 
-    this.dragState.pointToggleOnClick = { selectionKey, remove: true }
+    this.dragState.pointToggleOnClick = { selectionKey: normalizedSelectionKey, remove: true }
   }
 
   private resolveDragMode(hit: HitTestResult): DragMode {
@@ -448,19 +453,10 @@ export class PointerTool extends BaseTool {
       yMax: Math.max(this.dragState.anchorPoint.y, currentPoint.y),
     }
 
-    const selection = new Set<string>()
-    for (const point of this.sceneModel.glyph.glyph.path.iterPoints()) {
-      if (
-        point.x >= selectionRect.xMin &&
-        point.x <= selectionRect.xMax &&
-        point.y >= selectionRect.yMin &&
-        point.y <= selectionRect.yMax
-      ) {
-        selection.add(`point/${point.index}`)
-      }
-    }
-
-    return selection
+    return getIndexedPointSelectionInRect(
+      this.sceneModel.glyph.glyph.path.iterPoints(),
+      selectionRect
+    )
   }
 
   private deformDraggedSegment(
@@ -617,7 +613,7 @@ export class PointerTool extends BaseTool {
 
       if (this.dragState.pendingHit.type === 'point' || this.dragState.pendingHit.type === 'handle') {
         this.sceneController.setSelection(
-          new Set([`point/${this.dragState.pendingHit.pointIndex}`])
+          new Set([pointSelectionKey(this.dragState.pendingHit.pointIndex)])
         )
         return
       }
@@ -922,10 +918,7 @@ export class PointerTool extends BaseTool {
   private getSelectedPointIndices(selection: Set<string>): number[] {
     const selectedPointIndices: number[] = []
     for (const item of selection) {
-      const match = item.match(/^point\/(\d+)$/)
-      if (match) {
-        selectedPointIndices.push(parseInt(match[1], 10))
-      }
+      selectedPointIndices.push(...parsePointSelection(new Set([item])))
     }
     return selectedPointIndices
   }

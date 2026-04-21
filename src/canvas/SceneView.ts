@@ -1,10 +1,11 @@
 // SceneView 與 Visualization Layers 架構
 // 從 Fontra 移植
 
-import type { CanvasController } from './CanvasController'
+import { withSavedState, type CanvasController } from './CanvasController'
 
 export interface SceneModel {
   glyph?: PositionedGlyph
+  glyphs?: PositionedGlyph[]
   lineMetricsHorizontalLayout?: Record<
     string,
     {
@@ -28,6 +29,7 @@ export interface SceneModel {
   pathInsertHandles?: { points: Array<{ x: number; y: number }> }
   penPreviewPath?: Path2D
   alignmentGuides?: Array<{ x1: number; y1: number; x2: number; y2: number }>
+  textCursor?: { x: number; yMin: number; yMax: number }
   initialClickedPointIndex?: number
   canEdit?: boolean
 }
@@ -199,7 +201,7 @@ export class VisualizationLayer {
   }
 
   draw(canvasController: CanvasController, model: SceneModel) {
-    if (!this.visible || !model.glyph) {
+    if (!this.visible || (!model.glyph && !(model.glyphs?.length))) {
       return
     }
 
@@ -210,14 +212,15 @@ export class VisualizationLayer {
     }
 
     // Get glyphs to render
+    const allGlyphs = model.glyphs?.length ? model.glyphs : model.glyph ? [model.glyph] : []
     const visContext: VisContext = {
       glyphsBySelectionMode: {
-        editing: model.glyph?.isEditing ? [model.glyph] : [],
-        selected: model.glyph?.isSelected ? [model.glyph] : [],
-        hovered: model.glyph?.isHovered ? [model.glyph] : [],
-        all: model.glyph ? [model.glyph] : [],
-        unselected: model.glyph && !model.glyph.isEditing ? [model.glyph] : [],
-        notediting: model.glyph && !model.glyph.isEditing ? [model.glyph] : [],
+        editing: allGlyphs.filter((glyph) => glyph.isEditing),
+        selected: allGlyphs.filter((glyph) => glyph.isSelected),
+        hovered: allGlyphs.filter((glyph) => glyph.isHovered),
+        all: allGlyphs,
+        unselected: allGlyphs.filter((glyph) => !glyph.isEditing),
+        notediting: allGlyphs.filter((glyph) => !glyph.isEditing),
       },
     }
 
@@ -226,13 +229,16 @@ export class VisualizationLayer {
     // Draw each glyph
     for (const glyph of glyphs) {
       if (glyph) {
-        this.definition.draw(
-          canvasController,
-          glyph,
-          parameters,
-          model,
-          canvasController
-        )
+        withSavedState(canvasController.context, () => {
+          canvasController.context.translate(glyph.x, glyph.y)
+          this.definition.draw(
+            canvasController,
+            glyph,
+            parameters,
+            model,
+            canvasController
+          )
+        })
       }
     }
   }

@@ -13,7 +13,7 @@ import {
 } from '../canvas'
 import { SceneController } from '../tools'
 import { VarPackedPath } from '../font/VarPackedPath'
-import { getEffectiveNodeType, getGlyphLayer, useStore, useTemporalStore } from '../store'
+import { getEffectiveNodeType, getGlyphLayer, useStore, useTemporalStore, type NodeType } from '../store'
 import {
   buildClipboardPayloadFromSelection,
   materializeClipboardPaths,
@@ -40,18 +40,21 @@ export function CanvasWorkspace() {
       }
     >()
   )
-  const temporaryToolRef = useRef<'pointer' | 'pen' | 'brush' | 'hand' | null>(null)
-  const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush' | 'hand'>('pointer')
+  const temporaryToolRef = useRef<'pointer' | 'pen' | 'brush' | 'hand' | 'text' | null>(null)
+  const [activeToolId, setActiveToolId] = useState<'pointer' | 'pen' | 'brush' | 'hand' | 'text'>('pointer')
   const availableTools = [
     { id: 'pointer', label: 'Pointer', status: 'ready' },
     { id: 'pen', label: 'Pen', status: 'ready' },
     { id: 'brush', label: 'Brush', status: 'ready' },
+    { id: 'text', label: 'Text', status: 'ready' },
     { id: 'hand', label: 'Hand', status: 'ready' },
   ] as const
 
   // Store data
   const fontData = useStore((state) => state.fontData)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
+  const editorGlyphIds = useStore((state) => state.editorGlyphIds)
+  const editorTextCursorIndex = useStore((state) => state.editorTextCursorIndex)
   const selectedLayerId = useStore((state) => state.selectedLayerId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const selectedSegment = useStore((state) => state.selectedSegment)
@@ -59,6 +62,10 @@ export function CanvasWorkspace() {
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
   const setSelectedSegment = useStore((state) => state.setSelectedSegment)
+  const setSelectedGlyphId = useStore((state) => state.setSelectedGlyphId)
+  const setEditorTextCursorIndex = useStore((state) => state.setEditorTextCursorIndex)
+  const insertGlyphIntoEditor = useStore((state) => state.insertGlyphIntoEditor)
+  const removeGlyphFromEditor = useStore((state) => state.removeGlyphFromEditor)
   const updateViewport = useStore((state) => state.updateViewport)
   const deleteSelectedNodes = useStore((state) => state.deleteSelectedNodes)
   const updateNodePositions = useStore((state) => state.updateNodePositions)
@@ -150,64 +157,34 @@ export function CanvasWorkspace() {
   }, [selectedGlyphId, setSelectedNodeIds])
 
   const handleToolSelect = useCallback(
-    (toolId: 'pointer' | 'pen' | 'brush' | 'hand') => {
+    (toolId: 'pointer' | 'pen' | 'brush' | 'hand' | 'text') => {
       sceneControllerRef.current?.setActiveTool(toolId)
       setActiveToolId(toolId)
+      setSelectedNodeIds([])
+      setSelectedSegment(null)
     },
-    []
+    [setSelectedNodeIds, setSelectedSegment]
   )
 
-  const positionedGlyph = useMemo((): PositionedGlyph | undefined => {
-    if (!fontData || !selectedGlyphId) {
-      return undefined
-    }
-    const glyph = fontData.glyphs[selectedGlyphId]
-    if (!glyph) return undefined
-    const activeLayer = getGlyphLayer(glyph, selectedLayerId)
-    if (!activeLayer) {
-      return undefined
-    }
-    const cacheKey = `${glyph.id}:${activeLayer.id}`
-    const cachedGeometry = layerGeometryCacheRef.current.get(cacheKey)
-    if (cachedGeometry && cachedGeometry.layerRef === activeLayer) {
-      return {
-        glyph: {
-          path: cachedGeometry.varPath,
-          xAdvance: activeLayer.metrics.width,
-          components: cachedGeometry.components,
-          guidelines: cachedGeometry.guidelines,
-          flattenedPath2d: undefined,
-          closedContoursPath2d: undefined,
-        },
-        glyphId: glyph.id,
-        x: 0,
-        y: 0,
-        pointRefs: cachedGeometry.pointRefs,
-        isEditing: true,
-        isEmpty: activeLayer.paths.length === 0,
-      }
+  const positionedGlyphs = useMemo((): PositionedGlyph[] => {
+    if (!fontData) {
+      return []
     }
 
-    const pointRefs = activeLayer.paths.flatMap((path) =>
-      path.nodes.map((node) => ({
-        pathId: path.id,
-        nodeId: node.id,
-      }))
-    )
-
-    const pathDataToVarPackedPath = (paths: typeof activeLayer.paths) => {
-      const contours: {
-        points: {
+    const pathDataToVarPackedPath = (
+      paths: Array<{
+        id: string
+        closed: boolean
+        nodes: Array<{
+          id: string
           x: number
           y: number
-          type: 'onCurve' | 'offCurveQuad' | 'offCurveCubic'
-          smooth?: boolean
-        }[]
-        isClosed: boolean
-      }[] = []
-
-      for (const pathData of paths) {
-        const points = pathData.nodes.map((node) => ({
+          type: NodeType
+        }>
+      }>
+    ) => {
+      const contours = paths.map((pathData) => ({
+        points: pathData.nodes.map((node) => ({
           x: node.x,
           y: node.y,
           type: (node.type === 'offcurve'
@@ -216,13 +193,9 @@ export function CanvasWorkspace() {
               ? 'offCurveQuad'
               : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
           smooth: getEffectiveNodeType(pathData, node) === 'smooth',
-        }))
-
-        contours.push({
-          points,
-          isClosed: pathData.closed,
-        })
-      }
+        })),
+        isClosed: pathData.closed,
+      }))
 
       return VarPackedPath.fromUnpackedContours(contours)
     }
@@ -267,57 +240,153 @@ export function CanvasWorkspace() {
       return combinedPath
     }
 
-    const varPath = pathDataToVarPackedPath(activeLayer.paths)
-    const components: NonNullable<GlyphData['components']> = []
-    for (const componentRef of activeLayer.componentRefs) {
-      const path2d = buildComponentPath2D(componentRef.glyphId)
-      if (!path2d) {
+    let cursorX = 0
+    const builtGlyphs = editorGlyphIds
+      .map((glyphId) => {
+        const glyph = fontData.glyphs[glyphId]
+        const activeLayer = getGlyphLayer(glyph, selectedLayerId)
+        if (!glyph || !activeLayer) {
+          return null
+        }
+
+        const cacheKey = `${glyph.id}:${activeLayer.id}`
+        const cachedGeometry = layerGeometryCacheRef.current.get(cacheKey)
+        let pointRefs: Array<{ pathId: string; nodeId: string }>
+        let varPath: InstanceType<typeof VarPackedPath>
+        let components: NonNullable<GlyphData['components']>
+        let guidelines: NonNullable<GlyphData['guidelines']>
+
+        if (cachedGeometry && cachedGeometry.layerRef === activeLayer) {
+          pointRefs = cachedGeometry.pointRefs
+          varPath = cachedGeometry.varPath
+          components = cachedGeometry.components
+          guidelines = cachedGeometry.guidelines
+        } else {
+          pointRefs = activeLayer.paths.flatMap((path) =>
+            path.nodes.map((node) => ({
+              pathId: path.id,
+              nodeId: node.id,
+            }))
+          )
+          varPath = pathDataToVarPackedPath(activeLayer.paths)
+          components = []
+          for (const componentRef of activeLayer.componentRefs) {
+            const path2d = buildComponentPath2D(componentRef.glyphId)
+            if (!path2d) {
+              continue
+            }
+            components.push({
+              name: componentRef.glyphId,
+              transformation: {
+                translateX: componentRef.x,
+                translateY: componentRef.y,
+                scaleX: componentRef.scaleX,
+                scaleY: componentRef.scaleY,
+                rotation: componentRef.rotation,
+              },
+              path2d,
+            })
+          }
+          guidelines = (activeLayer.guidelines ?? []).map((guide) => ({
+            x: guide.x,
+            y: guide.y,
+            angle: guide.angle,
+            locked: guide.locked,
+          }))
+
+          layerGeometryCacheRef.current.set(cacheKey, {
+            layerRef: activeLayer,
+            pointRefs,
+            varPath,
+            components,
+            guidelines,
+          })
+        }
+
+        const positionedGlyph: PositionedGlyph = {
+          glyph: {
+            path: varPath,
+            xAdvance: activeLayer.metrics.width,
+            components,
+            guidelines,
+            flattenedPath2d: undefined,
+            closedContoursPath2d: undefined,
+          },
+          glyphId: glyph.id,
+          x: cursorX,
+          y: 0,
+          pointRefs,
+          isEditing: activeToolId !== 'text' && glyph.id === selectedGlyphId,
+          isSelected: glyph.id === selectedGlyphId,
+          isEmpty: activeLayer.paths.length === 0,
+        }
+        cursorX += activeLayer.metrics.width + 80
+        return positionedGlyph
+      })
+      .filter((glyph): glyph is PositionedGlyph => Boolean(glyph))
+
+    return builtGlyphs
+  }, [activeToolId, editorGlyphIds, fontData, selectedGlyphId, selectedLayerId])
+
+  const positionedGlyph = useMemo(
+    () => positionedGlyphs.find((glyph) => glyph.glyphId === selectedGlyphId),
+    [positionedGlyphs, selectedGlyphId]
+  )
+
+  const glyphIdByCharacter = useMemo(() => {
+    const entries = new Map<string, string>()
+    if (!fontData) {
+      return entries
+    }
+
+    for (const glyph of Object.values(fontData.glyphs)) {
+      if (!glyph.unicode) {
         continue
       }
-      components.push({
-        name: componentRef.glyphId,
-        transformation: {
-          translateX: componentRef.x,
-          translateY: componentRef.y,
-          scaleX: componentRef.scaleX,
-          scaleY: componentRef.scaleY,
-          rotation: componentRef.rotation,
-        },
-        path2d,
-      })
+      const codePoint = Number.parseInt(glyph.unicode, 16)
+      if (!Number.isFinite(codePoint)) {
+        continue
+      }
+      const character = String.fromCodePoint(codePoint)
+      if (!entries.has(character)) {
+        entries.set(character, glyph.id)
+      }
     }
-    const guidelines = (activeLayer.guidelines ?? []).map((guide) => ({
-        x: guide.x,
-        y: guide.y,
-        angle: guide.angle,
-        locked: guide.locked,
-      }))
 
-    layerGeometryCacheRef.current.set(cacheKey, {
-      layerRef: activeLayer,
-      pointRefs,
-      varPath,
-      components,
-      guidelines,
-    })
+    return entries
+  }, [fontData])
 
-    return {
-      glyph: {
-        path: varPath,
-        xAdvance: activeLayer.metrics.width,
-        components,
-        guidelines,
-        flattenedPath2d: undefined,
-        closedContoursPath2d: undefined,
-      },
-      glyphId: glyph.id,
-      x: 0,
-      y: 0,
-      pointRefs,
-      isEditing: true,
-      isEmpty: activeLayer.paths.length === 0,
-    }
-  }, [fontData, selectedGlyphId, selectedLayerId])
+  const getGlyphFrameAtPoint = useCallback(
+    (point: { x: number; y: number }) => {
+      const metrics = fontData?.lineMetricsHorizontalLayout
+      const yMin = metrics?.descender?.value ?? -220
+      const yMax = metrics?.ascender?.value ?? 900
+
+      for (let index = positionedGlyphs.length - 1; index >= 0; index -= 1) {
+        const positionedGlyph = positionedGlyphs[index]
+        const xMin = positionedGlyph.x
+        const xMax = positionedGlyph.x + positionedGlyph.glyph.xAdvance
+        const translatedX = point.x
+        const translatedY = point.y - positionedGlyph.y
+        if (
+          translatedX >= xMin &&
+          translatedX <= xMax &&
+          translatedY >= yMin &&
+          translatedY <= yMax
+        ) {
+          return {
+            glyphId: positionedGlyph.glyphId ?? null,
+            glyphIndex: index,
+            xMin,
+            xMax,
+          }
+        }
+      }
+
+      return null
+    },
+    [fontData?.lineMetricsHorizontalLayout, positionedGlyphs]
+  )
 
   // Initialize canvas
   useEffect(() => {
@@ -348,6 +417,7 @@ export function CanvasWorkspace() {
     // Create scene model FIRST so we can set it on controller before initial draw
     const sceneModel: SceneModel = {
       glyph: undefined,
+      glyphs: [],
       selection: new Set(),
       hoverSelection: new Set(),
       canEdit: true,
@@ -458,6 +528,22 @@ export function CanvasWorkspace() {
 
     // Update scene model
     sceneController.sceneModel.glyph = positionedGlyph
+    sceneController.sceneModel.glyphs = positionedGlyphs
+    if (activeToolId === 'text') {
+      const metrics = fontData?.lineMetricsHorizontalLayout
+      const yMin = metrics?.descender?.value ?? -220
+      const yMax = metrics?.ascender?.value ?? 900
+      const cursorGlyph = positionedGlyphs[editorTextCursorIndex]
+      const previousGlyph = positionedGlyphs[editorTextCursorIndex - 1]
+      const cursorX = cursorGlyph
+        ? cursorGlyph.x
+        : previousGlyph
+          ? previousGlyph.x + previousGlyph.glyph.xAdvance + 80
+          : 0
+      sceneController.sceneModel.textCursor = { x: cursorX, yMin, yMax }
+    } else {
+      sceneController.sceneModel.textCursor = undefined
+    }
     sceneController.sceneModel.lineMetricsHorizontalLayout =
       fontData?.lineMetricsHorizontalLayout
     const selectionPointIds = new Set(
@@ -482,7 +568,60 @@ export function CanvasWorkspace() {
 
     // Request redraw
     controller?.requestUpdate()
-  }, [fontData, positionedGlyph, selectedGlyphId, selectedNodeIds, viewport])
+  }, [activeToolId, editorTextCursorIndex, fontData, positionedGlyph, positionedGlyphs, selectedGlyphId, selectedNodeIds, viewport])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const controller = canvasControllerRef.current
+    if (!canvas || !controller) {
+      return
+    }
+
+    const handleCanvasClick = (event: MouseEvent) => {
+      const localPoint = controller.localPoint({ x: event.pageX, y: event.pageY })
+      const hit = getGlyphFrameAtPoint(localPoint)
+      if (!hit?.glyphId) {
+        return
+      }
+
+      if (activeToolId === 'text') {
+        event.preventDefault()
+        event.stopPropagation()
+        const midpoint = (hit.xMin + hit.xMax) / 2
+        setSelectedGlyphId(hit.glyphId)
+        setEditorTextCursorIndex(localPoint.x < midpoint ? hit.glyphIndex : hit.glyphIndex + 1)
+        return
+      }
+
+      if (hit.glyphId !== selectedGlyphId) {
+        event.preventDefault()
+        event.stopPropagation()
+        setSelectedGlyphId(hit.glyphId)
+      }
+    }
+
+    const handleCanvasDoubleClick = (event: MouseEvent) => {
+      const localPoint = controller.localPoint({ x: event.pageX, y: event.pageY })
+      const hit = getGlyphFrameAtPoint(localPoint)
+      if (!hit?.glyphId || hit.glyphId === selectedGlyphId) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      setSelectedGlyphId(hit.glyphId)
+      if (activeToolId === 'text') {
+        handleToolSelect('pointer')
+      }
+    }
+
+    canvas.addEventListener('click', handleCanvasClick)
+    canvas.addEventListener('dblclick', handleCanvasDoubleClick)
+    return () => {
+      canvas.removeEventListener('click', handleCanvasClick)
+      canvas.removeEventListener('dblclick', handleCanvasDoubleClick)
+    }
+  }, [activeToolId, getGlyphFrameAtPoint, handleToolSelect, selectedGlyphId, setEditorTextCursorIndex, setSelectedGlyphId])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -490,6 +629,9 @@ export function CanvasWorkspace() {
     const activeLayer = activeGlyph ? getGlyphLayer(activeGlyph, selectedLayerId) : null
 
     const selectAllGlyphNodes = () => {
+      if (activeToolId === 'text') {
+        return
+      }
       if (!activeLayer) {
         return
       }
@@ -502,6 +644,9 @@ export function CanvasWorkspace() {
     }
 
     const nudgeSelectedNodes = (dx: number, dy: number) => {
+      if (activeToolId === 'text') {
+        return
+      }
       if (!selectedGlyphId || !activeLayer || selectedNodeIds.length === 0) {
         return
       }
@@ -533,6 +678,25 @@ export function CanvasWorkspace() {
       updateNodePositions(selectedGlyphId, updates)
     }
 
+    const moveTextSelection = (direction: -1 | 1) => {
+      const nextIndex = Math.max(0, Math.min(editorGlyphIds.length, editorTextCursorIndex + direction))
+      setEditorTextCursorIndex(nextIndex)
+      const nextGlyphId = editorGlyphIds[Math.max(0, nextIndex - 1)] ?? editorGlyphIds[0] ?? null
+      if (nextGlyphId) {
+        setSelectedGlyphId(nextGlyphId)
+      }
+    }
+
+    const insertCharacterIntoEditor = (character: string) => {
+      const glyphId = glyphIdByCharacter.get(character)
+      if (!glyphId) {
+        return
+      }
+
+      const anchorGlyphId = editorTextCursorIndex > 0 ? editorGlyphIds[editorTextCursorIndex - 1] : null
+      insertGlyphIntoEditor(glyphId, anchorGlyphId)
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === ' ') {
         e.preventDefault()
@@ -544,6 +708,44 @@ export function CanvasWorkspace() {
         e.target instanceof HTMLTextAreaElement
       ) {
         return
+      }
+
+      if (activeToolId === 'text' && !e.metaKey && !e.ctrlKey) {
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          e.preventDefault()
+          e.stopPropagation()
+          const removeIndex =
+            e.key === 'Backspace' ? editorTextCursorIndex - 1 : editorTextCursorIndex
+          const targetGlyphId = editorGlyphIds[removeIndex]
+          if (targetGlyphId) {
+            removeGlyphFromEditor(targetGlyphId)
+            if (e.key === 'Backspace') {
+              setEditorTextCursorIndex(Math.max(0, removeIndex))
+            }
+          }
+          return
+        }
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          e.stopPropagation()
+          moveTextSelection(-1)
+          return
+        }
+
+        if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          e.stopPropagation()
+          moveTextSelection(1)
+          return
+        }
+
+        if (e.key.length === 1 && !e.altKey) {
+          e.preventDefault()
+          e.stopPropagation()
+          insertCharacterIntoEditor(e.key)
+          return
+        }
       }
 
       if (e.metaKey || e.ctrlKey) {
@@ -591,6 +793,10 @@ export function CanvasWorkspace() {
         e.preventDefault()
         temporaryToolRef.current = null
         handleToolSelect('hand')
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault()
+        temporaryToolRef.current = null
+        handleToolSelect('text')
       } else if (selectedNodeIds.length > 0 && e.key === 'ArrowLeft') {
         e.preventDefault()
         e.stopPropagation()
@@ -639,7 +845,7 @@ export function CanvasWorkspace() {
       window.removeEventListener('keydown', handleKeyDown, true)
       window.removeEventListener('keyup', handleKeyUp, true)
     }
-  }, [activeToolId, deleteSelectedNodes, fontData, getPreviousPenSelection, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, selectedGlyphId, selectedLayerId, selectedNodeIds, setSelectedNodeIds, setSelectedSegment, updateNodePositions])
+  }, [activeToolId, deleteSelectedNodes, editorGlyphIds, editorTextCursorIndex, fontData, getPreviousPenSelection, glyphIdByCharacter, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, insertGlyphIntoEditor, removeGlyphFromEditor, selectedGlyphId, selectedLayerId, selectedNodeIds, setEditorTextCursorIndex, setSelectedGlyphId, setSelectedNodeIds, setSelectedSegment, updateNodePositions])
 
   return (
     <Box
@@ -680,7 +886,7 @@ export function CanvasWorkspace() {
           滾輪縮放，拖曳空白區平移視角
         </Text>
         <Text fontSize="xs" color="whiteAlpha.700">
-          `V` 游標，`P` 鋼筆，`B` 筆刷，`H` 移動畫布
+          `V` 游標，`P` 鋼筆，`B` 筆刷，`T` 文字，`H` 移動畫布
         </Text>
 
         <HStack mt={2}>
