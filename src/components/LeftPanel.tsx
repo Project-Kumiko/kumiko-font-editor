@@ -13,7 +13,11 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { GlyphReadonlyReference } from './GlyphReadonlyReference'
 import { searchProjectGlyphsByComponent } from '../lib/componentSearchWorkerClient'
-import { getGlyphCharacter, getRelatedGlyphs, isCjkCharacter } from '../lib/glyphRelations'
+import {
+  getGlyphCharacter,
+  getRelatedGlyphs,
+  isCjkCharacter,
+} from '../lib/glyphRelations'
 import { buildGlyphPreviewData } from '../lib/glyphOverview'
 import type { GlyphData } from '../store'
 import { useStore } from '../store'
@@ -35,7 +39,10 @@ function InlineGlyphPreview({
   glyph: GlyphData
   glyphMap: Record<string, GlyphData>
 }) {
-  const preview = useMemo(() => buildGlyphPreviewData(glyph, glyphMap), [glyph, glyphMap])
+  const preview = useMemo(
+    () => buildGlyphPreviewData(glyph, glyphMap),
+    [glyph, glyphMap]
+  )
 
   return (
     <Box
@@ -69,7 +76,9 @@ export function LeftPanel() {
   const addGlyphToEditor = useStore((state) => state.addGlyphToEditor)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const closeProjectState = useStore((state) => state.closeProjectState)
-  const [selectedComponent, setSelectedComponent] = useState<string | null>(null)
+  const [selectedComponent, setSelectedComponent] = useState<string | null>(
+    null
+  )
   const [previewGlyphId, setPreviewGlyphId] = useState<string | null>(null)
   const [searchState, setSearchState] = useState<SearchState>({
     loading: false,
@@ -79,12 +88,17 @@ export function LeftPanel() {
     error: null,
   })
 
-  const glyphs = useMemo(() => Object.values(fontData?.glyphs ?? {}), [fontData])
+  const glyphs = useMemo(
+    () => Object.values(fontData?.glyphs ?? {}),
+    [fontData]
+  )
   const glyphMap = useMemo(
     () => Object.fromEntries(glyphs.map((glyph) => [glyph.id, glyph])),
     [glyphs]
   )
-  const selectedGlyph = selectedGlyphId ? glyphMap[selectedGlyphId] ?? null : null
+  const selectedGlyph = selectedGlyphId
+    ? (glyphMap[selectedGlyphId] ?? null)
+    : null
   const selectedCharacter = getGlyphCharacter(selectedGlyph)
   const isCjkGlyph = isCjkCharacter(selectedCharacter)
   const relatedGlyphs = useMemo(
@@ -102,7 +116,10 @@ export function LeftPanel() {
   )
   const resultGlyphs = useMemo(
     () =>
-      (isCjkGlyph ? searchState.resultGlyphIds : relatedGlyphs.map((glyph) => glyph.id))
+      (isCjkGlyph
+        ? searchState.resultGlyphIds
+        : relatedGlyphs.map((glyph) => glyph.id)
+      )
         .map((glyphId) => glyphMap[glyphId])
         .filter((glyph): glyph is GlyphData => Boolean(glyph)),
     [glyphMap, isCjkGlyph, relatedGlyphs, searchState.resultGlyphIds]
@@ -158,7 +175,10 @@ export function LeftPanel() {
           error: null,
         })
 
-        if (result.activeComponent && result.activeComponent !== selectedComponent) {
+        if (
+          result.activeComponent &&
+          result.activeComponent !== selectedComponent
+        ) {
           setSelectedComponent(result.activeComponent)
         }
       })
@@ -177,7 +197,13 @@ export function LeftPanel() {
       })
 
     return () => controller.abort()
-  }, [isCjkGlyph, projectGlyphSummaries, selectedCharacter, selectedComponent, selectedGlyph])
+  }, [
+    isCjkGlyph,
+    projectGlyphSummaries,
+    selectedCharacter,
+    selectedComponent,
+    selectedGlyph,
+  ])
 
   return (
     <Box
@@ -192,21 +218,27 @@ export function LeftPanel() {
       <VStack align="stretch" spacing={3} mb={4}>
         <HStack justify="space-between" align="flex-start">
           <Box>
-            <Text fontSize="xs" textTransform="uppercase" letterSpacing="0.16em" color="gray.500" mb={1}>
+            <Text
+              fontSize="xs"
+              textTransform="uppercase"
+              letterSpacing="0.16em"
+              color="gray.500"
+              mb={1}
+            >
               Kumiko Font Editor
             </Text>
             <Heading size="md" color="gray.800">
               {isCjkGlyph ? '部件檢索' : '相關字形'}
             </Heading>
           </Box>
-          <VStack spacing={1} align="stretch">
-            <Button size="sm" variant="ghost" onClick={() => setWorkspaceView('overview')}>
-              ⬅︎ 所有字符
-            </Button>
-            <Button size="sm" variant="ghost" onClick={closeProjectState}>
-              ⌂ 首頁
-            </Button>
-          </VStack>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setWorkspaceView('overview')}
+          >
+            ⬅︎ 所有字符
+          </Button>
         </HStack>
 
         {!selectedGlyph ? (
@@ -233,7 +265,12 @@ export function LeftPanel() {
                   <Button
                     key={component}
                     size="sm"
-                    variant={component === (selectedComponent ?? searchState.activeComponent) ? 'solid' : 'outline'}
+                    variant={
+                      component ===
+                      (selectedComponent ?? searchState.activeComponent)
+                        ? 'solid'
+                        : 'outline'
+                    }
                     colorScheme="teal"
                     onClick={() => setSelectedComponent(component)}
                   >
@@ -251,7 +288,8 @@ export function LeftPanel() {
 
         <HStack justify="space-between" align="center">
           <Text fontSize="sm" color="gray.600">
-            {isCjkGlyph ? '含此部件的字符' : '相關字符'} {resultGlyphs.length.toLocaleString()}
+            {isCjkGlyph ? '含此部件的字符' : '相關字符'}{' '}
+            {resultGlyphs.length.toLocaleString()}
           </Text>
           <Tag size="sm" colorScheme="teal" variant="subtle">
             {isCjkGlyph ? 'Worker' : 'Related'}
@@ -261,7 +299,7 @@ export function LeftPanel() {
 
       <Divider mb={4} />
 
-      <Stack flex={1} minH={0} spacing={3}>
+      <Stack height="100%" minH={0} spacing={3}>
         <Box
           bg="white"
           borderRadius="xl"
@@ -270,6 +308,8 @@ export function LeftPanel() {
           px={3}
           py={3}
           minH="88px"
+          flexShrink={1}
+          overflow="scroll"
         >
           {resultGlyphs.length > 0 ? (
             <Box
@@ -310,7 +350,7 @@ export function LeftPanel() {
           )}
         </Box>
 
-        <Box flex={1} minH={0}>
+        <Box flexShrink={0} minH={0}>
           {previewGlyph ? (
             <VStack align="stretch" spacing={2} h="100%">
               <HStack justify="space-between" align="center">
@@ -331,7 +371,10 @@ export function LeftPanel() {
                   加入編輯器
                 </Button>
               </HStack>
-              <GlyphReadonlyReference glyph={previewGlyph} glyphMap={glyphMap} />
+              <GlyphReadonlyReference
+                glyph={previewGlyph}
+                glyphMap={glyphMap}
+              />
             </VStack>
           ) : null}
         </Box>

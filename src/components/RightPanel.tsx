@@ -2,15 +2,13 @@ import {
   getArchivedGlyphLayerEntries,
   getProjectArchiveMetadata,
   getProjectArchiveSourceFormat,
-  hydrateProjectFontData,
-} from '../lib/projectArchive';
-import { syncHotFontDataToUfoRecords } from '../lib/ufoFormat';
-import { exportUfoWithWorker } from '../lib/ufoExportWorkerClient';
-import { saveDraftSnapshot } from '../lib/draftSave';
+} from '../lib/projectArchive'
+import { syncHotFontDataToUfoRecords } from '../lib/ufoFormat'
+import { exportUfoWithWorker } from '../lib/ufoExportWorkerClient'
+import { saveDraftSnapshot } from '../lib/draftSave'
 import {
   Box,
   Button,
-  Divider,
   Grid,
   GridItem,
   Heading,
@@ -20,106 +18,139 @@ import {
   Tag,
   Text,
   useToast,
-} from '@chakra-ui/react';
-import { useState } from 'react';
-import { CornerNodeIcon, SmoothNodeIcon } from '../icons';
-import { deterministicStringify, getEffectiveNodeType, getGlyphLayer, isPathEndpointNode, useStore, type NodeType } from '../store';
-import { loadUfoUiValue, saveUfoUiValue } from '../lib/ufoPersistence';
-import type { UfoLocalSaveManifest } from '../lib/ufoTypes';
-import { getGlyphBlockLabel, getGlyphDisplayCharacter, getGlyphOverviewStats, getGlyphScriptLabel } from '../lib/glyphOverview';
+} from '@chakra-ui/react'
+import { useState } from 'react'
+import { CornerNodeIcon, SmoothNodeIcon } from '../icons'
+import {
+  getEffectiveNodeType,
+  getGlyphLayer,
+  isPathEndpointNode,
+  useStore,
+  type NodeType,
+} from '../store'
+import { loadUfoUiValue, saveUfoUiValue } from '../lib/ufoPersistence'
+import type { UfoLocalSaveManifest } from '../lib/ufoTypes'
+import {
+  getGlyphBlockLabel,
+  getGlyphDisplayCharacter,
+  getGlyphOverviewStats,
+  getGlyphScriptLabel,
+} from '../lib/glyphOverview'
 
-const UFO_LOCAL_TARGET_KEY = 'localSaveTarget';
-const UFO_LOCAL_MANIFEST_KEY = 'localSaveManifest';
+const UFO_LOCAL_TARGET_KEY = 'localSaveTarget'
+const UFO_LOCAL_MANIFEST_KEY = 'localSaveManifest'
 
 const parseSelectedNode = (selectedNodeId: string | undefined) => {
   if (!selectedNodeId) {
-    return null;
+    return null
   }
 
-  const [pathId, nodeId] = selectedNodeId.split(':');
+  const [pathId, nodeId] = selectedNodeId.split(':')
   if (!pathId || !nodeId) {
-    return null;
+    return null
   }
 
-  return { pathId, nodeId };
-};
+  return { pathId, nodeId }
+}
 
 const parseNumberInput = (value: string) => {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? parsed : 0
+}
 
 export function RightPanel() {
-  const toast = useToast();
-  const [isSavingToLocal, setIsSavingToLocal] = useState(false);
-  const [ufoExportProgress, setUfoExportProgress] = useState<{ completed: number; total: number } | null>(null);
-  const selectedGlyphId = useStore((state) => state.selectedGlyphId);
-  const selectedLayerId = useStore((state) => state.selectedLayerId);
-  const workspaceView = useStore((state) => state.workspaceView);
-  const selectedNodeIds = useStore((state) => state.selectedNodeIds);
-  const selectedSegment = useStore((state) => state.selectedSegment);
-  const fontData = useStore((state) => state.fontData);
-  const projectId = useStore((state) => state.projectId);
-  const projectTitle = useStore((state) => state.projectTitle);
-  const isDirty = useStore((state) => state.isDirty);
-  const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds);
-  const previewGlyphMetrics = useStore((state) => state.previewGlyphMetrics);
-  const updateNodePosition = useStore((state) => state.updateNodePosition);
-  const updateNodeType = useStore((state) => state.updateNodeType);
-  const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics);
-  const convertLineSegmentToCurve = useStore((state) => state.convertLineSegmentToCurve);
-  const setSelectedLayerId = useStore((state) => state.setSelectedLayerId);
-  const setWorkspaceView = useStore((state) => state.setWorkspaceView);
-  const markProjectSaved = useStore((state) => state.markProjectSaved);
+  const toast = useToast()
+  const [isSavingToLocal, setIsSavingToLocal] = useState(false)
+  const [ufoExportProgress, setUfoExportProgress] = useState<{
+    completed: number
+    total: number
+  } | null>(null)
+  const selectedGlyphId = useStore((state) => state.selectedGlyphId)
+  const selectedLayerId = useStore((state) => state.selectedLayerId)
+  const workspaceView = useStore((state) => state.workspaceView)
+  const selectedNodeIds = useStore((state) => state.selectedNodeIds)
+  const selectedSegment = useStore((state) => state.selectedSegment)
+  const fontData = useStore((state) => state.fontData)
+  const projectId = useStore((state) => state.projectId)
+  const projectTitle = useStore((state) => state.projectTitle)
+  const isDirty = useStore((state) => state.isDirty)
+  const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds)
+  const previewGlyphMetrics = useStore((state) => state.previewGlyphMetrics)
+  const updateNodePosition = useStore((state) => state.updateNodePosition)
+  const updateNodeType = useStore((state) => state.updateNodeType)
+  const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics)
+  const convertLineSegmentToCurve = useStore(
+    (state) => state.convertLineSegmentToCurve
+  )
+  const setSelectedLayerId = useStore((state) => state.setSelectedLayerId)
+  const setWorkspaceView = useStore((state) => state.setWorkspaceView)
+  const markProjectSaved = useStore((state) => state.markProjectSaved)
 
-  const glyph = selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null;
-  const activeLayer = getGlyphLayer(glyph ?? undefined, selectedLayerId);
+  const glyph =
+    selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null
+  const activeLayer = getGlyphLayer(glyph ?? undefined, selectedLayerId)
   const displayedMetrics =
     glyph && previewGlyphMetrics?.glyphId === glyph.id
       ? previewGlyphMetrics.metrics
-      : (activeLayer?.metrics ?? glyph?.metrics);
-  const overviewStats = glyph ? getGlyphOverviewStats(glyph) : null;
-  const glyphDisplayCharacter = glyph ? getGlyphDisplayCharacter(glyph) : null;
-  const availableLayers = glyph ? getArchivedGlyphLayerEntries(glyph.id) : [];
-  const nodeRef = parseSelectedNode(selectedNodeIds[0]);
-  const selectedPath = activeLayer && nodeRef ? activeLayer.paths.find((path) => path.id === nodeRef.pathId) : null;
-  const selectedNode = selectedPath && nodeRef ? selectedPath.nodes.find((node) => node.id === nodeRef.nodeId) : null;
-  const effectiveNodeType = selectedPath && selectedNode ? getEffectiveNodeType(selectedPath, selectedNode) : undefined;
-  const isOnCurveNode = effectiveNodeType === 'corner' || effectiveNodeType === 'smooth';
-  const isEndpointNode = selectedPath && selectedNode ? isPathEndpointNode(selectedPath, selectedNode.id) : false;
+      : (activeLayer?.metrics ?? glyph?.metrics)
+  const overviewStats = glyph ? getGlyphOverviewStats(glyph) : null
+  const glyphDisplayCharacter = glyph ? getGlyphDisplayCharacter(glyph) : null
+  const availableLayers = glyph ? getArchivedGlyphLayerEntries(glyph.id) : []
+  const nodeRef = parseSelectedNode(selectedNodeIds[0])
+  const selectedPath =
+    activeLayer && nodeRef
+      ? activeLayer.paths.find((path) => path.id === nodeRef.pathId)
+      : null
+  const selectedNode =
+    selectedPath && nodeRef
+      ? selectedPath.nodes.find((node) => node.id === nodeRef.nodeId)
+      : null
+  const effectiveNodeType =
+    selectedPath && selectedNode
+      ? getEffectiveNodeType(selectedPath, selectedNode)
+      : undefined
+  const isOnCurveNode =
+    effectiveNodeType === 'corner' || effectiveNodeType === 'smooth'
+  const isEndpointNode =
+    selectedPath && selectedNode
+      ? isPathEndpointNode(selectedPath, selectedNode.id)
+      : false
 
   const handleCoordinateChange = (axis: 'x' | 'y', value: string) => {
     if (!glyph || !nodeRef || !selectedNode) {
-      return;
+      return
     }
 
     updateNodePosition(glyph.id, nodeRef.pathId, nodeRef.nodeId, {
       x: axis === 'x' ? parseNumberInput(value) : selectedNode.x,
       y: axis === 'y' ? parseNumberInput(value) : selectedNode.y,
-    });
-  };
+    })
+  }
 
   const handleNodeTypeChange = (type: NodeType) => {
     if (!glyph || !nodeRef) {
-      return;
+      return
     }
 
-    updateNodeType(glyph.id, nodeRef.pathId, nodeRef.nodeId, type);
-  };
+    updateNodeType(glyph.id, nodeRef.pathId, nodeRef.nodeId, type)
+  }
 
-  const handleMetricsChange = (field: 'lsb' | 'rsb' | 'width', value: string) => {
+  const handleMetricsChange = (
+    field: 'lsb' | 'rsb' | 'width',
+    value: string
+  ) => {
     if (!glyph) {
-      return;
+      return
     }
 
     updateGlyphMetrics(glyph.id, {
       [field]: parseNumberInput(value),
-    });
-  };
+    })
+  }
 
   const handleConvertSelectedSegment = () => {
     if (!glyph || !selectedSegment || selectedSegment.type !== 'line') {
-      return;
+      return
     }
 
     convertLineSegmentToCurve(
@@ -127,53 +158,23 @@ export function RightPanel() {
       selectedSegment.pathId,
       selectedSegment.startNodeId,
       selectedSegment.endNodeId
-    );
-  };
-
-  const handleManualExport = async () => {
-    if (!fontData) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(
-        deterministicStringify(hydrateProjectFontData(fontData))
-      );
-      toast({
-        title: '已複製 deterministic JSON',
-        description: '可直接貼到版本控制或匯出流程中。',
-        status: 'success',
-        duration: 2400,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: '無法寫入剪貼簿',
-        description: '瀏覽器拒絕了剪貼簿權限，請改用 devtools 取值。',
-        status: 'warning',
-        duration: 3200,
-        isClosable: true,
-      });
-      console.warn('Clipboard export failed.', error);
-    }
-  };
+    )
+  }
 
   const handleSaveUfoToLocal = async () => {
     if (!fontData || !projectId || isSavingToLocal) {
-      return;
+      return
     }
 
     try {
-      setIsSavingToLocal(true);
-      const projectMetadata = getProjectArchiveMetadata() as
-        | {
-            activeUfoId?: string | null
-          }
-        | null;
-      const activeUfoId = projectMetadata?.activeUfoId;
-      const activeLayerId = selectedLayerId ?? 'public.default';
+      setIsSavingToLocal(true)
+      const projectMetadata = getProjectArchiveMetadata() as {
+        activeUfoId?: string | null
+      } | null
+      const activeUfoId = projectMetadata?.activeUfoId
+      const activeLayerId = selectedLayerId ?? 'public.default'
       if (!activeUfoId) {
-        throw new Error('找不到目前啟用的 UFO 字重');
+        throw new Error('找不到目前啟用的 UFO 字重')
       }
 
       await syncHotFontDataToUfoRecords({
@@ -182,24 +183,32 @@ export function RightPanel() {
         activeLayerId,
         fontData,
         dirtyGlyphIds,
-      });
+      })
 
-      let rootHandle = await loadUfoUiValue<FileSystemDirectoryHandle>(projectId, UFO_LOCAL_TARGET_KEY);
+      let rootHandle = await loadUfoUiValue<FileSystemDirectoryHandle>(
+        projectId,
+        UFO_LOCAL_TARGET_KEY
+      )
       if (!rootHandle) {
         const picker = (
           window as Window & {
-            showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>
+            showDirectoryPicker?: (options?: {
+              mode?: 'read' | 'readwrite'
+            }) => Promise<FileSystemDirectoryHandle>
           }
-        ).showDirectoryPicker;
+        ).showDirectoryPicker
         if (!picker) {
-          throw new Error('目前瀏覽器不支援資料夾輸出，請使用 Chrome 或 Edge');
+          throw new Error('目前瀏覽器不支援資料夾輸出，請使用 Chrome 或 Edge')
         }
-        rootHandle = await picker({ mode: 'readwrite' });
-        await saveUfoUiValue(projectId, UFO_LOCAL_TARGET_KEY, rootHandle);
+        rootHandle = await picker({ mode: 'readwrite' })
+        await saveUfoUiValue(projectId, UFO_LOCAL_TARGET_KEY, rootHandle)
       }
 
-      const localManifest = await loadUfoUiValue<UfoLocalSaveManifest>(projectId, UFO_LOCAL_MANIFEST_KEY);
-      setUfoExportProgress({ completed: 0, total: dirtyGlyphIds.length });
+      const localManifest = await loadUfoUiValue<UfoLocalSaveManifest>(
+        projectId,
+        UFO_LOCAL_MANIFEST_KEY
+      )
+      setUfoExportProgress({ completed: 0, total: dirtyGlyphIds.length })
       const result = await exportUfoWithWorker({
         projectId,
         exportAll: false,
@@ -209,10 +218,10 @@ export function RightPanel() {
         rootHandle,
         localManifest,
         onProgress: (progress) => setUfoExportProgress(progress),
-      });
+      })
 
-      await saveUfoUiValue(projectId, UFO_LOCAL_MANIFEST_KEY, result.manifest);
-      markProjectSaved();
+      await saveUfoUiValue(projectId, UFO_LOCAL_MANIFEST_KEY, result.manifest)
+      markProjectSaved()
       toast({
         title: '已儲存至本地',
         description: result.didFullRebuild
@@ -221,25 +230,28 @@ export function RightPanel() {
         status: 'success',
         duration: 2400,
         isClosable: true,
-      });
+      })
     } catch (error) {
       toast({
         title: '本地儲存失敗',
-        description: error instanceof Error ? error.message : '目前無法將 UFO 寫入本地資料夾。',
+        description:
+          error instanceof Error
+            ? error.message
+            : '目前無法將 UFO 寫入本地資料夾。',
         status: 'error',
         duration: 3200,
         isClosable: true,
-      });
-      console.warn('UFO local save failed.', error);
+      })
+      console.warn('UFO local save failed.', error)
     } finally {
-      setIsSavingToLocal(false);
-      setUfoExportProgress(null);
+      setIsSavingToLocal(false)
+      setUfoExportProgress(null)
     }
-  };
+  }
 
   const handleSaveProject = async () => {
     if (!fontData || !projectId || !projectTitle) {
-      return;
+      return
     }
 
     try {
@@ -249,15 +261,15 @@ export function RightPanel() {
         fontData,
         dirtyGlyphIds,
         selectedLayerId,
-      });
-      markProjectSaved();
+      })
+      markProjectSaved()
       toast({
         title: '已儲存草稿',
         description: '目前變更已寫入本機草稿。',
         status: 'success',
         duration: 2200,
         isClosable: true,
-      });
+      })
     } catch (error) {
       toast({
         title: '儲存失敗',
@@ -265,10 +277,10 @@ export function RightPanel() {
         status: 'error',
         duration: 3200,
         isClosable: true,
-      });
-      console.warn('Manual project save failed.', error);
+      })
+      console.warn('Manual project save failed.', error)
     }
-  };
+  }
 
   return (
     <Box
@@ -281,7 +293,13 @@ export function RightPanel() {
     >
       <Stack spacing={5}>
         <Box>
-          <Text fontSize="xs" textTransform="uppercase" letterSpacing="0.16em" color="gray.500" mb={1}>
+          <Text
+            fontSize="xs"
+            textTransform="uppercase"
+            letterSpacing="0.16em"
+            color="gray.500"
+            mb={1}
+          >
             Module C
           </Text>
           <Heading size="md" color="gray.800">
@@ -295,7 +313,13 @@ export function RightPanel() {
           </Text>
         ) : (
           <Stack spacing={4}>
-            <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
+            <Box
+              p={4}
+              bg="white"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="blackAlpha.100"
+            >
               <Stack spacing={2}>
                 <Text fontWeight="bold" color="gray.800">
                   {glyph.name}
@@ -314,7 +338,11 @@ export function RightPanel() {
                     bg="gray.50"
                     textAlign="center"
                   >
-                    <Text fontSize={glyphDisplayCharacter ? '5xl' : 'xl'} lineHeight={1} color="gray.800">
+                    <Text
+                      fontSize={glyphDisplayCharacter ? '5xl' : 'xl'}
+                      lineHeight={1}
+                      color="gray.800"
+                    >
                       {glyphDisplayCharacter ?? glyph.name}
                     </Text>
                   </Box>
@@ -323,7 +351,11 @@ export function RightPanel() {
                   <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
                     Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
                   </Tag>
-                  <Tag alignSelf="start" colorScheme={isDirty ? 'orange' : 'green'} variant="subtle">
+                  <Tag
+                    alignSelf="start"
+                    colorScheme={isDirty ? 'orange' : 'green'}
+                    variant="subtle"
+                  >
                     {isDirty ? '未儲存' : '已儲存'}
                   </Tag>
                 </Stack>
@@ -336,14 +368,16 @@ export function RightPanel() {
                       size="sm"
                       bg="white"
                       value={activeLayer?.id ?? ''}
-                      onChange={(event) => setSelectedLayerId(event.target.value)}
+                      onChange={(event) =>
+                        setSelectedLayerId(event.target.value)
+                      }
                     >
                       {availableLayers.map((layer) => {
                         return (
                           <option key={layer.id} value={layer.id}>
                             {layer.name || layer.id}
                           </option>
-                        );
+                        )
                       })}
                     </Select>
                   </Box>
@@ -352,25 +386,44 @@ export function RightPanel() {
                   <>
                     <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
                       <GridItem>
-                        <Text fontSize="xs" color="gray.500">Unicode</Text>
-                        <Text fontSize="sm" color="gray.700">{glyph.unicode ?? '未編碼'}</Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">Script</Text>
-                        <Text fontSize="sm" color="gray.700">{getGlyphScriptLabel(glyph)}</Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">Block</Text>
-                        <Text fontSize="sm" color="gray.700">{getGlyphBlockLabel(glyph)}</Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">Contours / Components</Text>
+                        <Text fontSize="xs" color="gray.500">
+                          Unicode
+                        </Text>
                         <Text fontSize="sm" color="gray.700">
-                          {overviewStats?.contourCount ?? 0} / {overviewStats?.componentCount ?? 0}
+                          {glyph.unicode ?? '未編碼'}
+                        </Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">
+                          Script
+                        </Text>
+                        <Text fontSize="sm" color="gray.700">
+                          {getGlyphScriptLabel(glyph)}
+                        </Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">
+                          Block
+                        </Text>
+                        <Text fontSize="sm" color="gray.700">
+                          {getGlyphBlockLabel(glyph)}
+                        </Text>
+                      </GridItem>
+                      <GridItem>
+                        <Text fontSize="xs" color="gray.500">
+                          Contours / Components
+                        </Text>
+                        <Text fontSize="sm" color="gray.700">
+                          {overviewStats?.contourCount ?? 0} /{' '}
+                          {overviewStats?.componentCount ?? 0}
                         </Text>
                       </GridItem>
                     </Grid>
-                    <Button size="sm" colorScheme="teal" onClick={() => setWorkspaceView('editor')}>
+                    <Button
+                      size="sm"
+                      colorScheme="teal"
+                      onClick={() => setWorkspaceView('editor')}
+                    >
                       進入字符編輯器
                     </Button>
                   </>
@@ -378,7 +431,13 @@ export function RightPanel() {
               </Stack>
             </Box>
 
-            <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
+            <Box
+              p={4}
+              bg="white"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="blackAlpha.100"
+            >
               <Stack spacing={3}>
                 <Heading size="sm">專案儲存</Heading>
                 {getProjectArchiveSourceFormat() === 'ufo' ? (
@@ -399,7 +458,13 @@ export function RightPanel() {
                     <Button
                       variant="outline"
                       onClick={handleSaveProject}
-                      isDisabled={!fontData || !projectId || !projectTitle || !isDirty || isSavingToLocal}
+                      isDisabled={
+                        !fontData ||
+                        !projectId ||
+                        !projectTitle ||
+                        !isDirty ||
+                        isSavingToLocal
+                      }
                     >
                       儲存草稿
                     </Button>
@@ -409,14 +474,18 @@ export function RightPanel() {
                     <Button
                       colorScheme="blue"
                       onClick={handleSaveProject}
-                      isDisabled={!fontData || !projectId || !projectTitle || !isDirty}
+                      isDisabled={
+                        !fontData || !projectId || !projectTitle || !isDirty
+                      }
                     >
                       儲存目前專案
                     </Button>
                     <Button
                       variant="outline"
                       onClick={handleSaveProject}
-                      isDisabled={!fontData || !projectId || !projectTitle || !isDirty}
+                      isDisabled={
+                        !fontData || !projectId || !projectTitle || !isDirty
+                      }
                     >
                       儲存草稿
                     </Button>
@@ -425,7 +494,13 @@ export function RightPanel() {
               </Stack>
             </Box>
 
-            <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
+            <Box
+              p={4}
+              bg="white"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="blackAlpha.100"
+            >
               <Heading size="sm" mb={3}>
                 節點檢視
               </Heading>
@@ -433,13 +508,21 @@ export function RightPanel() {
                 selectedSegment ? (
                   <Stack spacing={3}>
                     <Text fontSize="sm" color="gray.600">
-                      Segment <Tag size="sm" ml={2}>{selectedSegment.pathId}</Tag>
+                      Segment{' '}
+                      <Tag size="sm" ml={2}>
+                        {selectedSegment.pathId}
+                      </Tag>
                     </Text>
                     <Text fontSize="sm" color="gray.500">
-                      目前高亮的是一段{selectedSegment.type === 'line' ? '直線' : '曲線'}。
+                      目前高亮的是一段
+                      {selectedSegment.type === 'line' ? '直線' : '曲線'}。
                     </Text>
                     {selectedSegment.type === 'line' ? (
-                      <Button size="sm" colorScheme="blue" onClick={handleConvertSelectedSegment}>
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        onClick={handleConvertSelectedSegment}
+                      >
                         轉成曲線
                       </Button>
                     ) : (
@@ -456,7 +539,10 @@ export function RightPanel() {
               ) : (
                 <Stack spacing={3}>
                   <Text fontSize="sm" color="gray.600">
-                    Path <Tag size="sm" ml={2}>{nodeRef.pathId}</Tag>
+                    Path{' '}
+                    <Tag size="sm" ml={2}>
+                      {nodeRef.pathId}
+                    </Tag>
                   </Text>
 
                   <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
@@ -468,7 +554,9 @@ export function RightPanel() {
                         size="sm"
                         type="number"
                         value={selectedNode.x}
-                        onChange={(event) => handleCoordinateChange('x', event.target.value)}
+                        onChange={(event) =>
+                          handleCoordinateChange('x', event.target.value)
+                        }
                       />
                     </GridItem>
                     <GridItem>
@@ -479,7 +567,9 @@ export function RightPanel() {
                         size="sm"
                         type="number"
                         value={selectedNode.y}
-                        onChange={(event) => handleCoordinateChange('y', event.target.value)}
+                        onChange={(event) =>
+                          handleCoordinateChange('y', event.target.value)
+                        }
                       />
                     </GridItem>
                   </Grid>
@@ -493,7 +583,9 @@ export function RightPanel() {
                       <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
                         <Button
                           size="sm"
-                          variant={effectiveNodeType === 'corner' ? 'solid' : 'outline'}
+                          variant={
+                            effectiveNodeType === 'corner' ? 'solid' : 'outline'
+                          }
                           colorScheme="orange"
                           onClick={() => handleNodeTypeChange('corner')}
                           leftIcon={<CornerNodeIcon />}
@@ -502,7 +594,9 @@ export function RightPanel() {
                         </Button>
                         <Button
                           size="sm"
-                          variant={effectiveNodeType === 'smooth' ? 'solid' : 'outline'}
+                          variant={
+                            effectiveNodeType === 'smooth' ? 'solid' : 'outline'
+                          }
                           colorScheme="blue"
                           onClick={() => handleNodeTypeChange('smooth')}
                           isDisabled={isEndpointNode}
@@ -524,7 +618,13 @@ export function RightPanel() {
               )}
             </Box>
 
-            <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
+            <Box
+              p={4}
+              bg="white"
+              borderRadius="xl"
+              border="1px solid"
+              borderColor="blackAlpha.100"
+            >
               <Heading size="sm" mb={3}>
                 Metrics
               </Heading>
@@ -537,7 +637,9 @@ export function RightPanel() {
                     size="sm"
                     type="number"
                     value={displayedMetrics?.lsb ?? 0}
-                    onChange={(event) => handleMetricsChange('lsb', event.target.value)}
+                    onChange={(event) =>
+                      handleMetricsChange('lsb', event.target.value)
+                    }
                   />
                 </GridItem>
                 <GridItem>
@@ -548,7 +650,9 @@ export function RightPanel() {
                     size="sm"
                     type="number"
                     value={displayedMetrics?.width ?? 0}
-                    onChange={(event) => handleMetricsChange('width', event.target.value)}
+                    onChange={(event) =>
+                      handleMetricsChange('width', event.target.value)
+                    }
                   />
                 </GridItem>
                 <GridItem>
@@ -559,30 +663,16 @@ export function RightPanel() {
                     size="sm"
                     type="number"
                     value={displayedMetrics?.rsb ?? 0}
-                    onChange={(event) => handleMetricsChange('rsb', event.target.value)}
+                    onChange={(event) =>
+                      handleMetricsChange('rsb', event.target.value)
+                    }
                   />
                 </GridItem>
               </Grid>
             </Box>
           </Stack>
         )}
-
-        <Divider />
-
-        <Box p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="blackAlpha.100">
-          <Heading size="sm" mb={3}>
-            儲存層
-          </Heading>
-          <Stack spacing={3}>
-            <Text fontSize="sm" color="gray.600">
-              目前使用手動儲存；`.glyphspackage` 會只更新有變更的 glyph 檔案，避免整包重寫。
-            </Text>
-            <Button size="sm" colorScheme="teal" onClick={handleManualExport}>
-              複製 deterministic JSON
-            </Button>
-          </Stack>
-        </Box>
       </Stack>
     </Box>
-  );
+  )
 }
