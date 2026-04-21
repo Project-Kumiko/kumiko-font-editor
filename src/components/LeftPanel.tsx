@@ -75,7 +75,6 @@ export function LeftPanel() {
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const addGlyphToEditor = useStore((state) => state.addGlyphToEditor)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
-  const closeProjectState = useStore((state) => state.closeProjectState)
   const [selectedComponent, setSelectedComponent] = useState<string | null>(
     null
   )

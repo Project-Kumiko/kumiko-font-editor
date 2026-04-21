@@ -262,20 +262,20 @@ registerVisualizationLayerDefinition({
 registerVisualizationLayerDefinition({
   identifier: 'fontra.text.cursor',
   name: 'Text Cursor',
-  selectionFunc: glyphSelector('all'),
+  selectionFunc: (visContext) => {
+    const glyphs = visContext.glyphsBySelectionMode.all || []
+    return glyphs.length > 0 ? [glyphs[0]] : []
+  },
   zIndex: 548,
   screenParameters: { strokeWidth: 2 },
   colors: { strokeColor: '#1E88A8' },
   draw: (
     canvasController: CanvasController,
-    positionedGlyph: PositionedGlyph,
+    _positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
     model: SceneModel
   ) => {
     if (model.activeToolIdentifier !== 'text' || !model.textCursor) {
-      return
-    }
-    if (model.glyphs?.[0] && model.glyphs[0].glyphId !== positionedGlyph.glyphId) {
       return
     }
 

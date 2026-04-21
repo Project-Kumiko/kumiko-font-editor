@@ -603,7 +603,7 @@ export function CanvasWorkspace() {
     const handleCanvasDoubleClick = (event: MouseEvent) => {
       const localPoint = controller.localPoint({ x: event.pageX, y: event.pageY })
       const hit = getGlyphFrameAtPoint(localPoint)
-      if (!hit?.glyphId || hit.glyphId === selectedGlyphId) {
+      if (!hit?.glyphId) {
         return
       }
 
