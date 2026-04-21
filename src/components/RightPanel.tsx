@@ -85,6 +85,7 @@ export function RightPanel() {
   const setSelectedLayerId = useStore((state) => state.setSelectedLayerId)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const markProjectSaved = useStore((state) => state.markProjectSaved)
+  const deleteGlyph = useStore((state) => state.deleteGlyph)
 
   const glyph =
     selectedGlyphId && fontData ? fontData.glyphs[selectedGlyphId] : null
@@ -425,6 +426,26 @@ export function RightPanel() {
                       onClick={() => setWorkspaceView('editor')}
                     >
                       進入字符編輯器
+                    </Button>
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="outline"
+                      onClick={() => {
+                        if (!glyph) {
+                          return
+                        }
+                        deleteGlyph(glyph.id)
+                        toast({
+                          title: '已刪除字符',
+                          description: `${glyph.id} 已從目前專案移除。`,
+                          status: 'success',
+                          duration: 2200,
+                          isClosable: true,
+                        })
+                      }}
+                    >
+                      刪除字符
                     </Button>
                   </>
                 )}

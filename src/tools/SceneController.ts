@@ -243,7 +243,6 @@ export class SceneController {
     if (!path) {
       return { type: 'empty', selection: new Set() }
     }
-
     const threshold = size / this.canvasController.magnification
     const selectedPointHit = this.findPointHit(point, threshold, currentSelection, path)
     if (selectedPointHit) {

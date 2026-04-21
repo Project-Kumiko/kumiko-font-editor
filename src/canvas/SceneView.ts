@@ -49,6 +49,7 @@ export interface PathHitInfo {
 export interface PositionedGlyph {
   glyph: GlyphData
   glyphId?: string
+  displayCharacter?: string | null
   x: number
   y: number
   pointRefs?: Array<{ pathId: string; nodeId: string }>

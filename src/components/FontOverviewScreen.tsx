@@ -1,7 +1,8 @@
-import { memo, forwardRef, useEffect, useMemo, useRef, type HTMLAttributes } from 'react'
+import { memo, forwardRef, useEffect, useMemo, useRef, useState, type HTMLAttributes } from 'react'
 import {
   Box,
   Button,
+  Checkbox,
   Divider,
   Flex,
   Grid,
@@ -14,11 +15,13 @@ import {
   Tag,
   Text,
   VStack,
+  useToast,
 } from '@chakra-ui/react'
 import { VirtuosoGrid, type GridStateSnapshot, type ListRange, type VirtuosoGridHandle } from 'react-virtuoso'
 import { useStore, type GlyphData } from '../store'
 import {
   getGlyphBlockLabel,
+  getGlyphDisplayCharacter,
   getGlyphOverviewSections,
   getGlyphScriptLabel,
   buildGlyphPreviewData,
@@ -34,18 +37,24 @@ const GlyphPreview = memo(function GlyphPreview({
   glyphMap: Record<string, GlyphData>
 }) {
   const preview = useMemo(() => buildGlyphPreviewData(glyph, glyphMap), [glyph, glyphMap])
+  const displayCharacter = getGlyphDisplayCharacter(glyph)
 
   if (!preview.shapes.length) {
     return (
-      <Text
-        fontSize="4xl"
-        fontWeight="medium"
-        color="gray.800"
-        lineHeight={1}
-        userSelect="none"
-      >
-        {glyph.name}
-      </Text>
+      <Flex w="100%" h="100%" align="center" justify="center">
+        <Text
+          w="100%"
+          textAlign="center"
+          fontSize="6xl"
+          fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          fontWeight="medium"
+          color="gray.300"
+          lineHeight={1}
+          userSelect="none"
+        >
+          {displayCharacter ?? glyph.name ?? glyph.id}
+        </Text>
+      </Flex>
     )
   }
 
@@ -121,12 +130,88 @@ const GlyphCard = memo(function GlyphCard({
   )
 })
 
+const formatUnicodeHex = (codePoint: number) =>
+  codePoint <= 0xffff
+    ? codePoint.toString(16).toUpperCase().padStart(4, '0')
+    : codePoint.toString(16).toUpperCase()
+
+const buildGlyphIdFromChar = (character: string) => {
+  const codePoint = character.codePointAt(0)
+  if (!codePoint) {
+    return null
+  }
+
+  if (/^[A-Za-z0-9]$/.test(character)) {
+    return character
+  }
+
+  return codePoint <= 0xffff
+    ? `uni${formatUnicodeHex(codePoint)}`
+    : `u${formatUnicodeHex(codePoint)}`
+}
+
+const parseGlyphAdditionInput = (input: string) => {
+  const results: Array<{ id: string; name: string; unicode: string | null }> = []
+  const seen = new Set<string>()
+  const uniPattern = /uni([0-9a-fA-F]{4,6})/g
+  const consumedRanges: Array<[number, number]> = []
+
+  for (const match of input.matchAll(uniPattern)) {
+    const hex = match[1]?.toUpperCase()
+    const index = match.index ?? -1
+    if (!hex || index < 0) {
+      continue
+    }
+    const codePoint = Number.parseInt(hex, 16)
+    if (!Number.isFinite(codePoint)) {
+      continue
+    }
+    const id = `uni${hex}`
+    const character = String.fromCodePoint(codePoint)
+    if (!seen.has(id)) {
+      results.push({ id, name: character, unicode: hex })
+      seen.add(id)
+    }
+    consumedRanges.push([index, index + match[0].length])
+  }
+
+  const characters = Array.from(input)
+  let cursor = 0
+  for (const character of characters) {
+    const start = cursor
+    const end = cursor + character.length
+    cursor = end
+    const isConsumed = consumedRanges.some(([rangeStart, rangeEnd]) => start >= rangeStart && end <= rangeEnd)
+    if (isConsumed || /\s/.test(character)) {
+      continue
+    }
+    const id = buildGlyphIdFromChar(character)
+    const codePoint = character.codePointAt(0)
+    if (!id || !codePoint || seen.has(id)) {
+      continue
+    }
+    results.push({
+      id,
+      name: character,
+      unicode: formatUnicodeHex(codePoint),
+    })
+    seen.add(id)
+  }
+
+  return results
+}
+
 export function FontOverviewScreen() {
+  const toast = useToast()
+  const [isAddingGlyphs, setIsAddingGlyphs] = useState(false)
+  const [glyphInputValue, setGlyphInputValue] = useState('')
+  const [showOnlyEmptyGlyphs, setShowOnlyEmptyGlyphs] = useState(false)
   const currentSearchQuery = useStore((state) => state.currentSearchQuery)
   const setSearchQuery = useStore((state) => state.setSearchQuery)
   const filteredGlyphList = useStore((state) => state.filteredGlyphList)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const setSelectedGlyphId = useStore((state) => state.setSelectedGlyphId)
+  const addGlyphs = useStore((state) => state.addGlyphs)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const closeProjectState = useStore((state) => state.closeProjectState)
   const projectTitle = useStore((state) => state.projectTitle)
@@ -141,9 +226,19 @@ export function FontOverviewScreen() {
   const gridRef = useRef<VirtuosoGridHandle | null>(null)
   const restoreSnapshotRef = useRef<GridStateSnapshot | null>(overviewGridState)
 
+  const overviewGlyphs = useMemo(
+    () =>
+      showOnlyEmptyGlyphs
+        ? filteredGlyphList.filter(
+            (glyph) => glyph.paths.length === 0 && glyph.componentRefs.length === 0
+          )
+        : filteredGlyphList,
+    [filteredGlyphList, showOnlyEmptyGlyphs]
+  )
+
   const sections = useMemo(
-    () => getGlyphOverviewSections(filteredGlyphList, groupBy),
-    [filteredGlyphList, groupBy]
+    () => getGlyphOverviewSections(overviewGlyphs, groupBy),
+    [groupBy, overviewGlyphs]
   )
 
   const visibleSections = useMemo(() => {
@@ -158,7 +253,7 @@ export function FontOverviewScreen() {
       return {
         id: 'all',
         label: groupBy === 'none' ? '全部字符' : '全部分組結果',
-        glyphs: filteredGlyphList,
+        glyphs: overviewGlyphs,
       }
     }
 
@@ -166,10 +261,10 @@ export function FontOverviewScreen() {
       sections.find((section) => section.id === selectedSectionId) ?? {
         id: 'all',
         label: '全部字符',
-        glyphs: filteredGlyphList,
+        glyphs: overviewGlyphs,
       }
     )
-  }, [filteredGlyphList, groupBy, sections, selectedSectionId])
+  }, [groupBy, overviewGlyphs, sections, selectedSectionId])
 
   useEffect(() => {
     if (selectedSectionId !== 'all' && !sections.some((section) => section.id === selectedSectionId)) {
@@ -181,8 +276,42 @@ export function FontOverviewScreen() {
     restoreSnapshotRef.current = overviewGridState
   }, [overviewGridState])
 
-  const selectedGlyph = filteredGlyphList.find((glyph) => glyph.id === selectedGlyphId) ?? null
+  const selectedGlyph = overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
   const glyphMap = fontData?.glyphs ?? {}
+  const handleAddGlyphs = () => {
+    const candidates = parseGlyphAdditionInput(glyphInputValue)
+    if (candidates.length === 0) {
+      toast({
+        title: '沒有可新增的字符',
+        description: '請輸入字符本身，或用空白分隔的 uniXXXX。',
+        status: 'warning',
+        duration: 2200,
+        isClosable: true,
+      })
+      return
+    }
+
+    const existingGlyphIds = new Set(Object.keys(glyphMap))
+    const missingCandidates = candidates.filter((candidate) => !existingGlyphIds.has(candidate.id))
+    const addedGlyphIds = addGlyphs(missingCandidates)
+    if (addedGlyphIds.length > 0) {
+      setSelectedGlyphId(addedGlyphIds[0] ?? null)
+      setGlyphInputValue('')
+      setIsAddingGlyphs(false)
+    }
+
+    const skippedCount = candidates.length - addedGlyphIds.length
+    toast({
+      title: addedGlyphIds.length > 0 ? '已新增字符' : '沒有新增字符',
+      description:
+        addedGlyphIds.length > 0
+          ? `新增 ${addedGlyphIds.length} 個字符${skippedCount > 0 ? `，略過 ${skippedCount} 個已存在字符` : ''}。`
+          : '輸入的字符都已經存在於專案中。',
+      status: addedGlyphIds.length > 0 ? 'success' : 'info',
+      duration: 2600,
+      isClosable: true,
+    })
+  }
 
   return (
     <Grid
@@ -227,6 +356,55 @@ export function FontOverviewScreen() {
               </Button>
             </HStack>
 
+            <Box>
+              {!isAddingGlyphs ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  width="full"
+                  onClick={() => setIsAddingGlyphs(true)}
+                >
+                  ＋ 新增字符
+                </Button>
+              ) : (
+                <Stack spacing={2}>
+                  <Input
+                    placeholder="輸入字符或 uni8655 uni8656"
+                    value={glyphInputValue}
+                    onChange={(event) => setGlyphInputValue(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        handleAddGlyphs()
+                      } else if (event.key === 'Escape') {
+                        event.preventDefault()
+                        setGlyphInputValue('')
+                        setIsAddingGlyphs(false)
+                      }
+                    }}
+                    bg="white"
+                    borderColor="blackAlpha.200"
+                    focusBorderColor="teal.400"
+                  />
+                  <HStack>
+                    <Button size="sm" colorScheme="teal" flex={1} onClick={handleAddGlyphs}>
+                      新增
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setGlyphInputValue('')
+                        setIsAddingGlyphs(false)
+                      }}
+                    >
+                      取消
+                    </Button>
+                  </HStack>
+                </Stack>
+              )}
+            </Box>
+
             <Input
               placeholder="搜尋字符、glyph name 或 unicode"
               value={currentSearchQuery}
@@ -257,12 +435,21 @@ export function FontOverviewScreen() {
 
             <HStack justify="space-between">
               <Text fontSize="sm" color="gray.600">
-                目前共 {filteredGlyphList.length.toLocaleString()} 個字符
+                目前共 {overviewGlyphs.length.toLocaleString()} 個字符
               </Text>
               <Tag size="sm" colorScheme="teal" variant="subtle">
                 Overview
               </Tag>
             </HStack>
+
+            <Checkbox
+              isChecked={showOnlyEmptyGlyphs}
+              onChange={(event) => setShowOnlyEmptyGlyphs(event.target.checked)}
+              colorScheme="teal"
+              size="sm"
+            >
+              只看空白待編輯字符
+            </Checkbox>
           </VStack>
 
           <Divider mb={4} />
@@ -285,7 +472,7 @@ export function FontOverviewScreen() {
                 onClick={() => setOverviewSectionId('all')}
               >
                 <Text>全部</Text>
-                <Tag size="sm">{filteredGlyphList.length}</Tag>
+                <Tag size="sm">{overviewGlyphs.length}</Tag>
               </Button>
 
               {sections.map((section) => (

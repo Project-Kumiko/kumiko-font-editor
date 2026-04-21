@@ -5,7 +5,9 @@ import {
   makeUfoGlyphKey,
   listDirtyUfoGlyphs,
   loadUfoGlyph,
+  loadUfoMetadata,
   saveUfoGlyphBatch,
+  saveUfoMetadata,
   saveUfoMetadataBatch,
   saveUfoProject,
   listUfoGlyphsInLayer,
@@ -856,6 +858,10 @@ export const syncHotFontDataToUfoRecords = async (input: {
 }) => {
   const records: UfoGlyphRecord[] = []
   const timestamp = Date.now()
+  const metadata = await loadUfoMetadata(input.projectId, input.activeUfoId)
+  const nextContents = { ...(metadata?.contents ?? {}) }
+  const nextGlyphOrder = [...(metadata?.glyphOrder ?? [])]
+  let didUpdateMetadata = false
 
   for (const glyphId of input.dirtyGlyphIds) {
     const glyph = input.fontData.glyphs[glyphId]
@@ -865,12 +871,21 @@ export const syncHotFontDataToUfoRecords = async (input: {
     const existingRecord = await loadUfoGlyph(
       makeUfoGlyphKey(input.projectId, input.activeUfoId, input.activeLayerId, glyph.id)
     )
+    const nextFileName = existingRecord?.fileName ?? `${glyph.id}.glif`
+    if (!nextContents[glyph.id]) {
+      nextContents[glyph.id] = nextFileName
+      didUpdateMetadata = true
+    }
+    if (!nextGlyphOrder.includes(glyph.id)) {
+      nextGlyphOrder.push(glyph.id)
+      didUpdateMetadata = true
+    }
     records.push({
       projectId: input.projectId,
       ufoId: input.activeUfoId,
       layerId: input.activeLayerId,
       glyphName: glyph.id,
-      fileName: existingRecord?.fileName ?? `${glyph.id}.glif`,
+      fileName: nextFileName,
       sourceHash: existingRecord?.sourceHash ?? null,
       unicodes: glyph.unicode ? [glyph.unicode.toUpperCase()] : [],
       advance: {
@@ -911,6 +926,15 @@ export const syncHotFontDataToUfoRecords = async (input: {
 
   if (records.length > 0) {
     await saveUfoGlyphBatch(records)
+  }
+
+  if (metadata && didUpdateMetadata) {
+    await saveUfoMetadata({
+      ...metadata,
+      contents: nextContents,
+      glyphOrder: nextGlyphOrder,
+      updatedAt: timestamp,
+    })
   }
 }
 

@@ -89,6 +89,38 @@ registerVisualizationLayerDefinition({
   },
 })
 
+registerVisualizationLayerDefinition({
+  identifier: 'fontra.edit.empty.placeholder',
+  name: 'Empty Glyph Placeholder',
+  selectionFunc: glyphSelector('editing'),
+  zIndex: 499,
+  colors: { fillColor: 'rgba(0, 0, 0, 0.14)' },
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    model: SceneModel
+  ) => {
+    if (isHandTool(model) || !positionedGlyph.isEmpty || !positionedGlyph.displayCharacter) {
+      return
+    }
+
+    const context = canvasController.context
+    context.save()
+    context.scale(1, -1)
+    context.fillStyle = parameters.fillColor as string
+    context.font = `${screenLength(canvasController, 220)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillText(
+      positionedGlyph.displayCharacter,
+      positionedGlyph.glyph.xAdvance / 2,
+      -280
+    )
+    context.restore()
+  },
+})
+
 // 路徑輪廓
 registerVisualizationLayerDefinition({
   identifier: 'fontra.path.stroke',

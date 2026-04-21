@@ -202,7 +202,13 @@ export abstract class BaseTool {
   }
 
   localPoint(event: ToolEvent): { x: number; y: number } {
-    return this.canvasController.localPoint({ x: event.pageX, y: event.pageY })
+    const point = this.canvasController.localPoint({ x: event.pageX, y: event.pageY })
+    const glyphX = this.sceneModel.glyph?.x ?? 0
+    const glyphY = this.sceneModel.glyph?.y ?? 0
+    return {
+      x: point.x - glyphX,
+      y: point.y - glyphY,
+    }
   }
 
   // Helper to determine if we should start a drag
