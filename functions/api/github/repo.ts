@@ -1,6 +1,6 @@
-import { fetchRepoMetadata, json, parseRepoInput, readBearerToken } from './_utils'
+import { fetchRepoMetadata, json, parseRepoInput, readGitHubAccessToken, type Env } from './_utils'
 
-export const onRequestGet: PagesFunction = async (context) => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   let parsed: { owner: string; repo: string }
 
@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction = async (context) => {
   try {
     const metadata = await fetchRepoMetadata({
       ...parsed,
-      token: readBearerToken(context.request),
+      token: await readGitHubAccessToken(context.request, context.env),
     })
     return json(metadata)
   } catch (error) {

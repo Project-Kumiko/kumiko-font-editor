@@ -1,7 +1,7 @@
-import { json, readBearerToken } from './_utils'
+import { json, readGitHubAccessToken, type Env } from './_utils'
 
-export const onRequestGet: PagesFunction = async (context) => {
-  const token = readBearerToken(context.request)
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const token = await readGitHubAccessToken(context.request, context.env)
   if (!token) {
     return json({ error: 'missing_token', message: '缺少 GitHub access token' }, { status: 401 })
   }

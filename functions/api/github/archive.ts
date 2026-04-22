@@ -3,10 +3,11 @@ import {
   fetchRepoMetadata,
   json,
   parseRepoInput,
-  readBearerToken,
+  readGitHubAccessToken,
+  type Env,
 } from './_utils'
 
-export const onRequestGet: PagesFunction = async (context) => {
+export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   let parsed: { owner: string; repo: string }
 
@@ -22,7 +23,7 @@ export const onRequestGet: PagesFunction = async (context) => {
     )
   }
 
-  const token = readBearerToken(context.request)
+  const token = await readGitHubAccessToken(context.request, context.env)
   const explicitRef = url.searchParams.get('ref')?.trim() || null
 
   let defaultBranch: string | null = null

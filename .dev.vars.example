@@ -1,2 +1,4 @@
 GITHUB_CLIENT_ID=your_github_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_app_client_secret
+GITHUB_SESSION_SECRET=generate_a_long_random_secret
 GITHUB_OAUTH_SCOPE=public_repo read:user user:email

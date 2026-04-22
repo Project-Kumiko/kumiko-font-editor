@@ -8,8 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "cf:dev": "pnpm build && npx wrangler pages dev",
-    "cf:deploy": "pnpm build && npx wrangler pages deploy"
+    "cf:dev": "pnpm build && npx wrangler pages dev dist",
+    "cf:deploy": "pnpm build && npx wrangler pages deploy dist"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.0",

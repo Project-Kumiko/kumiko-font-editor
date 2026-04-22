@@ -28,3 +28,4 @@ test_glyphs
 .env
 .env.*.local
 .dev.vars
+.wrangler

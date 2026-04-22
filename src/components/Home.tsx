@@ -11,13 +11,9 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import {
-  clearStoredGitHubAccessToken,
   fetchGitHubViewer,
-  getStoredGitHubAccessToken,
-  pollGitHubDeviceFlow,
-  setStoredGitHubAccessToken,
-  startGitHubDeviceFlow,
-  type GitHubDeviceStartPayload,
+  logoutGitHubOAuth,
+  startGitHubOAuthLogin,
   type GitHubViewer,
 } from '../lib/githubAuth';
 import { importGitHubRepo } from '../lib/githubImport';
@@ -31,9 +27,9 @@ export function Home() {
   const [projects, setProjects] = useState<UfoProjectRecord[]>([]);
   const [isLoadingLocal, setIsLoadingLocal] = useState(false);
   const [isLoadingGitHub, setIsLoadingGitHub] = useState(false);
+  const [isCheckingGitHubSession, setIsCheckingGitHubSession] = useState(true);
   const [isStartingGitHubLogin, setIsStartingGitHubLogin] = useState(false);
-  const [githubDeviceFlow, setGitHubDeviceFlow] = useState<GitHubDeviceStartPayload | null>(null);
-  const [githubAccessToken, setGitHubAccessToken] = useState<string | null>(null);
+  const [isLoggingOutGitHub, setIsLoggingOutGitHub] = useState(false);
   const [githubViewer, setGitHubViewer] = useState<GitHubViewer | null>(null);
   const [githubAuthStatus, setGitHubAuthStatus] = useState<string | null>(null);
   const [githubRepoInput, setGitHubRepoInput] = useState('akira02/jieyuan-rounded-font');
@@ -53,107 +49,55 @@ export function Home() {
   }, []);
 
   useEffect(() => {
-    const token = getStoredGitHubAccessToken();
-    if (!token) {
-      return;
-    }
-    setGitHubAccessToken(token);
-  }, []);
-
-  useEffect(() => {
-    if (!githubAccessToken) {
-      setGitHubViewer(null);
-      return;
-    }
-
     let isCancelled = false;
-    fetchGitHubViewer(githubAccessToken)
+    setIsCheckingGitHubSession(true);
+    fetchGitHubViewer()
       .then((viewer) => {
         if (!isCancelled) {
           setGitHubViewer(viewer);
+          setGithubStatusFromLocation();
         }
       })
       .catch((error) => {
-        console.error(error);
         if (!isCancelled) {
-          clearStoredGitHubAccessToken();
-          setGitHubAccessToken(null);
           setGitHubViewer(null);
-          setGitHubAuthStatus('GitHub 登入已失效，請重新登入。');
+          setGithubStatusFromLocation(
+            error instanceof Error && /401/.test(error.message)
+              ? null
+              : '目前尚未登入 GitHub，或登入 session 已失效。'
+          );
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsCheckingGitHubSession(false);
         }
       });
 
     return () => {
       isCancelled = true;
     };
-  }, [githubAccessToken]);
-
-  useEffect(() => {
-    if (!githubDeviceFlow) {
-      return;
-    }
-
-    let isCancelled = false;
-    let timeoutId: number | null = null;
-    const startedAt = Date.now();
-    const expiresAt = startedAt + githubDeviceFlow.expires_in * 1000;
-
-    const schedulePoll = (delayMs: number) => {
-      timeoutId = window.setTimeout(async () => {
-        try {
-          const result = await pollGitHubDeviceFlow(githubDeviceFlow.device_code);
-          if (isCancelled) {
-            return;
-          }
-
-          if (result.status === 'authorized') {
-            setStoredGitHubAccessToken(result.accessToken);
-            setGitHubAccessToken(result.accessToken);
-            setGitHubDeviceFlow(null);
-            setGitHubAuthStatus('GitHub 已登入，可以使用較高的 API 配額與後續 PR 流程。');
-            return;
-          }
-
-          if (result.status === 'authorization_pending' || result.status === 'slow_down') {
-            setGitHubAuthStatus(
-              result.status === 'slow_down'
-                ? 'GitHub 要求放慢輪詢速度，正在重試...'
-                : '等待你在 GitHub 完成授權...'
-            );
-            if (Date.now() >= expiresAt) {
-              setGitHubDeviceFlow(null);
-              setGitHubAuthStatus('這組 Device Code 已過期，請重新開始登入。');
-              return;
-            }
-            schedulePoll((result.interval ?? githubDeviceFlow.interval) * 1000);
-            return;
-          }
-
-          setGitHubDeviceFlow(null);
-          setGitHubAuthStatus(result.message);
-        } catch (error: unknown) {
-          console.error(error);
-          if (!isCancelled) {
-            setGitHubDeviceFlow(null);
-            setGitHubAuthStatus(getErrorMessage(error));
-          }
-        }
-      }, delayMs);
-    };
-
-    setGitHubAuthStatus('等待你在 GitHub 完成授權...');
-    schedulePoll(githubDeviceFlow.interval * 1000);
-
-    return () => {
-      isCancelled = true;
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [githubDeviceFlow]);
+  }, []);
 
   const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : '未知錯誤';
+
+  const setGithubStatusFromLocation = (fallbackStatus: string | null = null) => {
+    const url = new URL(window.location.href);
+    const oauthStatus = url.searchParams.get('github_oauth');
+    if (oauthStatus) {
+      const nextStatus =
+        oauthStatus === 'success'
+          ? 'GitHub 已登入，可以使用較高的 API 配額與後續 PR 流程。'
+          : `GitHub OAuth 流程失敗：${oauthStatus}`
+      setGitHubAuthStatus(nextStatus);
+      url.searchParams.delete('github_oauth');
+      window.history.replaceState({}, '', url.toString());
+      return;
+    }
+
+    setGitHubAuthStatus(fallbackStatus);
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     void handlePackageUpload(event);
@@ -201,7 +145,6 @@ export function Home() {
       const importedProject = await importGitHubRepo({
         repo: githubRepoInput,
         ref: githubRefInput,
-        accessToken: githubAccessToken,
       });
       setProjects((current) => [
         importedProject.project,
@@ -223,29 +166,30 @@ export function Home() {
   };
 
   const handleStartGitHubLogin = async () => {
-    if (isStartingGitHubLogin) {
+    if (isStartingGitHubLogin || isCheckingGitHubSession) {
       return;
     }
 
     setIsStartingGitHubLogin(true);
+    startGitHubOAuthLogin();
+  };
+
+  const handleLogoutGitHub = async () => {
+    if (isLoggingOutGitHub) {
+      return;
+    }
+
+    setIsLoggingOutGitHub(true);
     try {
-      const flow = await startGitHubDeviceFlow();
-      setGitHubDeviceFlow(flow);
-      setGitHubAuthStatus('請到 GitHub 輸入代碼完成授權。');
+      await logoutGitHubOAuth();
+      setGitHubViewer(null);
+      setGitHubAuthStatus('已登出 GitHub。');
     } catch (error: unknown) {
       console.error(error);
       setGitHubAuthStatus(getErrorMessage(error));
     } finally {
-      setIsStartingGitHubLogin(false);
+      setIsLoggingOutGitHub(false);
     }
-  };
-
-  const handleLogoutGitHub = () => {
-    clearStoredGitHubAccessToken();
-    setGitHubAccessToken(null);
-    setGitHubViewer(null);
-    setGitHubDeviceFlow(null);
-    setGitHubAuthStatus('已清除本機保存的 GitHub token。');
   };
 
   const handleOpenProject = async (project: UfoProjectRecord) => {
@@ -316,37 +260,24 @@ export function Home() {
                     </Text>
                   </Box>
                 </HStack>
-                <Button size="sm" variant="ghost" onClick={handleLogoutGitHub}>
+                <Button size="sm" variant="ghost" onClick={() => void handleLogoutGitHub()} isLoading={isLoggingOutGitHub}>
                   登出
                 </Button>
               </HStack>
             ) : (
               <VStack spacing={3} align="stretch" mb={4}>
                 <Text fontSize="sm" color="gray.500">
-                  先登入可以提高 GitHub API 配額，也方便之後直接 fork、commit 和發 PR。
+                  先登入可以提高 GitHub API 配額，也方便之後直接 fork、commit 和發 PR。現在會走標準 OAuth 流程，授權後自動跳回本站。
                 </Text>
                 <Button
                   colorScheme="gray"
                   onClick={() => void handleStartGitHubLogin()}
-                  isLoading={isStartingGitHubLogin}
-                  loadingText="啟動中..."
+                  isLoading={isStartingGitHubLogin || isCheckingGitHubSession}
+                  loadingText={isCheckingGitHubSession ? '檢查登入狀態...' : '跳轉中...'}
                 >
-                  使用 GitHub Device Flow 登入
+                  使用 GitHub OAuth 登入
                 </Button>
               </VStack>
-            )}
-            {githubDeviceFlow && (
-              <Box bg="gray.50" borderRadius="md" p={4} mb={4}>
-                <Text fontSize="sm" mb={2}>
-                  1. 前往 <Text as="span" fontFamily="mono">{githubDeviceFlow.verification_uri}</Text>
-                </Text>
-                <Text fontSize="sm" mb={2}>
-                  2. 輸入代碼 <Text as="span" fontFamily="mono" fontWeight="bold">{githubDeviceFlow.user_code}</Text>
-                </Text>
-                <Text fontSize="xs" color="gray.500">
-                  授權完成後，這個頁面會自動偵測登入成功。
-                </Text>
-              </Box>
             )}
             {githubAuthStatus && (
               <Text fontSize="xs" color="gray.600" mb={4}>

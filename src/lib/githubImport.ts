@@ -1,5 +1,4 @@
 import { unzipSync } from 'fflate'
-import { createGitHubAuthHeaders } from './githubAuth'
 import { importUfoWorkspaceEntries, type UfoWorkspaceEntry } from './ufoFormat'
 import type { UfoGithubSource } from './ufoTypes'
 
@@ -81,8 +80,30 @@ const collectUfoEntriesFromZip = (zipBuffer: Uint8Array) => {
   return { archiveRoot, ufoEntries }
 }
 
+const parseResponseBody = async (response: Response) => {
+  const rawText = await response.text()
+  if (!rawText.trim()) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawText) as { message?: string }
+  } catch {
+    return {
+      message: rawText.slice(0, 200),
+    }
+  }
+}
+
 const fetchJsonOrThrow = async <T>(response: Response) => {
-  const payload = (await response.json()) as T & { message?: string }
+  const payload = (await parseResponseBody(response)) as (T & { message?: string }) | null
+  if (!payload) {
+    throw new Error(
+      response.ok
+        ? 'API 沒有回傳 JSON。若你在本地開發，請改用 `pnpm cf:dev` 啟動 Cloudflare Pages Functions。'
+        : `HTTP ${response.status}`
+    )
+  }
   if (!response.ok) {
     throw new Error(payload.message || `HTTP ${response.status}`)
   }
@@ -92,14 +113,12 @@ const fetchJsonOrThrow = async <T>(response: Response) => {
 export const importGitHubRepo = async (input: {
   repo: string
   ref?: string
-  accessToken?: string | null
 }) => {
   const parsed = parseGitHubRepoInput(input.repo)
-  const authHeaders = createGitHubAuthHeaders(input.accessToken)
   const metadataResponse = await fetch(
     `/api/github/repo?repo=${encodeURIComponent(`${parsed.owner}/${parsed.repo}`)}`,
     {
-      headers: authHeaders,
+      credentials: 'include',
     }
   )
   const repoMetadata = await fetchJsonOrThrow<RepoMetadataResponse>(metadataResponse)
@@ -111,11 +130,11 @@ export const importGitHubRepo = async (input: {
   }
 
   const archiveResponse = await fetch(archiveUrl.toString(), {
-    headers: authHeaders,
+    credentials: 'include',
   })
   if (!archiveResponse.ok) {
-    const payload = (await archiveResponse.json()) as { message?: string }
-    throw new Error(payload.message || `下載 GitHub ZIP 失敗（HTTP ${archiveResponse.status}）`)
+    const payload = await parseResponseBody(archiveResponse)
+    throw new Error(payload?.message || `下載 GitHub ZIP 失敗（HTTP ${archiveResponse.status}）`)
   }
 
   const zipBuffer = new Uint8Array(await archiveResponse.arrayBuffer())
