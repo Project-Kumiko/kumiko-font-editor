@@ -1,5 +1,8 @@
-import { extendTheme, type ThemeConfig } from '@chakra-ui/react'
-import type { StyleFunctionProps } from '@chakra-ui/react'
+import {
+  extendTheme,
+  type StyleFunctionProps,
+  type ThemeConfig,
+} from '@chakra-ui/react'
 
 const config: ThemeConfig = {
   initialColorMode: 'light',
@@ -8,156 +11,262 @@ const config: ThemeConfig = {
 
 const colors = {
   gray: {
-    50: '#F2F2F7',
-    100: '#E5E5EA',
-    200: '#D1D1D6',
-    300: '#C7C7CC',
-    400: '#AEAEB2',
-    500: '#8E8E93',
-    600: '#636366',
-    700: '#48484A',
-    800: '#2C2C2E',
-    900: '#1C1C1E',
+    50: '#fbfbfd',
+    100: '#f4f5f8',
+    200: '#e8e9ee',
+    300: '#d7d9e0',
+    400: '#b7bcc7',
+    500: '#9097a5',
+    600: '#6c7381',
+    700: '#4f5562',
+    800: '#343842',
+    900: '#1f2128',
   },
-
   blue: {
-    50: '#E5F1FF',
-    100: '#CCE4FF',
-    200: '#99C9FF',
-    300: '#66AFFF',
-    400: '#3394FF',
-    500: '#007AFF',
-    600: '#0062CC',
-    700: '#004999',
-    800: '#003166',
-    900: '#001833',
+    50: '#eef5ff',
+    100: '#d9e9ff',
+    200: '#b6d4ff',
+    300: '#86b7ff',
+    400: '#5193ff',
+    500: '#0a84ff',
+    600: '#0066d6',
+    700: '#004ca8',
+    800: '#003577',
+    900: '#001c42',
   },
-
+  teal: {
+    50: '#ecfbf7',
+    100: '#cef3e7',
+    200: '#a6e7d5',
+    300: '#78d9c0',
+    400: '#43c7a8',
+    500: '#24b08f',
+    600: '#198a70',
+    700: '#116654',
+    800: '#0a4339',
+    900: '#04221f',
+  },
   green: {
-    50: '#EAF9EE',
-    100: '#CBEED4',
-    200: '#AEE4B8',
-    300: '#90D89D',
-    400: '#71CD81',
-    500: '#34C759',
-    600: '#2AA047',
-    700: '#1F7A36',
-    800: '#155324',
-    900: '#0B2D13',
+    50: '#eefbf1',
+    100: '#d5f4dc',
+    200: '#afe8bc',
+    300: '#7dd899',
+    400: '#4bc676',
+    500: '#30b45d',
+    600: '#208e47',
+    700: '#166734',
+    800: '#0c4221',
+    900: '#04210f',
   },
-
-  red: {
-    50: '#FFEBEA',
-    100: '#FFCDC9',
-    200: '#FF9B94',
-    300: '#FF695F',
-    400: '#FF473D',
-    500: '#FF3B30',
-    600: '#CC2F26',
-    700: '#99231D',
-    800: '#661813',
-    900: '#330C0A',
-  },
-
   orange: {
-    50: '#FFF4E5',
-    100: '#FFE0B8',
-    200: '#FFC270',
-    300: '#FFA329',
-    400: '#FF9A14',
-    500: '#FF9500',
-    600: '#CC7700',
-    700: '#995900',
-    800: '#663B00',
-    900: '#331E00',
+    50: '#fff6ec',
+    100: '#ffe5c8',
+    200: '#ffd09a',
+    300: '#ffb769',
+    400: '#ff9e37',
+    500: '#ff8a1f',
+    600: '#d96c08',
+    700: '#a95205',
+    800: '#753903',
+    900: '#3d1d01',
   },
-
-  yellow: {
-    50: '#FFFBE5',
-    100: '#FFF3B8',
-    200: '#FFE770',
-    300: '#FFDB29',
-    400: '#FFD414',
-    500: '#FFCC00',
-    600: '#CCA300',
-    700: '#997A00',
-    800: '#665200',
-    900: '#332900',
+  red: {
+    50: '#fff0f0',
+    100: '#ffd9d7',
+    200: '#ffb2ad',
+    300: '#ff857d',
+    400: '#ff5f55',
+    500: '#ff453a',
+    600: '#d9342b',
+    700: '#aa251f',
+    800: '#741713',
+    900: '#3d0907',
   },
-
-  purple: {
-    50: '#F7EEFC',
-    100: '#E8D2F7',
-    200: '#D1A6EE',
-    300: '#BA7AE6',
-    400: '#A95DE1',
-    500: '#AF52DE',
-    600: '#8C42B2',
-    700: '#693185',
-    800: '#462159',
-    900: '#23102C',
+  cyan: {
+    50: '#ecfbff',
+    100: '#cff4ff',
+    200: '#9eeaff',
+    300: '#64dcff',
+    400: '#27c9ff',
+    500: '#00b5f0',
+    600: '#008fc2',
+    700: '#006a92',
+    800: '#004864',
+    900: '#002535',
+  },
+  macos: {
+    blue: '#0a84ff',
+    canvasLight: '#eef1f6',
+    canvasDark: '#17181c',
+    panelLight: 'rgba(255, 255, 255, 0.78)',
+    panelDark: 'rgba(34, 36, 43, 0.78)',
+    cardLight: 'rgba(255, 255, 255, 0.88)',
+    cardDark: 'rgba(38, 40, 48, 0.88)',
+    borderLight: 'rgba(15, 23, 42, 0.08)',
+    borderDark: 'rgba(255, 255, 255, 0.10)',
+    fieldLight: 'rgba(255, 255, 255, 0.72)',
+    fieldDark: 'rgba(18, 20, 26, 0.72)',
+    hoverLight: 'rgba(255, 255, 255, 0.96)',
+    hoverDark: 'rgba(60, 64, 76, 0.92)',
+    activeLight: 'rgba(11, 132, 255, 0.16)',
+    activeDark: 'rgba(10, 132, 255, 0.28)',
   },
 }
+
+const focusRing = '0 0 0 3px rgba(10, 132, 255, 0.22)'
 
 const theme = extendTheme({
   config,
   colors,
   radii: {
     none: '0',
-    sm: '0.125rem',
-    base: '0.25rem',
-    md: '0.375rem',
-    lg: '0.75rem',
-    xl: '1rem',
-    '2xl': '1.25rem',
-    '3xl': '1.5rem',
+    sm: '0.375rem',
+    base: '0.625rem',
+    md: '0.875rem',
+    lg: '1rem',
+    xl: '1.25rem',
+    '2xl': '1.5rem',
+    '3xl': '1.875rem',
     full: '9999px',
   },
-
-  shadows: {
-    glass: '0 8px 32px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04)',
-    'glass-hover':
-      '0 12px 40px 0 rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
-  },
-
   fonts: {
-    heading: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-    body: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
+    heading:
+      '"SF Pro Display", "IBM Plex Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif',
+    body: '"SF Pro Text", "IBM Plex Sans", "Noto Sans TC", -apple-system, BlinkMacSystemFont, sans-serif',
   },
-
+  shadows: {
+    outline: focusRing,
+    glass:
+      '0 18px 44px rgba(15, 23, 42, 0.10), 0 2px 10px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.62)',
+    'glass-hover':
+      '0 24px 54px rgba(15, 23, 42, 0.14), 0 6px 18px rgba(15, 23, 42, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+    inset:
+      'inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 -1px 0 rgba(15, 23, 42, 0.04)',
+  },
   styles: {
     global: (props: StyleFunctionProps) => ({
+      'html, body': {
+        minHeight: '100%',
+      },
       body: {
         bg:
           props.colorMode === 'dark' ? 'macos.canvasDark' : 'macos.canvasLight',
-        color: props.colorMode === 'dark' ? 'whiteAlpha.900' : 'blackAlpha.900',
+        color:
+          props.colorMode === 'dark' ? 'rgba(255,255,255,0.92)' : 'gray.800',
+        backgroundImage:
+          props.colorMode === 'dark'
+            ? 'radial-gradient(circle at top, rgba(10, 132, 255, 0.16), transparent 34%), linear-gradient(180deg, #20222a 0%, #17181c 100%)'
+            : 'radial-gradient(circle at top, rgba(10, 132, 255, 0.12), transparent 34%), linear-gradient(180deg, #f8f9fc 0%, #eef1f6 100%)',
         WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+      },
+      '*::selection': {
+        background: 'rgba(10, 132, 255, 0.22)',
       },
     }),
   },
   components: {
     Button: {
       baseStyle: {
-        fontWeight: '500',
-        borderRadius: 'lg',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        borderRadius: 'full',
+        fontWeight: '600',
+        letterSpacing: '-0.01em',
+        transition:
+          'background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease, border-color 0.16s ease',
+        _focusVisible: {
+          boxShadow: focusRing,
+        },
+      },
+      sizes: {
+        sm: {
+          px: 3,
+          h: 8,
+          fontSize: 'sm',
+        },
+        md: {
+          px: 4,
+          h: 10,
+          fontSize: 'sm',
+        },
       },
       variants: {
         solid: (props: StyleFunctionProps) => ({
           bg: `${props.colorScheme}.500`,
           color: 'white',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
           _hover: {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            bg: `${props.colorScheme}.400`,
           },
-          _active: { transform: 'translateY(0)' },
+          _active: {
+            bg: `${props.colorScheme}.600`,
+            transform: 'translateY(0)',
+            boxShadow:
+              props.colorMode === 'dark'
+                ? '0 4px 10px rgba(10, 132, 255, 0.18)'
+                : '0 4px 10px rgba(10, 132, 255, 0.14)',
+          },
         }),
-        glass: (props: StyleFunctionProps) => ({
-          bg: props.colorMode === 'dark' ? 'whiteAlpha.100' : 'white',
+        ghost: (props: StyleFunctionProps) => ({
+          color: props.colorMode === 'dark' ? 'whiteAlpha.900' : 'gray.700',
+          bg: 'transparent',
+          _hover: {
+            bg: props.colorMode === 'dark' ? 'whiteAlpha.120' : 'blackAlpha.50',
+          },
+          _active: {
+            bg:
+              props.colorMode === 'dark' ? 'whiteAlpha.180' : 'blackAlpha.100',
+          },
+        }),
+        outline: (props: StyleFunctionProps) => ({
+          color:
+            props.colorMode === 'dark'
+              ? `${props.colorScheme}.100`
+              : `${props.colorScheme}.700`,
+          bg:
+            props.colorMode === 'dark'
+              ? 'rgba(255,255,255,0.03)'
+              : 'rgba(255,255,255,0.5)',
           border: '1px solid',
           borderColor:
-            props.colorMode === 'dark' ? 'whiteAlpha.200' : 'blackAlpha.100',
-          borderRadius: 'xl',
+            props.colorMode === 'dark'
+              ? 'whiteAlpha.200'
+              : 'rgba(15, 23, 42, 0.10)',
+          boxShadow: 'inset',
+          _hover: {
+            bg:
+              props.colorMode === 'dark'
+                ? 'rgba(255,255,255,0.08)'
+                : 'rgba(255,255,255,0.85)',
+            borderColor: `${props.colorScheme}.300`,
+          },
+          _active: {
+            bg:
+              props.colorMode === 'dark'
+                ? 'rgba(255,255,255,0.12)'
+                : 'rgba(15, 23, 42, 0.06)',
+          },
+        }),
+        glass: (props: StyleFunctionProps) => ({
+          bg:
+            props.colorMode === 'dark' ? 'macos.panelDark' : 'macos.panelLight',
+          color: props.colorMode === 'dark' ? 'whiteAlpha.900' : 'gray.700',
+          border: '1px solid',
+          borderColor:
+            props.colorMode === 'dark'
+              ? 'macos.borderDark'
+              : 'macos.borderLight',
+          boxShadow: 'glass',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          _hover: {
+            bg:
+              props.colorMode === 'dark'
+                ? 'macos.hoverDark'
+                : 'macos.hoverLight',
+            boxShadow: 'glass-hover',
+            transform: 'translateY(-1px)',
+          },
+          _active: {
+            transform: 'translateY(0)',
+          },
         }),
       },
       defaultProps: {
@@ -175,7 +284,8 @@ const theme = extendTheme({
               ? 'macos.borderDark'
               : 'macos.borderLight',
           boxShadow: 'glass',
-          padding: '6',
+          backdropFilter: 'blur(28px) saturate(180%)',
+          padding: 6,
         },
       }),
     },
@@ -183,19 +293,40 @@ const theme = extendTheme({
       parts: ['field'],
       baseStyle: {
         field: {
-          borderRadius: 'full',
+          borderRadius: 'xl',
+          fontSize: 'sm',
+          _placeholder: {
+            color: 'gray.500',
+          },
         },
       },
       variants: {
         macos: (props: StyleFunctionProps) => ({
           field: {
-            bg: props.colorMode === 'dark' ? 'blackAlpha.300' : 'white',
+            bg:
+              props.colorMode === 'dark'
+                ? 'macos.fieldDark'
+                : 'macos.fieldLight',
             border: '1px solid',
             borderColor:
-              props.colorMode === 'dark' ? 'whiteAlpha.100' : 'blackAlpha.100',
-            _focus: {
-              borderColor: 'macos.blue',
-              boxShadow: `0 0 0 3px rgba(0, 122, 255, 0.4)`,
+              props.colorMode === 'dark'
+                ? 'macos.borderDark'
+                : 'macos.borderLight',
+            boxShadow: 'inset',
+            backdropFilter: 'blur(20px) saturate(170%)',
+            _hover: {
+              borderColor:
+                props.colorMode === 'dark'
+                  ? 'whiteAlpha.300'
+                  : 'rgba(15, 23, 42, 0.14)',
+            },
+            _focusVisible: {
+              borderColor: 'blue.400',
+              boxShadow: focusRing,
+              bg:
+                props.colorMode === 'dark'
+                  ? 'rgba(18, 20, 26, 0.9)'
+                  : 'rgba(255,255,255,0.95)',
             },
           },
         }),
@@ -204,23 +335,105 @@ const theme = extendTheme({
         variant: 'macos',
       },
     },
-
+    Select: {
+      parts: ['field', 'icon'],
+      baseStyle: {
+        field: {
+          borderRadius: 'xl',
+          fontSize: 'sm',
+        },
+        icon: {
+          color: 'gray.500',
+        },
+      },
+      variants: {
+        macos: (props: StyleFunctionProps) => ({
+          field: {
+            bg:
+              props.colorMode === 'dark'
+                ? 'macos.fieldDark'
+                : 'macos.fieldLight',
+            border: '1px solid',
+            borderColor:
+              props.colorMode === 'dark'
+                ? 'macos.borderDark'
+                : 'macos.borderLight',
+            boxShadow: 'inset',
+            backdropFilter: 'blur(20px) saturate(170%)',
+            _focusVisible: {
+              borderColor: 'blue.400',
+              boxShadow: focusRing,
+            },
+          },
+        }),
+      },
+      defaultProps: {
+        variant: 'macos',
+      },
+    },
+    Tag: {
+      baseStyle: {
+        container: {
+          borderRadius: 'full',
+          fontWeight: '600',
+        },
+      },
+      variants: {
+        subtle: (props: StyleFunctionProps) => ({
+          container: {
+            bg:
+              props.colorMode === 'dark'
+                ? `${props.colorScheme}.900`
+                : `${props.colorScheme}.50`,
+            color:
+              props.colorMode === 'dark'
+                ? `${props.colorScheme}.100`
+                : `${props.colorScheme}.700`,
+            border: '1px solid',
+            borderColor:
+              props.colorMode === 'dark'
+                ? 'whiteAlpha.100'
+                : `${props.colorScheme}.100`,
+          },
+        }),
+      },
+    },
     Tabs: {
       variants: {
         'liquid-pills': (props: StyleFunctionProps) => ({
           tablist: {
-            bg: props.colorMode === 'dark' ? 'whiteAlpha.50' : 'blackAlpha.50',
-            borderRadius: 'xl',
-            p: '1',
+            bg:
+              props.colorMode === 'dark'
+                ? 'rgba(255,255,255,0.05)'
+                : 'rgba(255,255,255,0.58)',
+            borderRadius: 'full',
+            border: '1px solid',
+            borderColor:
+              props.colorMode === 'dark'
+                ? 'macos.borderDark'
+                : 'macos.borderLight',
+            boxShadow: 'inset',
+            p: 1,
+            backdropFilter: 'blur(20px) saturate(180%)',
           },
           tab: {
-            borderRadius: 'lg',
+            borderRadius: 'full',
             fontWeight: '600',
+            color: props.colorMode === 'dark' ? 'whiteAlpha.800' : 'gray.600',
             _selected: {
-              bg: props.colorMode === 'dark' ? 'whiteAlpha.200' : 'white',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              color: props.colorMode === 'dark' ? 'white' : 'macos.blue',
+              bg:
+                props.colorMode === 'dark'
+                  ? 'rgba(255,255,255,0.12)'
+                  : 'rgba(255,255,255,0.94)',
+              boxShadow:
+                props.colorMode === 'dark'
+                  ? '0 8px 18px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.12)'
+                  : '0 8px 18px rgba(15, 23, 42, 0.10), inset 0 1px 0 rgba(255,255,255,0.85)',
+              color: props.colorMode === 'dark' ? 'whiteAlpha.900' : 'blue.600',
             },
+          },
+          tabpanel: {
+            px: 0,
           },
         }),
       },
