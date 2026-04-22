@@ -2,6 +2,7 @@ import type { FontData, GlyphData, GlyphMetrics, PathData, PathNode } from '../s
 import type { ProjectSourceFormat } from './projectFormats'
 import { hashString } from './hash'
 import {
+  deleteUfoGlyphBatch,
   makeUfoGlyphKey,
   listDirtyUfoGlyphs,
   loadUfoGlyph,
@@ -289,6 +290,9 @@ const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'pr
   const components: UfoGlyphComponent[] = outlineElement
     ? Array.from(outlineElement.querySelectorAll(':scope > component')).map((component) => ({
         base: component.getAttribute('base') ?? '',
+        ...(component.hasAttribute('identifier')
+          ? { identifier: component.getAttribute('identifier') }
+          : {}),
         ...(component.hasAttribute('xScale') ? { xScale: parseNumeric(component.getAttribute('xScale')) ?? 1 } : {}),
         ...(component.hasAttribute('xyScale') ? { xyScale: parseNumeric(component.getAttribute('xyScale')) ?? 0 } : {}),
         ...(component.hasAttribute('yxScale') ? { yxScale: parseNumeric(component.getAttribute('yxScale')) ?? 0 } : {}),
@@ -585,7 +589,7 @@ const buildFontDataFromUfoGlyphs = (
 
       const components = record.components.map((component) => component.base)
       const componentRefs = record.components.map((component, index) => ({
-        id: `c${index}`,
+        id: component.identifier ?? `c${index}`,
         glyphId: component.base,
         x: component.xOffset ?? 0,
         y: component.yOffset ?? 0,
@@ -855,6 +859,7 @@ export const syncHotFontDataToUfoRecords = async (input: {
   activeLayerId: string
   fontData: FontData
   dirtyGlyphIds: string[]
+  deletedGlyphIds?: string[]
 }) => {
   const records: UfoGlyphRecord[] = []
   const timestamp = Date.now()
@@ -862,6 +867,31 @@ export const syncHotFontDataToUfoRecords = async (input: {
   const nextContents = { ...(metadata?.contents ?? {}) }
   const nextGlyphOrder = [...(metadata?.glyphOrder ?? [])]
   let didUpdateMetadata = false
+  const deletedKeys: Array<[string, string, string, string]> = []
+  const deletedFilePaths: string[] = []
+
+  for (const glyphId of input.deletedGlyphIds ?? []) {
+    const fileName = metadata?.contents?.[glyphId]
+    if (fileName) {
+      for (const layer of metadata?.layers ?? [{ layerId: input.activeLayerId, glyphDir: 'glyphs' }]) {
+        deletedFilePaths.push(`${metadata.relativePath}/${layer.glyphDir}/${fileName}`)
+      }
+    }
+    if (nextContents[glyphId]) {
+      delete nextContents[glyphId]
+      didUpdateMetadata = true
+    }
+    const glyphOrderIndex = nextGlyphOrder.indexOf(glyphId)
+    if (glyphOrderIndex >= 0) {
+      nextGlyphOrder.splice(glyphOrderIndex, 1)
+      didUpdateMetadata = true
+    }
+    for (const layer of metadata?.layers ?? [{ layerId: input.activeLayerId, glyphDir: 'glyphs' }]) {
+      deletedKeys.push(
+        makeUfoGlyphKey(input.projectId, input.activeUfoId, layer.layerId, glyphId)
+      )
+    }
+  }
 
   for (const glyphId of input.dirtyGlyphIds) {
     const glyph = input.fontData.glyphs[glyphId]
@@ -910,6 +940,7 @@ export const syncHotFontDataToUfoRecords = async (input: {
       })),
       components: glyph.componentRefs.map((component) => ({
         base: component.glyphId,
+        identifier: component.id,
         xScale: component.scaleX,
         yScale: component.scaleY,
         xOffset: component.x,
@@ -927,6 +958,9 @@ export const syncHotFontDataToUfoRecords = async (input: {
   if (records.length > 0) {
     await saveUfoGlyphBatch(records)
   }
+  if (deletedKeys.length > 0) {
+    await deleteUfoGlyphBatch(deletedKeys)
+  }
 
   if (metadata && didUpdateMetadata) {
     await saveUfoMetadata({
@@ -935,6 +969,10 @@ export const syncHotFontDataToUfoRecords = async (input: {
       glyphOrder: nextGlyphOrder,
       updatedAt: timestamp,
     })
+  }
+
+  return {
+    deletedFilePaths,
   }
 }
 
@@ -962,6 +1000,7 @@ ${contour.points
     .map((component) => {
       const attrs = [
         `base="${escapeXml(component.base)}"`,
+        ...(component.identifier ? [`identifier="${escapeXml(component.identifier)}"`] : []),
         ...(component.xScale !== undefined ? [`xScale="${component.xScale}"`] : []),
         ...(component.xyScale !== undefined ? [`xyScale="${component.xyScale}"`] : []),
         ...(component.yxScale !== undefined ? [`yxScale="${component.yxScale}"`] : []),

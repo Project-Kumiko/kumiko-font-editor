@@ -75,6 +75,10 @@ export function RightPanel() {
   const projectTitle = useStore((state) => state.projectTitle)
   const isDirty = useStore((state) => state.isDirty)
   const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds)
+  const deletedGlyphIds = useStore((state) => state.deletedGlyphIds)
+  const hasLocalChanges = useStore((state) => state.hasLocalChanges)
+  const localDirtyGlyphIds = useStore((state) => state.localDirtyGlyphIds)
+  const localDeletedGlyphIds = useStore((state) => state.localDeletedGlyphIds)
   const previewGlyphMetrics = useStore((state) => state.previewGlyphMetrics)
   const updateNodePosition = useStore((state) => state.updateNodePosition)
   const updateNodeType = useStore((state) => state.updateNodeType)
@@ -84,7 +88,8 @@ export function RightPanel() {
   )
   const setSelectedLayerId = useStore((state) => state.setSelectedLayerId)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
-  const markProjectSaved = useStore((state) => state.markProjectSaved)
+  const markDraftSaved = useStore((state) => state.markDraftSaved)
+  const markLocalSaved = useStore((state) => state.markLocalSaved)
   const deleteGlyph = useStore((state) => state.deleteGlyph)
 
   const glyph =
@@ -178,12 +183,13 @@ export function RightPanel() {
         throw new Error('找不到目前啟用的 UFO 字重')
       }
 
-      await syncHotFontDataToUfoRecords({
+      const syncResult = await syncHotFontDataToUfoRecords({
         projectId,
         activeUfoId,
         activeLayerId,
         fontData,
-        dirtyGlyphIds,
+        dirtyGlyphIds: localDirtyGlyphIds,
+        deletedGlyphIds: localDeletedGlyphIds,
       })
 
       let rootHandle = await loadUfoUiValue<FileSystemDirectoryHandle>(
@@ -209,7 +215,7 @@ export function RightPanel() {
         projectId,
         UFO_LOCAL_MANIFEST_KEY
       )
-      setUfoExportProgress({ completed: 0, total: dirtyGlyphIds.length })
+      setUfoExportProgress({ completed: 0, total: localDirtyGlyphIds.length })
       const result = await exportUfoWithWorker({
         projectId,
         exportAll: false,
@@ -218,16 +224,18 @@ export function RightPanel() {
         directoryMode: 'direct',
         rootHandle,
         localManifest,
+        deletedFilePaths: syncResult.deletedFilePaths,
         onProgress: (progress) => setUfoExportProgress(progress),
       })
 
       await saveUfoUiValue(projectId, UFO_LOCAL_MANIFEST_KEY, result.manifest)
-      markProjectSaved()
+      const deletedCount = localDeletedGlyphIds.length
+      markLocalSaved()
       toast({
         title: '已儲存至本地',
         description: result.didFullRebuild
-          ? `偵測到本地檔案變動，已全量重建並寫出 ${result.writtenGlyphs} 個 glyph。`
-          : `已寫出 ${result.writtenGlyphs} 個 glyph，略過 ${result.skippedGlyphs} 個未變更 glyph。`,
+          ? `偵測到本地缺檔，已全量重建並寫出 ${result.writtenGlyphs} 個 glyph${deletedCount > 0 ? `，刪除 ${deletedCount} 個 glyph 檔案` : ''}。`
+          : `已寫出 ${result.writtenGlyphs} 個 glyph，略過 ${result.skippedGlyphs} 個未變更 glyph${deletedCount > 0 ? `，刪除 ${deletedCount} 個 glyph 檔案` : ''}。`,
         status: 'success',
         duration: 2400,
         isClosable: true,
@@ -261,9 +269,10 @@ export function RightPanel() {
         projectTitle,
         fontData,
         dirtyGlyphIds,
+        deletedGlyphIds,
         selectedLayerId,
       })
-      markProjectSaved()
+      markDraftSaved()
       toast({
         title: '已儲存草稿',
         description: '目前變更已寫入本機草稿。',
@@ -466,7 +475,7 @@ export function RightPanel() {
                     <Button
                       colorScheme="blue"
                       onClick={handleSaveUfoToLocal}
-                      isDisabled={!fontData || isSavingToLocal}
+                      isDisabled={!fontData || isSavingToLocal || !hasLocalChanges}
                       isLoading={isSavingToLocal}
                       loadingText={
                         ufoExportProgress

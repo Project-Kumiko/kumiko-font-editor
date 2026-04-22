@@ -54,6 +54,7 @@ export const exportUfoWithWorker = async (input: {
   saveAsName?: string
   rootHandle?: FileSystemDirectoryHandle
   localManifest?: UfoLocalSaveManifest | null
+  deletedFilePaths?: string[]
   onProgress?: (progress: { completed: number; total: number }) => void
 }) => {
   const baseHandle = input.rootHandle ?? (await pickExportDirectory())
@@ -103,6 +104,7 @@ export const exportUfoWithWorker = async (input: {
           markClean: input.markClean,
           fixedConcurrency: input.fixedConcurrency,
           localManifest: input.localManifest,
+          deletedFilePaths: input.deletedFilePaths,
         },
       })
     }

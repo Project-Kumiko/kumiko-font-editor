@@ -1,5 +1,4 @@
 /// <reference lib="webworker" />
-
 import { hashString } from '../lib/hash'
 import { serializeGlifRecord, serializeXmlPlist, pickDefaultLayer } from '../lib/ufoFormat'
 import {
@@ -20,6 +19,7 @@ interface UfoExportRequestMessage {
     markClean?: boolean
     fixedConcurrency?: number
     localManifest?: UfoLocalSaveManifest | null
+    deletedFilePaths?: string[]
   }
 }
 
@@ -53,6 +53,28 @@ type UfoExportResponseMessage =
   | UfoExportProgressMessage
   | UfoExportSuccessMessage
   | UfoExportErrorMessage
+
+const joinRelativePath = (...parts: Array<string | null | undefined>) =>
+  parts
+    .flatMap((part) => (part ?? '').split('/'))
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('/')
+
+const stripPrefixPath = (value: string, prefix: string) => {
+  if (!prefix) {
+    return value
+  }
+  const normalizedValue = value.replace(/^\/+/, '')
+  const normalizedPrefix = prefix.replace(/^\/+/, '').replace(/\/+$/, '')
+  if (normalizedValue === normalizedPrefix) {
+    return ''
+  }
+  if (normalizedValue.startsWith(`${normalizedPrefix}/`)) {
+    return normalizedValue.slice(normalizedPrefix.length + 1)
+  }
+  return normalizedValue
+}
 
 const writeTextFile = async (
   directory: FileSystemDirectoryHandle,
@@ -88,7 +110,26 @@ const readRelativeFileText = async (
   return file.text()
 }
 
-const hasLocalDiverged = async (
+const deleteRelativeFile = async (
+  rootHandle: FileSystemDirectoryHandle,
+  relativePath: string
+) => {
+  const segments = relativePath.split('/').filter(Boolean)
+  if (segments.length === 0) {
+    return
+  }
+
+  let directoryHandle = rootHandle
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    directoryHandle = await directoryHandle.getDirectoryHandle(segments[index]!, {
+      create: false,
+    })
+  }
+
+  await directoryHandle.removeEntry(segments[segments.length - 1]!)
+}
+
+const hasMissingLocalFiles = async (
   rootHandle: FileSystemDirectoryHandle,
   manifest: UfoLocalSaveManifest | null | undefined
 ) => {
@@ -96,10 +137,10 @@ const hasLocalDiverged = async (
     return true
   }
 
-  for (const [relativePath, expectedHash] of Object.entries(manifest.files)) {
+  for (const relativePath of Object.keys(manifest.files)) {
     try {
       const text = await readRelativeFileText(rootHandle, relativePath)
-      if (text === null || hashString(text) !== expectedHash) {
+      if (text === null) {
         return true
       }
     } catch {
@@ -123,6 +164,7 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
       markClean = true,
       fixedConcurrency = 8,
       localManifest = null,
+      deletedFilePaths = [],
     } = event.data.payload
     const project = await loadUfoProject(projectId)
     if (!project) {
@@ -130,12 +172,15 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
     }
 
     const metadataRecords = await listUfoMetadataForProject(projectId)
+    const useDirectUfoRoot =
+      metadataRecords.length === 1 &&
+      metadataRecords[0]?.relativePath === rootHandle.name
     const dirtyGlyphs = await listDirtyUfoGlyphs(projectId)
     const dirtyKeySet = new Set(
       dirtyGlyphs.map((glyph) => `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`)
     )
-    const localChanged = await hasLocalDiverged(rootHandle, localManifest)
-    const shouldFullRebuild = exportAll || localChanged
+    const missingLocalFiles = await hasMissingLocalFiles(rootHandle, localManifest)
+    const shouldFullRebuild = exportAll || missingLocalFiles
     let totalTargetGlyphs = shouldFullRebuild ? 0 : dirtyGlyphs.length
     let completedTargetGlyphs = 0
     let writtenGlyphs = 0
@@ -150,13 +195,16 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
     }> = []
 
     for (const metadata of metadataRecords) {
-      const ufoHandle = await rootHandle.getDirectoryHandle(metadata.relativePath, { create: true })
+      const ufoRootPath = useDirectUfoRoot ? '' : metadata.relativePath
+      const ufoHandle = useDirectUfoRoot
+        ? rootHandle
+        : await rootHandle.getDirectoryHandle(metadata.relativePath, { create: true })
       const defaultLayer = pickDefaultLayer(metadata)
       const defaultLayerGlyphs = await listUfoGlyphsInLayer(projectId, metadata.ufoId, defaultLayer.layerId)
 
       const metadataWrites: Array<Promise<void>> = [
         (() => {
-          const relativePath = `${metadata.relativePath}/metainfo.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'metainfo.plist')
           const content = serializeXmlPlist({
             creator: metadata.metainfo?.creator ?? 'org.kumiko.fonteditor',
             formatVersion: metadata.metainfo?.formatVersion ?? 3,
@@ -166,38 +214,38 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
           return writeTextFile(ufoHandle, 'metainfo.plist', content)
         })(),
         (() => {
-          const relativePath = `${metadata.relativePath}/fontinfo.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'fontinfo.plist')
           const content = serializeXmlPlist(metadata.fontinfo ?? {})
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'fontinfo.plist', content)
         })(),
         (() => {
-          const relativePath = `${metadata.relativePath}/lib.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'lib.plist')
           const content = serializeXmlPlist(metadata.lib ?? {})
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'lib.plist', content)
         })(),
         (() => {
-          const relativePath = `${metadata.relativePath}/groups.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'groups.plist')
           const content = serializeXmlPlist(metadata.groups ?? {})
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'groups.plist', content)
         })(),
         (() => {
-          const relativePath = `${metadata.relativePath}/kerning.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'kerning.plist')
           const content = serializeXmlPlist(metadata.kerning ?? {})
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'kerning.plist', content)
         })(),
         (() => {
-          const relativePath = `${metadata.relativePath}/layercontents.plist`
+          const relativePath = joinRelativePath(ufoRootPath, 'layercontents.plist')
           const content = serializeXmlPlist(metadata.layers.map((layer) => [layer.layerId, layer.glyphDir]))
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'layercontents.plist', content)
         })(),
       ]
       if (metadata.featuresText !== null) {
-        const relativePath = `${metadata.relativePath}/features.fea`
+        const relativePath = joinRelativePath(ufoRootPath, 'features.fea')
         manifest.files[relativePath] = hashString(metadata.featuresText)
         metadataWrites.push(writeTextFile(ufoHandle, 'features.fea', metadata.featuresText))
       }
@@ -212,7 +260,7 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
 
         const contents = Object.fromEntries(layerGlyphs.map((glyph) => [glyph.glyphName, glyph.fileName]))
         const contentsText = serializeXmlPlist(contents)
-        manifest.files[`${metadata.relativePath}/${layer.glyphDir}/contents.plist`] = hashString(contentsText)
+        manifest.files[joinRelativePath(ufoRootPath, layer.glyphDir, 'contents.plist')] = hashString(contentsText)
         await writeTextFile(layerHandle, 'contents.plist', contentsText)
 
         const targetLayerGlyphs = shouldFullRebuild
@@ -235,7 +283,7 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
             batchGlyphs.map(async (glyph) => {
               const glifText = serializeGlifRecord(glyph)
               const nextHash = hashString(glifText)
-              manifest.files[`${metadata.relativePath}/${layer.glyphDir}/${glyph.fileName}`] = nextHash
+              manifest.files[joinRelativePath(ufoRootPath, layer.glyphDir, glyph.fileName)] = nextHash
               const shouldWrite = shouldFullRebuild || glyph.sourceHash !== nextHash
               if (shouldWrite) {
                 await writeTextFile(layerHandle, glyph.fileName, glifText)
@@ -284,8 +332,38 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
       }
     }
 
+    const deletedPathSet = new Set(
+      deletedFilePaths.map((deletedPath) =>
+        useDirectUfoRoot
+          ? stripPrefixPath(deletedPath, metadataRecords[0]?.relativePath ?? '')
+          : deletedPath
+      )
+    )
+
+    for (const deletedPath of deletedPathSet) {
+      delete manifest.files[deletedPath]
+      try {
+        await deleteRelativeFile(rootHandle, deletedPath)
+      } catch {
+        // Ignore already-missing files.
+      }
+    }
+
     if (markClean) {
       await updateUfoGlyphExportState(exportStateUpdates)
+    }
+
+    if (shouldFullRebuild && localManifest) {
+      for (const previousPath of Object.keys(localManifest.files)) {
+        if (manifest.files[previousPath] || deletedPathSet.has(previousPath)) {
+          continue
+        }
+        try {
+          await deleteRelativeFile(rootHandle, previousPath)
+        } catch {
+          // Ignore stale files we can no longer remove.
+        }
+      }
     }
 
     const successMessage: UfoExportResponseMessage = {

@@ -13,9 +13,10 @@ function App() {
   const projectId = useStore((state) => state.projectId);
   const projectTitle = useStore((state) => state.projectTitle);
   const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds);
+  const deletedGlyphIds = useStore((state) => state.deletedGlyphIds);
   const selectedLayerId = useStore((state) => state.selectedLayerId);
   const isDirty = useStore((state) => state.isDirty);
-  const markProjectSaved = useStore((state) => state.markProjectSaved);
+  const markDraftSaved = useStore((state) => state.markDraftSaved);
   const workspaceView = useStore((state) => state.workspaceView);
   const isDesktop = useBreakpointValue({ base: false, lg: true });
   const autosaveTimerRef = useRef<number | null>(null);
@@ -39,9 +40,10 @@ function App() {
         projectTitle,
         fontData,
         dirtyGlyphIds,
+        deletedGlyphIds,
         selectedLayerId,
       }).then(() => {
-        markProjectSaved();
+        markDraftSaved();
       }).catch((error) => {
         console.warn('Auto draft save failed.', error);
       });
@@ -55,9 +57,10 @@ function App() {
     };
   }, [
     dirtyGlyphIds,
+    deletedGlyphIds,
     fontData,
     isDirty,
-    markProjectSaved,
+    markDraftSaved,
     projectId,
     projectTitle,
     selectedLayerId,

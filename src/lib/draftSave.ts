@@ -9,6 +9,7 @@ export const saveDraftSnapshot = async (input: {
   projectTitle: string
   fontData: FontData
   dirtyGlyphIds: string[]
+  deletedGlyphIds: string[]
   selectedLayerId: string | null
 }) => {
   const projectSourceFormat = getProjectArchiveSourceFormat()
@@ -31,6 +32,7 @@ export const saveDraftSnapshot = async (input: {
       activeLayerId,
       fontData: input.fontData,
       dirtyGlyphIds: input.dirtyGlyphIds,
+      deletedGlyphIds: input.deletedGlyphIds,
     })
 
     const projectRecord = await loadUfoProject(input.projectId)

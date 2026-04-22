@@ -48,6 +48,7 @@ export interface UfoGlyphContour {
 
 export interface UfoGlyphComponent {
   base: string
+  identifier?: string | null
   xScale?: number
   xyScale?: number
   yxScale?: number

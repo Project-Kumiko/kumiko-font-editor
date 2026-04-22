@@ -150,6 +150,10 @@ export interface GlobalState {
   projectTitle: string
   isDirty: boolean
   dirtyGlyphIds: string[]
+  deletedGlyphIds: string[]
+  hasLocalChanges: boolean
+  localDirtyGlyphIds: string[]
+  localDeletedGlyphIds: string[]
   editorGlyphIds: string[]
   editorText: string
   editorTextCursorIndex: number
@@ -258,7 +262,8 @@ export interface GlobalState {
     projectSourceFormat?: ProjectSourceFormat | null
   ) => void
   closeProjectState: () => void
-  markProjectSaved: () => void
+  markDraftSaved: () => void
+  markLocalSaved: () => void
   setPreviewGlyphMetrics: (glyphId: string, metrics: GlyphMetrics) => void
   clearPreviewGlyphMetrics: (glyphId?: string) => void
 }
@@ -519,8 +524,12 @@ const syncFilteredGlyphList = (state: GlobalState) => {
 
 const markGlyphDirty = (state: GlobalState, glyphId: string) => {
   state.isDirty = true
+  state.hasLocalChanges = true
   if (!state.dirtyGlyphIds.includes(glyphId)) {
     state.dirtyGlyphIds.push(glyphId)
+  }
+  if (!state.localDirtyGlyphIds.includes(glyphId)) {
+    state.localDirtyGlyphIds.push(glyphId)
   }
 }
 
@@ -679,6 +688,10 @@ export const useStore = create<GlobalState>()(
       projectTitle: '',
       isDirty: false,
       dirtyGlyphIds: [],
+      deletedGlyphIds: [],
+      hasLocalChanges: false,
+      localDirtyGlyphIds: [],
+      localDeletedGlyphIds: [],
       editorGlyphIds: [],
       editorText: '',
       editorTextCursorIndex: 0,
@@ -880,8 +893,14 @@ export const useStore = create<GlobalState>()(
           state.selectedNodeIds = []
           state.selectedSegment = null
           state.isDirty = true
-          if (!state.dirtyGlyphIds.includes(glyphId)) {
-            state.dirtyGlyphIds.push(glyphId)
+          state.hasLocalChanges = true
+          state.dirtyGlyphIds = state.dirtyGlyphIds.filter((id) => id !== glyphId)
+          state.localDirtyGlyphIds = state.localDirtyGlyphIds.filter((id) => id !== glyphId)
+          if (!state.deletedGlyphIds.includes(glyphId)) {
+            state.deletedGlyphIds.push(glyphId)
+          }
+          if (!state.localDeletedGlyphIds.includes(glyphId)) {
+            state.localDeletedGlyphIds.push(glyphId)
           }
           syncFilteredGlyphList(state)
         }),
@@ -926,10 +945,16 @@ export const useStore = create<GlobalState>()(
           }
 
           state.isDirty = true
+          state.hasLocalChanges = true
           for (const glyphId of addedGlyphIds) {
             if (!state.dirtyGlyphIds.includes(glyphId)) {
               state.dirtyGlyphIds.push(glyphId)
             }
+            if (!state.localDirtyGlyphIds.includes(glyphId)) {
+              state.localDirtyGlyphIds.push(glyphId)
+            }
+            state.deletedGlyphIds = state.deletedGlyphIds.filter((deletedId) => deletedId !== glyphId)
+            state.localDeletedGlyphIds = state.localDeletedGlyphIds.filter((deletedId) => deletedId !== glyphId)
           }
           syncFilteredGlyphList(state)
           state.selectedGlyphId = addedGlyphIds[0] ?? state.selectedGlyphId
@@ -1277,6 +1302,10 @@ export const useStore = create<GlobalState>()(
           state.fontData = hotFontData
           state.isDirty = false
           state.dirtyGlyphIds = []
+          state.deletedGlyphIds = []
+          state.hasLocalChanges = false
+          state.localDirtyGlyphIds = []
+          state.localDeletedGlyphIds = []
           state.editorGlyphIds = []
           state.editorText = ''
           state.editorTextCursorIndex = 0
@@ -1325,6 +1354,10 @@ export const useStore = create<GlobalState>()(
           state.projectTitle = ''
           state.isDirty = false
           state.dirtyGlyphIds = []
+          state.deletedGlyphIds = []
+          state.hasLocalChanges = false
+          state.localDirtyGlyphIds = []
+          state.localDeletedGlyphIds = []
           state.editorGlyphIds = []
           state.editorText = ''
           state.editorTextCursorIndex = 0
@@ -1343,9 +1376,18 @@ export const useStore = create<GlobalState>()(
           useStore.temporal.getState().clear()
         }),
 
-      markProjectSaved: () =>
+      markDraftSaved: () =>
         set((state) => {
           state.isDirty = false
+          state.dirtyGlyphIds = []
+          state.deletedGlyphIds = []
+        }),
+
+      markLocalSaved: () =>
+        set((state) => {
+          state.hasLocalChanges = false
+          state.localDirtyGlyphIds = []
+          state.localDeletedGlyphIds = []
         }),
 
       setPreviewGlyphMetrics: (glyphId, metrics) =>

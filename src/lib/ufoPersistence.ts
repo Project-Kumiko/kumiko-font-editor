@@ -106,6 +106,20 @@ export const saveUfoGlyphBatch = async (records: UfoGlyphRecord[]) => {
   await transactionDone(transaction)
 }
 
+export const deleteUfoGlyphBatch = async (keys: UfoGlyphPrimaryKey[]) => {
+  if (keys.length === 0) {
+    return
+  }
+
+  const database = await openDatabase()
+  const transaction = database.transaction(UFO_GLYPHS_STORE, 'readwrite')
+  const store = transaction.objectStore(UFO_GLYPHS_STORE)
+  for (const key of keys) {
+    store.delete(key)
+  }
+  await transactionDone(transaction)
+}
+
 export const updateUfoGlyphDirtyState = async (
   keys: UfoGlyphPrimaryKey[],
   dirty: boolean
