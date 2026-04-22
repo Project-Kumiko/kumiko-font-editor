@@ -1,4 +1,8 @@
-import { hydrateProjectFontData, getProjectArchiveMetadata, getProjectArchiveSourceFormat } from './projectArchive'
+import {
+  hydrateProjectFontData,
+  getProjectArchiveMetadata,
+  getProjectArchiveSourceFormat,
+} from './projectArchive'
 import { saveProject, loadProject } from './persistence'
 import { loadUfoProject, saveUfoProject } from './ufoPersistence'
 import { syncHotFontDataToUfoRecords } from './ufoFormat'
@@ -15,11 +19,9 @@ export const saveDraftSnapshot = async (input: {
   const projectSourceFormat = getProjectArchiveSourceFormat()
 
   if (projectSourceFormat === 'ufo') {
-    const projectMetadata = getProjectArchiveMetadata() as
-      | {
-          activeUfoId?: string | null
-        }
-      | null
+    const projectMetadata = getProjectArchiveMetadata() as {
+      activeUfoId?: string | null
+    } | null
     const activeUfoId = projectMetadata?.activeUfoId
     const activeLayerId = input.selectedLayerId ?? 'public.default'
     if (!activeUfoId) {

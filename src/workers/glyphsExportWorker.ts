@@ -51,7 +51,8 @@ self.onmessage = async (event: MessageEvent<ExportRequestMessage>) => {
     const message: ExportResponseMessage = {
       type: 'export-error',
       payload: {
-        message: error instanceof Error ? error.message : 'Unknown export error',
+        message:
+          error instanceof Error ? error.message : 'Unknown export error',
       },
     }
     self.postMessage(message)

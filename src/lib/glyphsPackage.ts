@@ -73,12 +73,21 @@ const sortGlyphEntries = (
   orderedGlyphNames: string[]
 ) => {
   const orderIndex = new Map(
-    orderedGlyphNames.map((glyphName, index) => [glyphName.toLowerCase(), index])
+    orderedGlyphNames.map((glyphName, index) => [
+      glyphName.toLowerCase(),
+      index,
+    ])
   )
 
   return [...entries].sort((left, right) => {
-    const leftName = typeof left.glyph.glyphname === 'string' ? left.glyph.glyphname.toLowerCase() : ''
-    const rightName = typeof right.glyph.glyphname === 'string' ? right.glyph.glyphname.toLowerCase() : ''
+    const leftName =
+      typeof left.glyph.glyphname === 'string'
+        ? left.glyph.glyphname.toLowerCase()
+        : ''
+    const rightName =
+      typeof right.glyph.glyphname === 'string'
+        ? right.glyph.glyphname.toLowerCase()
+        : ''
     const leftOrder = orderIndex.get(leftName)
     const rightOrder = orderIndex.get(rightName)
 
@@ -114,7 +123,11 @@ export const readGlyphsPackageFromFiles = async (
     })
   )
 
-  const packageNames = [...new Set(fileEntries.map((entry) => entry.packageRoot?.packageName).filter(Boolean))]
+  const packageNames = [
+    ...new Set(
+      fileEntries.map((entry) => entry.packageRoot?.packageName).filter(Boolean)
+    ),
+  ]
   if (packageNames.length === 0) {
     throw new Error('選到的資料夾裡沒有找到 .glyphspackage')
   }
@@ -126,7 +139,11 @@ export const readGlyphsPackageFromFiles = async (
 
   const fileMap = Object.fromEntries(
     fileEntries
-      .filter((entry) => entry.packageRoot?.packageName === packageName && entry.packageRoot.innerPath)
+      .filter(
+        (entry) =>
+          entry.packageRoot?.packageName === packageName &&
+          entry.packageRoot.innerPath
+      )
       .map((entry) => [entry.packageRoot!.innerPath, entry.text] as const)
   )
   const fontInfoText = fileMap['fontinfo.plist']
@@ -135,11 +152,16 @@ export const readGlyphsPackageFromFiles = async (
   }
 
   const orderText = fileMap['order.plist']
-  const orderedGlyphNames = orderText ? ((parseOpenStep(orderText) as string[]) ?? []) : []
+  const orderedGlyphNames = orderText
+    ? ((parseOpenStep(orderText) as string[]) ?? [])
+    : []
   const baseDocument = parseOpenStep(fontInfoText) as GlyphsDocument
 
   const glyphEntries = Object.entries(fileMap)
-    .filter(([relativePath]) => relativePath.startsWith('glyphs/') && relativePath.endsWith('.glyph'))
+    .filter(
+      ([relativePath]) =>
+        relativePath.startsWith('glyphs/') && relativePath.endsWith('.glyph')
+    )
     .map(([relativePath, text]) => ({
       glyph: parseOpenStep(text) as Record<string, unknown>,
       relativePath,
@@ -172,9 +194,8 @@ export const readGlyphsPackageFromFiles = async (
 }
 
 const sanitizeGlyphFileName = (glyphName: string) =>
-  glyphName
-    .replace(/[^A-Za-z0-9._-]+/g, '_')
-    .replace(/^_+|_+$/g, '') || 'untitled'
+  glyphName.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '') ||
+  'untitled'
 
 export const patchGlyphsPackageData = (input: {
   packageData: GlyphsPackageData
@@ -214,7 +235,9 @@ export const patchGlyphsPackageData = (input: {
       .map((relativePath) => files[relativePath])
       .filter((text): text is string => Boolean(text))
       .map((text) => parseOpenStep(text) as Record<string, unknown>)
-      .map((glyph) => (typeof glyph.glyphname === 'string' ? glyph.glyphname : null))
+      .map((glyph) =>
+        typeof glyph.glyphname === 'string' ? glyph.glyphname : null
+      )
       .filter((glyphName): glyphName is string => Boolean(glyphName))
     files['order.plist'] = `${serializeOpenStepValue(orderedGlyphNames)}\n`
     changedPaths.add('order.plist')
@@ -228,10 +251,14 @@ export const patchGlyphsPackageData = (input: {
   } satisfies PatchedGlyphsPackageData
 }
 
-export const writeGlyphsPackageToDirectory = async (packageData: PatchedGlyphsPackageData) => {
+export const writeGlyphsPackageToDirectory = async (
+  packageData: PatchedGlyphsPackageData
+) => {
   const picker = (
     window as Window & {
-      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>
+      showDirectoryPicker?: (options?: {
+        mode?: 'read' | 'readwrite'
+      }) => Promise<FileSystemDirectoryHandle>
     }
   ).showDirectoryPicker
 
@@ -240,7 +267,10 @@ export const writeGlyphsPackageToDirectory = async (packageData: PatchedGlyphsPa
   }
 
   const rootHandle = await picker({ mode: 'readwrite' })
-  const packageHandle = await rootHandle.getDirectoryHandle(packageData.packageName, { create: true })
+  const packageHandle = await rootHandle.getDirectoryHandle(
+    packageData.packageName,
+    { create: true }
+  )
 
   for (const relativePath of packageData.changedPaths) {
     const text = packageData.files[relativePath]
@@ -255,7 +285,9 @@ export const writeGlyphsPackageToDirectory = async (packageData: PatchedGlyphsPa
 
     let directoryHandle = packageHandle
     for (const part of parts.slice(0, -1)) {
-      directoryHandle = await directoryHandle.getDirectoryHandle(part, { create: true })
+      directoryHandle = await directoryHandle.getDirectoryHandle(part, {
+        create: true,
+      })
     }
 
     const fileName = parts[parts.length - 1]
@@ -263,7 +295,9 @@ export const writeGlyphsPackageToDirectory = async (packageData: PatchedGlyphsPa
       continue
     }
 
-    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true })
+    const fileHandle = await directoryHandle.getFileHandle(fileName, {
+      create: true,
+    })
     const writable = await fileHandle.createWritable()
     await writable.write(text)
     await writable.close()

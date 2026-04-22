@@ -9,7 +9,9 @@ interface HiddenTextInputProps {
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void
   onCompositionEnd: (event: React.CompositionEvent<HTMLTextAreaElement>) => void
   onCompositionStart: () => void
-  onCompositionUpdate: (event: React.CompositionEvent<HTMLTextAreaElement>) => void
+  onCompositionUpdate: (
+    event: React.CompositionEvent<HTMLTextAreaElement>
+  ) => void
   onSelect: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void
 }
 

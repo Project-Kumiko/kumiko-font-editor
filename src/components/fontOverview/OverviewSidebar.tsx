@@ -126,7 +126,12 @@ export function OverviewSidebar({
                 focusBorderColor="teal.400"
               />
               <HStack>
-                <Button size="sm" colorScheme="teal" flex={1} onClick={onGlyphInputSubmit}>
+                <Button
+                  size="sm"
+                  colorScheme="teal"
+                  flex={1}
+                  onClick={onGlyphInputSubmit}
+                >
                   新增
                 </Button>
                 <Button size="sm" variant="ghost" onClick={onCancelAddGlyphs}>
@@ -154,7 +159,9 @@ export function OverviewSidebar({
             size="sm"
             bg="white"
             value={groupBy}
-            onChange={(event) => onGroupingChange(event.target.value as OverviewGroupBy)}
+            onChange={(event) =>
+              onGroupingChange(event.target.value as OverviewGroupBy)
+            }
           >
             <option value="script">語系 / Script</option>
             <option value="block">Unicode Block</option>
@@ -173,7 +180,9 @@ export function OverviewSidebar({
 
         <Checkbox
           isChecked={showOnlyEmptyGlyphs}
-          onChange={(event) => onShowOnlyEmptyGlyphsChange(event.target.checked)}
+          onChange={(event) =>
+            onShowOnlyEmptyGlyphsChange(event.target.checked)
+          }
           colorScheme="teal"
           size="sm"
         >
@@ -209,7 +218,9 @@ export function OverviewSidebar({
               key={section.id}
               justifyContent="space-between"
               variant={selectedSectionId === section.id ? 'solid' : 'ghost'}
-              colorScheme={selectedSectionId === section.id ? 'teal' : undefined}
+              colorScheme={
+                selectedSectionId === section.id ? 'teal' : undefined
+              }
               onClick={() => onSectionSelect(section.id)}
             >
               <Text noOfLines={1}>{section.label}</Text>

@@ -32,7 +32,10 @@ export const isPathEndpointNode = (path: PathData, nodeId: string) => {
     return false
   }
 
-  return path.nodes[0]?.id === nodeId || path.nodes[path.nodes.length - 1]?.id === nodeId
+  return (
+    path.nodes[0]?.id === nodeId ||
+    path.nodes[path.nodes.length - 1]?.id === nodeId
+  )
 }
 
 export const getEffectiveNodeType = (
@@ -572,8 +575,14 @@ const syncEditorTextFromGlyphIds = (state: GlobalState) => {
 const clampEditorCursorIndex = (state: GlobalState, cursorIndex: number) =>
   Math.max(0, Math.min(cursorIndex, state.editorGlyphIds.length))
 
-const clampEditorActiveGlyphIndex = (state: GlobalState, activeGlyphIndex: number) =>
-  Math.max(0, Math.min(activeGlyphIndex, Math.max(0, state.editorGlyphIds.length - 1)))
+const clampEditorActiveGlyphIndex = (
+  state: GlobalState,
+  activeGlyphIndex: number
+) =>
+  Math.max(
+    0,
+    Math.min(activeGlyphIndex, Math.max(0, state.editorGlyphIds.length - 1))
+  )
 
 const syncSelectedGlyphFromEditorLine = (state: GlobalState) => {
   if (state.editorGlyphIds.length === 0) {
@@ -586,13 +595,17 @@ const syncSelectedGlyphFromEditorLine = (state: GlobalState) => {
     state,
     state.editorActiveGlyphIndex
   )
-  state.selectedGlyphId = state.editorGlyphIds[state.editorActiveGlyphIndex] ?? null
+  state.selectedGlyphId =
+    state.editorGlyphIds[state.editorActiveGlyphIndex] ?? null
 }
 
 const findPath = (glyph: GlyphData, pathId: string) =>
   glyph.paths.find((path) => path.id === pathId)
 
-export const getGlyphLayer = (glyph: GlyphData | undefined, layerId: string | null | undefined) => {
+export const getGlyphLayer = (
+  glyph: GlyphData | undefined,
+  layerId: string | null | undefined
+) => {
   if (!glyph) {
     return null
   }
@@ -634,7 +647,8 @@ const findNode = (path: PathData | undefined, nodeId: string) =>
 const generateId = (prefix: string) =>
   `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 
-const lerp = (start: number, end: number, t: number) => start + (end - start) * t
+const lerp = (start: number, end: number, t: number) =>
+  start + (end - start) * t
 
 const orientOpenPathNodesForConnection = (
   path: PathData,
@@ -652,7 +666,10 @@ const orientOpenPathNodesForConnection = (
     return nodes
   }
 
-  if ((placeEndpointAt === 'end' && isEnd) || (placeEndpointAt === 'start' && isStart)) {
+  if (
+    (placeEndpointAt === 'end' && isEnd) ||
+    (placeEndpointAt === 'start' && isStart)
+  ) {
     return nodes
   }
 
@@ -736,7 +753,10 @@ export const useStore = create<GlobalState>()(
             }
           }
           if (id) {
-            syncGlyphTopLevelFromLayer(state.fontData?.glyphs[id], state.selectedLayerId)
+            syncGlyphTopLevelFromLayer(
+              state.fontData?.glyphs[id],
+              state.selectedLayerId
+            )
           }
         }),
 
@@ -749,7 +769,10 @@ export const useStore = create<GlobalState>()(
             state.editorGlyphIds.push(id)
           }
           syncEditorTextFromGlyphIds(state)
-          state.editorActiveGlyphIndex = Math.max(0, state.editorGlyphIds.length - 1)
+          state.editorActiveGlyphIndex = Math.max(
+            0,
+            state.editorGlyphIds.length - 1
+          )
           state.editorTextCursorIndex = state.editorGlyphIds.length
         }),
 
@@ -764,8 +787,11 @@ export const useStore = create<GlobalState>()(
             state.editorGlyphIds.splice(existingIndex, 1)
           }
 
-          const anchorIndex = afterGlyphId ? state.editorGlyphIds.indexOf(afterGlyphId) : -1
-          const insertIndex = anchorIndex >= 0 ? anchorIndex + 1 : state.editorGlyphIds.length
+          const anchorIndex = afterGlyphId
+            ? state.editorGlyphIds.indexOf(afterGlyphId)
+            : -1
+          const insertIndex =
+            anchorIndex >= 0 ? anchorIndex + 1 : state.editorGlyphIds.length
           state.editorGlyphIds.splice(insertIndex, 0, id)
           syncEditorTextFromGlyphIds(state)
           state.editorActiveGlyphIndex = insertIndex
@@ -774,7 +800,10 @@ export const useStore = create<GlobalState>()(
           state.selectedNodeIds = []
           state.selectedSegment = null
           if (state.selectedGlyphId) {
-            syncGlyphTopLevelFromLayer(state.fontData?.glyphs[state.selectedGlyphId], state.selectedLayerId)
+            syncGlyphTopLevelFromLayer(
+              state.fontData?.glyphs[state.selectedGlyphId],
+              state.selectedLayerId
+            )
           }
         }),
 
@@ -797,7 +826,10 @@ export const useStore = create<GlobalState>()(
             state.selectedNodeIds = []
             state.selectedSegment = null
             if (state.selectedGlyphId) {
-              syncGlyphTopLevelFromLayer(state.fontData?.glyphs[state.selectedGlyphId], state.selectedLayerId)
+              syncGlyphTopLevelFromLayer(
+                state.fontData?.glyphs[state.selectedGlyphId],
+                state.selectedLayerId
+              )
             }
           }
         }),
@@ -809,7 +841,10 @@ export const useStore = create<GlobalState>()(
 
       setEditorActiveGlyphIndex: (index) =>
         set((state) => {
-          state.editorActiveGlyphIndex = clampEditorActiveGlyphIndex(state, index)
+          state.editorActiveGlyphIndex = clampEditorActiveGlyphIndex(
+            state,
+            index
+          )
           syncSelectedGlyphFromEditorLine(state)
           state.selectedNodeIds = []
           state.selectedSegment = null
@@ -825,7 +860,10 @@ export const useStore = create<GlobalState>()(
         set((state) => {
           state.editorText = text
           state.editorGlyphIds = glyphIds
-          state.editorTextCursorIndex = clampEditorCursorIndex(state, cursorIndex)
+          state.editorTextCursorIndex = clampEditorCursorIndex(
+            state,
+            cursorIndex
+          )
           state.editorActiveGlyphIndex = clampEditorActiveGlyphIndex(
             state,
             activeGlyphIndex ?? Math.max(0, state.editorTextCursorIndex - 1)
@@ -875,17 +913,26 @@ export const useStore = create<GlobalState>()(
           }
 
           delete state.fontData.glyphs[glyphId]
-          state.editorGlyphIds = state.editorGlyphIds.filter((id) => id !== glyphId)
+          state.editorGlyphIds = state.editorGlyphIds.filter(
+            (id) => id !== glyphId
+          )
           syncEditorTextFromGlyphIds(state)
-          state.editorTextCursorIndex = clampEditorCursorIndex(state, state.editorTextCursorIndex)
+          state.editorTextCursorIndex = clampEditorCursorIndex(
+            state,
+            state.editorTextCursorIndex
+          )
           if (state.selectedGlyphId === glyphId) {
             const fallbackGlyphId =
-              state.editorGlyphIds[Math.max(0, state.editorTextCursorIndex - 1)] ??
+              state.editorGlyphIds[
+                Math.max(0, state.editorTextCursorIndex - 1)
+              ] ??
               state.editorGlyphIds[0] ??
               Object.keys(state.fontData.glyphs)[0] ??
               null
             state.selectedGlyphId = fallbackGlyphId
-            state.editorActiveGlyphIndex = state.editorGlyphIds.indexOf(fallbackGlyphId ?? '')
+            state.editorActiveGlyphIndex = state.editorGlyphIds.indexOf(
+              fallbackGlyphId ?? ''
+            )
             if (state.editorActiveGlyphIndex < 0) {
               state.editorActiveGlyphIndex = 0
             }
@@ -894,8 +941,12 @@ export const useStore = create<GlobalState>()(
           state.selectedSegment = null
           state.isDirty = true
           state.hasLocalChanges = true
-          state.dirtyGlyphIds = state.dirtyGlyphIds.filter((id) => id !== glyphId)
-          state.localDirtyGlyphIds = state.localDirtyGlyphIds.filter((id) => id !== glyphId)
+          state.dirtyGlyphIds = state.dirtyGlyphIds.filter(
+            (id) => id !== glyphId
+          )
+          state.localDirtyGlyphIds = state.localDirtyGlyphIds.filter(
+            (id) => id !== glyphId
+          )
           if (!state.deletedGlyphIds.includes(glyphId)) {
             state.deletedGlyphIds.push(glyphId)
           }
@@ -953,8 +1004,12 @@ export const useStore = create<GlobalState>()(
             if (!state.localDirtyGlyphIds.includes(glyphId)) {
               state.localDirtyGlyphIds.push(glyphId)
             }
-            state.deletedGlyphIds = state.deletedGlyphIds.filter((deletedId) => deletedId !== glyphId)
-            state.localDeletedGlyphIds = state.localDeletedGlyphIds.filter((deletedId) => deletedId !== glyphId)
+            state.deletedGlyphIds = state.deletedGlyphIds.filter(
+              (deletedId) => deletedId !== glyphId
+            )
+            state.localDeletedGlyphIds = state.localDeletedGlyphIds.filter(
+              (deletedId) => deletedId !== glyphId
+            )
           }
           syncFilteredGlyphList(state)
           state.selectedGlyphId = addedGlyphIds[0] ?? state.selectedGlyphId
@@ -1119,7 +1174,9 @@ export const useStore = create<GlobalState>()(
             return
           }
 
-          const startIndex = path.nodes.findIndex((node) => node.id === startNodeId)
+          const startIndex = path.nodes.findIndex(
+            (node) => node.id === startNodeId
+          )
           const endIndex = path.nodes.findIndex((node) => node.id === endNodeId)
           if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) {
             return
@@ -1150,7 +1207,13 @@ export const useStore = create<GlobalState>()(
           markGlyphDirty(state, glyphId)
         }),
 
-      connectOpenPaths: (glyphId, sourcePathId, sourceNodeId, targetPathId, targetNodeId) => {
+      connectOpenPaths: (
+        glyphId,
+        sourcePathId,
+        sourceNodeId,
+        targetPathId,
+        targetNodeId
+      ) => {
         let result: { pathId: string; nodeIds: string[] } | null = null
 
         set((state) => {
@@ -1174,7 +1237,10 @@ export const useStore = create<GlobalState>()(
               return
             }
             sourcePath.closed = true
-            result = { pathId: sourcePathId, nodeIds: sourcePath.nodes.map((node) => node.id) }
+            result = {
+              pathId: sourcePathId,
+              nodeIds: sourcePath.nodes.map((node) => node.id),
+            }
             markGlyphDirty(state, glyphId)
             return
           }
@@ -1212,7 +1278,9 @@ export const useStore = create<GlobalState>()(
             return
           }
 
-          const startIndex = path.nodes.findIndex((node) => node.id === startNodeId)
+          const startIndex = path.nodes.findIndex(
+            (node) => node.id === startNodeId
+          )
           const endIndex = path.nodes.findIndex((node) => node.id === endNodeId)
           if (startIndex < 0 || endIndex !== startIndex + 1) {
             return
@@ -1290,7 +1358,13 @@ export const useStore = create<GlobalState>()(
           markGlyphDirty(state, glyphId)
         }),
 
-      loadProjectState: (id, title, fontData, projectMetadata = null, projectSourceFormat = null) =>
+      loadProjectState: (
+        id,
+        title,
+        fontData,
+        projectMetadata = null,
+        projectSourceFormat = null
+      ) =>
         set((state) => {
           const hotFontData = ingestProjectData(
             fontData,
@@ -1318,10 +1392,14 @@ export const useStore = create<GlobalState>()(
           const firstGlyph = Object.values(hotFontData.glyphs)[0]
           const firstMasterId = getProjectArchiveFirstMasterId()
           state.selectedLayerId =
-            (firstMasterId && firstGlyph && getArchivedGlyphLayer(firstGlyph.id, firstMasterId)
+            (firstMasterId &&
+            firstGlyph &&
+            getArchivedGlyphLayer(firstGlyph.id, firstMasterId)
               ? firstMasterId
               : null) ||
-            (firstGlyph ? getArchivedGlyphLayer(firstGlyph.id, null)?.id ?? null : null) ||
+            (firstGlyph
+              ? (getArchivedGlyphLayer(firstGlyph.id, null)?.id ?? null)
+              : null) ||
             null
           syncFilteredGlyphList(state)
 

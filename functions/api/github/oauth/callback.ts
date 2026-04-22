@@ -6,7 +6,11 @@ import {
   type Env,
 } from '../_utils'
 
-const redirectWithStatus = (origin: string, status: string, extraCookies: string[] = []) => {
+const redirectWithStatus = (
+  origin: string,
+  status: string,
+  extraCookies: string[] = []
+) => {
   const headers = new Headers({
     Location: `${origin}/?github_oauth=${encodeURIComponent(status)}`,
   })
@@ -27,7 +31,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const origin = requestUrl.origin
 
   if (!clientId || !clientSecret) {
-    return redirectWithStatus(origin, 'missing-config', [clearStateCookieHeader()])
+    return redirectWithStatus(origin, 'missing-config', [
+      clearStateCookieHeader(),
+    ])
   }
 
   const code = requestUrl.searchParams.get('code')?.trim()
@@ -35,7 +41,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const storedState = readOAuthState(context.request)
 
   if (!code || !state || !storedState || state !== storedState) {
-    return redirectWithStatus(origin, 'invalid-state', [clearStateCookieHeader()])
+    return redirectWithStatus(origin, 'invalid-state', [
+      clearStateCookieHeader(),
+    ])
   }
 
   const exchangeBody = new URLSearchParams({
@@ -59,7 +67,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     | { error?: string; error_description?: string }
 
   if (!response.ok || !('access_token' in payload)) {
-    return redirectWithStatus(origin, payload.error ?? 'oauth-error', [clearStateCookieHeader()])
+    return redirectWithStatus(origin, payload.error ?? 'oauth-error', [
+      clearStateCookieHeader(),
+    ])
   }
 
   const sessionCookie = await createSessionCookieHeader(context.env, {

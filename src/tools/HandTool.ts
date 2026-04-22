@@ -17,14 +17,20 @@ export class HandTool extends BaseTool {
     this.setCursor('grab')
   }
 
-  async handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void> {
+  async handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void> {
     initialEvent.preventDefault()
     this.setCursor('grabbing')
 
     let previousEvent = initialEvent
     for await (const event of asyncEventIterator(eventStream)) {
       event.preventDefault()
-      this.canvasController.panBy(event.x - previousEvent.x, event.y - previousEvent.y)
+      this.canvasController.panBy(
+        event.x - previousEvent.x,
+        event.y - previousEvent.y
+      )
       previousEvent = event
     }
 
@@ -32,7 +38,9 @@ export class HandTool extends BaseTool {
   }
 }
 
-async function* asyncEventIterator(eventStream: EventStream): AsyncGenerator<ToolEvent, void> {
+async function* asyncEventIterator(
+  eventStream: EventStream
+): AsyncGenerator<ToolEvent, void> {
   while (true) {
     const value = await eventStream.next()
     if (!value) {

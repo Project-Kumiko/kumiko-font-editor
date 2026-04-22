@@ -1,6 +1,10 @@
 /// <reference lib="webworker" />
 import { hashString } from '../lib/hash'
-import { serializeGlifRecord, serializeXmlPlist, pickDefaultLayer } from '../lib/ufoFormat'
+import {
+  serializeGlifRecord,
+  serializeXmlPlist,
+  pickDefaultLayer,
+} from '../lib/ufoFormat'
 import {
   listDirtyUfoGlyphs,
   listUfoGlyphsInLayer,
@@ -114,14 +118,20 @@ const readRelativeFileText = async (
 
   let directoryHandle = rootHandle
   for (let index = 0; index < segments.length - 1; index += 1) {
-    directoryHandle = await directoryHandle.getDirectoryHandle(segments[index]!, {
-      create: false,
-    })
+    directoryHandle = await directoryHandle.getDirectoryHandle(
+      segments[index]!,
+      {
+        create: false,
+      }
+    )
   }
 
-  const fileHandle = await directoryHandle.getFileHandle(segments[segments.length - 1]!, {
-    create: false,
-  })
+  const fileHandle = await directoryHandle.getFileHandle(
+    segments[segments.length - 1]!,
+    {
+      create: false,
+    }
+  )
   const file = await fileHandle.getFile()
   return file.text()
 }
@@ -137,9 +147,12 @@ const deleteRelativeFile = async (
 
   let directoryHandle = rootHandle
   for (let index = 0; index < segments.length - 1; index += 1) {
-    directoryHandle = await directoryHandle.getDirectoryHandle(segments[index]!, {
-      create: false,
-    })
+    directoryHandle = await directoryHandle.getDirectoryHandle(
+      segments[index]!,
+      {
+        create: false,
+      }
+    )
   }
 
   await directoryHandle.removeEntry(segments[segments.length - 1]!)
@@ -193,9 +206,15 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
       metadataRecords[0]?.relativePath === rootHandle.name
     const dirtyGlyphs = await listDirtyUfoGlyphs(projectId)
     const dirtyKeySet = new Set(
-      dirtyGlyphs.map((glyph) => `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`)
+      dirtyGlyphs.map(
+        (glyph) =>
+          `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`
+      )
     )
-    const missingLocalFiles = await hasMissingLocalFiles(rootHandle, localManifest)
+    const missingLocalFiles = await hasMissingLocalFiles(
+      rootHandle,
+      localManifest
+    )
     const shouldFullRebuild = exportAll || missingLocalFiles
     let totalTargetGlyphs = shouldFullRebuild ? 0 : dirtyGlyphs.length
     let completedTargetGlyphs = 0
@@ -216,7 +235,11 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
         ? rootHandle
         : await ensureDirectoryPath(rootHandle, metadata.relativePath)
       const defaultLayer = pickDefaultLayer(metadata)
-      const defaultLayerGlyphs = await listUfoGlyphsInLayer(projectId, metadata.ufoId, defaultLayer.layerId)
+      const defaultLayerGlyphs = await listUfoGlyphsInLayer(
+        projectId,
+        metadata.ufoId,
+        defaultLayer.layerId
+      )
 
       const metadataWrites: Array<Promise<void>> = [
         (() => {
@@ -254,8 +277,13 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
           return writeTextFile(ufoHandle, 'kerning.plist', content)
         })(),
         (() => {
-          const relativePath = joinRelativePath(ufoRootPath, 'layercontents.plist')
-          const content = serializeXmlPlist(metadata.layers.map((layer) => [layer.layerId, layer.glyphDir]))
+          const relativePath = joinRelativePath(
+            ufoRootPath,
+            'layercontents.plist'
+          )
+          const content = serializeXmlPlist(
+            metadata.layers.map((layer) => [layer.layerId, layer.glyphDir])
+          )
           manifest.files[relativePath] = hashString(content)
           return writeTextFile(ufoHandle, 'layercontents.plist', content)
         })(),
@@ -263,26 +291,40 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
       if (metadata.featuresText !== null) {
         const relativePath = joinRelativePath(ufoRootPath, 'features.fea')
         manifest.files[relativePath] = hashString(metadata.featuresText)
-        metadataWrites.push(writeTextFile(ufoHandle, 'features.fea', metadata.featuresText))
+        metadataWrites.push(
+          writeTextFile(ufoHandle, 'features.fea', metadata.featuresText)
+        )
       }
       await Promise.all(metadataWrites)
 
       for (const layer of metadata.layers) {
-        const layerHandle = await ufoHandle.getDirectoryHandle(layer.glyphDir, { create: true })
+        const layerHandle = await ufoHandle.getDirectoryHandle(layer.glyphDir, {
+          create: true,
+        })
         const layerGlyphs =
           layer.layerId === defaultLayer.layerId
             ? defaultLayerGlyphs
-            : await listUfoGlyphsInLayer(projectId, metadata.ufoId, layer.layerId)
+            : await listUfoGlyphsInLayer(
+                projectId,
+                metadata.ufoId,
+                layer.layerId
+              )
 
-        const contents = Object.fromEntries(layerGlyphs.map((glyph) => [glyph.glyphName, glyph.fileName]))
+        const contents = Object.fromEntries(
+          layerGlyphs.map((glyph) => [glyph.glyphName, glyph.fileName])
+        )
         const contentsText = serializeXmlPlist(contents)
-        manifest.files[joinRelativePath(ufoRootPath, layer.glyphDir, 'contents.plist')] = hashString(contentsText)
+        manifest.files[
+          joinRelativePath(ufoRootPath, layer.glyphDir, 'contents.plist')
+        ] = hashString(contentsText)
         await writeTextFile(layerHandle, 'contents.plist', contentsText)
 
         const targetLayerGlyphs = shouldFullRebuild
           ? layerGlyphs
           : layerGlyphs.filter((glyph) =>
-              dirtyKeySet.has(`${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`)
+              dirtyKeySet.has(
+                `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`
+              )
             )
 
         if (shouldFullRebuild) {
@@ -299,19 +341,22 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
             batchGlyphs.map(async (glyph) => {
               const glifText = serializeGlifRecord(glyph)
               const nextHash = hashString(glifText)
-              manifest.files[joinRelativePath(ufoRootPath, layer.glyphDir, glyph.fileName)] = nextHash
-              const shouldWrite = shouldFullRebuild || glyph.sourceHash !== nextHash
+              manifest.files[
+                joinRelativePath(ufoRootPath, layer.glyphDir, glyph.fileName)
+              ] = nextHash
+              const shouldWrite =
+                shouldFullRebuild || glyph.sourceHash !== nextHash
               if (shouldWrite) {
                 await writeTextFile(layerHandle, glyph.fileName, glifText)
               }
 
               return {
-                key: [glyph.projectId, glyph.ufoId, glyph.layerId, glyph.glyphName] as [
-                  string,
-                  string,
-                  string,
-                  string,
-                ],
+                key: [
+                  glyph.projectId,
+                  glyph.ufoId,
+                  glyph.layerId,
+                  glyph.glyphName,
+                ] as [string, string, string, string],
                 dirty: false,
                 sourceHash: nextHash,
                 didWrite: shouldWrite,
@@ -397,7 +442,8 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
     const message: UfoExportResponseMessage = {
       type: 'export-error',
       payload: {
-        message: error instanceof Error ? error.message : 'UFO export worker failed',
+        message:
+          error instanceof Error ? error.message : 'UFO export worker failed',
       },
     }
     self.postMessage(message)

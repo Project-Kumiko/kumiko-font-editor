@@ -51,16 +51,24 @@ export function CanvasWorkspace() {
   const editorGlyphIds = useStore((state) => state.editorGlyphIds)
   const editorText = useStore((state) => state.editorText)
   const editorTextCursorIndex = useStore((state) => state.editorTextCursorIndex)
-  const editorActiveGlyphIndex = useStore((state) => state.editorActiveGlyphIndex)
+  const editorActiveGlyphIndex = useStore(
+    (state) => state.editorActiveGlyphIndex
+  )
   const selectedLayerId = useStore((state) => state.selectedLayerId)
   const selectedNodeIds = useStore((state) => state.selectedNodeIds)
   const selectedSegment = useStore((state) => state.selectedSegment)
-  const clearPreviewGlyphMetrics = useStore((state) => state.clearPreviewGlyphMetrics)
+  const clearPreviewGlyphMetrics = useStore(
+    (state) => state.clearPreviewGlyphMetrics
+  )
   const viewport = useStore((state) => state.viewport)
   const setSelectedNodeIds = useStore((state) => state.setSelectedNodeIds)
   const setSelectedSegment = useStore((state) => state.setSelectedSegment)
-  const setEditorTextCursorIndex = useStore((state) => state.setEditorTextCursorIndex)
-  const setEditorActiveGlyphIndex = useStore((state) => state.setEditorActiveGlyphIndex)
+  const setEditorTextCursorIndex = useStore(
+    (state) => state.setEditorTextCursorIndex
+  )
+  const setEditorActiveGlyphIndex = useStore(
+    (state) => state.setEditorActiveGlyphIndex
+  )
   const setEditorTextState = useStore((state) => state.setEditorTextState)
   const updateViewport = useStore((state) => state.updateViewport)
   const deleteSelectedNodes = useStore((state) => state.deleteSelectedNodes)
@@ -69,7 +77,9 @@ export function CanvasWorkspace() {
     editorGlyphIds[editorActiveGlyphIndex] ?? selectedGlyphId ?? null
 
   const pastStatesLength = useTemporalStore((state) => state.pastStates.length)
-  const futureStatesLength = useTemporalStore((state) => state.futureStates.length)
+  const futureStatesLength = useTemporalStore(
+    (state) => state.futureStates.length
+  )
   const textInputValue = isComposingText ? draftTextInputValue : editorText
 
   const handleUndo = useCallback(() => {
@@ -208,8 +218,8 @@ export function CanvasWorkspace() {
       const supportedChars = Array.from(value).filter((character) =>
         glyphIdByCharacter.has(character)
       )
-      const supportedBeforeCursor = Array.from(beforeCursor).filter((character) =>
-        glyphIdByCharacter.has(character)
+      const supportedBeforeCursor = Array.from(beforeCursor).filter(
+        (character) => glyphIdByCharacter.has(character)
       )
       const glyphIds = supportedChars
         .map((character) => glyphIdByCharacter.get(character))
@@ -219,7 +229,10 @@ export function CanvasWorkspace() {
         glyphIds,
         supportedBeforeCursor.length,
         glyphIds.length > 0
-          ? Math.max(0, Math.min(supportedBeforeCursor.length - 1, glyphIds.length - 1))
+          ? Math.max(
+              0,
+              Math.min(supportedBeforeCursor.length - 1, glyphIds.length - 1)
+            )
           : 0
       )
       setDraftTextInputValue(supportedChars.join(''))
@@ -251,7 +264,10 @@ export function CanvasWorkspace() {
     }
 
     return {
-      left: canvasSize.width / 2 + viewport.pan.x + getCursorX(editorTextCursorIndex) * viewport.zoom,
+      left:
+        canvasSize.width / 2 +
+        viewport.pan.x +
+        getCursorX(editorTextCursorIndex) * viewport.zoom,
       top: canvasSize.height / 2 + viewport.pan.y - 28,
     }
   }, [
@@ -277,7 +293,10 @@ export function CanvasWorkspace() {
       return
     }
 
-    const selectionOffset = charIndexToCodeUnitIndex(textInputValue, editorTextCursorIndex)
+    const selectionOffset = charIndexToCodeUnitIndex(
+      textInputValue,
+      editorTextCursorIndex
+    )
     input.focus()
     input.setSelectionRange(selectionOffset, selectionOffset)
   }, [activeToolId, editorTextCursorIndex, textInputValue])
@@ -430,7 +449,8 @@ export function CanvasWorkspace() {
       selectedNodeIds.flatMap((selectedNodeId) => {
         const pointRefs = positionedGlyph?.pointRefs ?? []
         const pointIndex = pointRefs.findIndex(
-          (pointRef) => `${pointRef.pathId}:${pointRef.nodeId}` === selectedNodeId
+          (pointRef) =>
+            `${pointRef.pathId}:${pointRef.nodeId}` === selectedNodeId
         )
         return pointIndex >= 0 ? [`point/${pointIndex}`] : []
       })
@@ -442,7 +462,16 @@ export function CanvasWorkspace() {
     controller.origin.y = controller.canvasHeight / 2 + viewport.pan.y
     controller.magnification = viewport.zoom
     controller.requestUpdate()
-  }, [activeToolId, editorTextCursorIndex, fontData, getCursorX, positionedGlyph, positionedGlyphs, selectedNodeIds, viewport])
+  }, [
+    activeToolId,
+    editorTextCursorIndex,
+    fontData,
+    getCursorX,
+    positionedGlyph,
+    positionedGlyphs,
+    selectedNodeIds,
+    viewport,
+  ])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -452,7 +481,10 @@ export function CanvasWorkspace() {
     }
 
     const handleCanvasClick = (event: MouseEvent) => {
-      const localPoint = controller.localPoint({ x: event.pageX, y: event.pageY })
+      const localPoint = controller.localPoint({
+        x: event.pageX,
+        y: event.pageY,
+      })
       const hit = resolveGlyphFrameAtPoint(localPoint)
       if (!hit?.glyphId) {
         return
@@ -463,7 +495,9 @@ export function CanvasWorkspace() {
         event.stopPropagation()
         const midpoint = (hit.xMin + hit.xMax) / 2
         setEditorActiveGlyphIndex(hit.glyphIndex)
-        setEditorTextCursorIndex(localPoint.x < midpoint ? hit.glyphIndex : hit.glyphIndex + 1)
+        setEditorTextCursorIndex(
+          localPoint.x < midpoint ? hit.glyphIndex : hit.glyphIndex + 1
+        )
         hiddenTextInputRef.current?.focus()
         return
       }
@@ -476,7 +510,10 @@ export function CanvasWorkspace() {
     }
 
     const handleCanvasDoubleClick = (event: MouseEvent) => {
-      const localPoint = controller.localPoint({ x: event.pageX, y: event.pageY })
+      const localPoint = controller.localPoint({
+        x: event.pageX,
+        y: event.pageY,
+      })
       const hit = resolveGlyphFrameAtPoint(localPoint)
       if (!hit?.glyphId) {
         return
@@ -496,11 +533,23 @@ export function CanvasWorkspace() {
       canvas.removeEventListener('click', handleCanvasClick)
       canvas.removeEventListener('dblclick', handleCanvasDoubleClick)
     }
-  }, [activeEditorGlyphId, activeToolId, handleToolSelect, resolveGlyphFrameAtPoint, setEditorActiveGlyphIndex, setEditorTextCursorIndex])
+  }, [
+    activeEditorGlyphId,
+    activeToolId,
+    handleToolSelect,
+    resolveGlyphFrameAtPoint,
+    setEditorActiveGlyphIndex,
+    setEditorTextCursorIndex,
+  ])
 
   useEffect(() => {
-    const activeGlyph = activeEditorGlyphId && fontData ? fontData.glyphs[activeEditorGlyphId] : null
-    const activeLayer = activeGlyph ? getGlyphLayer(activeGlyph, selectedLayerId) : null
+    const activeGlyph =
+      activeEditorGlyphId && fontData
+        ? fontData.glyphs[activeEditorGlyphId]
+        : null
+    const activeLayer = activeGlyph
+      ? getGlyphLayer(activeGlyph, selectedLayerId)
+      : null
 
     const selectAllGlyphNodes = () => {
       if (activeToolId === 'text' || !activeLayer) {
@@ -518,26 +567,34 @@ export function CanvasWorkspace() {
       if (activeToolId === 'text') {
         return
       }
-      if (!activeEditorGlyphId || !activeLayer || selectedNodeIds.length === 0) {
+      if (
+        !activeEditorGlyphId ||
+        !activeLayer ||
+        selectedNodeIds.length === 0
+      ) {
         return
       }
 
       const updates = selectedNodeIds.flatMap((selectedNodeId) => {
         const [pathId, nodeId] = selectedNodeId.split(':')
-        const path = activeLayer.paths.find((candidate) => candidate.id === pathId)
+        const path = activeLayer.paths.find(
+          (candidate) => candidate.id === pathId
+        )
         const node = path?.nodes.find((candidate) => candidate.id === nodeId)
         if (!path || !node) {
           return []
         }
 
-        return [{
-          pathId,
-          nodeId,
-          newPos: {
-            x: node.x + dx,
-            y: node.y + dy,
+        return [
+          {
+            pathId,
+            nodeId,
+            newPos: {
+              x: node.x + dx,
+              y: node.y + dy,
+            },
           },
-        }]
+        ]
       })
 
       if (updates.length > 0) {
@@ -653,7 +710,23 @@ export function CanvasWorkspace() {
       window.removeEventListener('keydown', handleKeyDown, true)
       window.removeEventListener('keyup', handleKeyUp, true)
     }
-  }, [activeEditorGlyphId, activeToolId, deleteSelectedNodes, fontData, getPreviousPenSelection, handleCopySelection, handlePasteSelection, handleRedo, handleToolSelect, handleUndo, selectedLayerId, selectedNodeIds, setSelectedNodeIds, setSelectedSegment, updateNodePositions])
+  }, [
+    activeEditorGlyphId,
+    activeToolId,
+    deleteSelectedNodes,
+    fontData,
+    getPreviousPenSelection,
+    handleCopySelection,
+    handlePasteSelection,
+    handleRedo,
+    handleToolSelect,
+    handleUndo,
+    selectedLayerId,
+    selectedNodeIds,
+    setSelectedNodeIds,
+    setSelectedSegment,
+    updateNodePositions,
+  ])
 
   return (
     <Box position="relative" w="100%" h="100%" bg="white" overflow="hidden">
@@ -676,14 +749,20 @@ export function CanvasWorkspace() {
         onChange={(event) => {
           setDraftTextInputValue(event.target.value)
           if (!isComposingText) {
-            commitTextInputValue(event.target.value, event.target.selectionStart)
+            commitTextInputValue(
+              event.target.value,
+              event.target.selectionStart
+            )
           }
         }}
         onCompositionEnd={(event) => {
           setIsComposingText(false)
           setCompositionText('')
           setDraftTextInputValue(event.currentTarget.value)
-          commitTextInputValue(event.currentTarget.value, event.currentTarget.selectionStart)
+          commitTextInputValue(
+            event.currentTarget.value,
+            event.currentTarget.selectionStart
+          )
         }}
         onCompositionStart={() => {
           setDraftTextInputValue(textInputValue)

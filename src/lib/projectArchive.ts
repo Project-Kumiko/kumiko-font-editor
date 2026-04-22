@@ -36,7 +36,8 @@ const getGlyphTopLevelLayer = (
 export const getHotGlyphLayerSnapshot = (
   glyph: GlyphData,
   layerId: string | null | undefined
-): GlyphLayerData => getGlyphTopLevelLayer(glyph, layerId ?? glyph.activeLayerId ?? 'default')
+): GlyphLayerData =>
+  getGlyphTopLevelLayer(glyph, layerId ?? glyph.activeLayerId ?? 'default')
 
 export const clearProjectArchive = () => {
   archiveState.glyphLayers = {}
@@ -87,10 +88,12 @@ export const getArchivedGlyphLayer = (
   }
 
   const fallbackLayerId = glyphArchive.layerOrder[0]
-  return fallbackLayerId ? glyphArchive.layers[fallbackLayerId] ?? null : null
+  return fallbackLayerId ? (glyphArchive.layers[fallbackLayerId] ?? null) : null
 }
 
-export const getArchivedGlyphLayerEntries = (glyphId: string): GlyphLayerData[] => {
+export const getArchivedGlyphLayerEntries = (
+  glyphId: string
+): GlyphLayerData[] => {
   const glyphArchive = archiveState.glyphLayers[glyphId]
   if (!glyphArchive) {
     return []
@@ -106,7 +109,8 @@ export const getArchivedGlyphLayerOrder = (glyphId: string): string[] =>
 
 export const getProjectArchiveMetadata = () => archiveState.projectMetadata
 
-export const getProjectArchiveSourceFormat = () => archiveState.projectSourceFormat
+export const getProjectArchiveSourceFormat = () =>
+  archiveState.projectSourceFormat
 
 export const getProjectArchiveFirstMasterId = (): string | null => {
   const fontMasters = archiveState.projectMetadata?.fontMasters
@@ -115,7 +119,11 @@ export const getProjectArchiveFirstMasterId = (): string | null => {
   }
 
   const firstMaster = fontMasters[0]
-  if (!firstMaster || typeof firstMaster !== 'object' || !('id' in firstMaster)) {
+  if (
+    !firstMaster ||
+    typeof firstMaster !== 'object' ||
+    !('id' in firstMaster)
+  ) {
     return null
   }
 
@@ -131,7 +139,8 @@ export const hydrateProjectFontData = (fontData: FontData): FontData => ({
         return [glyphId, glyph]
       }
 
-      const activeLayerId = glyph.activeLayerId ?? glyphArchive.layerOrder[0] ?? null
+      const activeLayerId =
+        glyph.activeLayerId ?? glyphArchive.layerOrder[0] ?? null
       const layers = { ...glyphArchive.layers }
       if (activeLayerId) {
         layers[activeLayerId] = getGlyphTopLevelLayer(glyph, activeLayerId)
@@ -155,33 +164,38 @@ export const overlayHotFontData = (
 ): FontData => ({
   ...persistedFontData,
   glyphs: Object.fromEntries(
-    Object.entries(persistedFontData.glyphs).map(([glyphId, persistedGlyph]) => {
-      const hotGlyph = hotFontData.glyphs[glyphId]
-      if (!hotGlyph) {
-        return [glyphId, persistedGlyph]
+    Object.entries(persistedFontData.glyphs).map(
+      ([glyphId, persistedGlyph]) => {
+        const hotGlyph = hotFontData.glyphs[glyphId]
+        if (!hotGlyph) {
+          return [glyphId, persistedGlyph]
+        }
+
+        const activeLayerId =
+          hotGlyph.activeLayerId ??
+          persistedGlyph.activeLayerId ??
+          persistedGlyph.layerOrder?.[0] ??
+          null
+        const layers = { ...(persistedGlyph.layers ?? {}) }
+
+        if (activeLayerId) {
+          layers[activeLayerId] = getHotGlyphLayerSnapshot(
+            hotGlyph,
+            activeLayerId
+          )
+        }
+
+        return [
+          glyphId,
+          {
+            ...persistedGlyph,
+            ...hotGlyph,
+            layers,
+            layerOrder: persistedGlyph.layerOrder,
+          },
+        ]
       }
-
-      const activeLayerId =
-        hotGlyph.activeLayerId ??
-        persistedGlyph.activeLayerId ??
-        persistedGlyph.layerOrder?.[0] ??
-        null
-      const layers = { ...(persistedGlyph.layers ?? {}) }
-
-      if (activeLayerId) {
-        layers[activeLayerId] = getHotGlyphLayerSnapshot(hotGlyph, activeLayerId)
-      }
-
-      return [
-        glyphId,
-        {
-          ...persistedGlyph,
-          ...hotGlyph,
-          layers,
-          layerOrder: persistedGlyph.layerOrder,
-        },
-      ]
-    })
+    )
   ),
 })
 

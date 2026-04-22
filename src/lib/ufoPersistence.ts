@@ -85,7 +85,9 @@ export const listUfoMetadataForProject = async (projectId: string) => {
   const database = await openDatabase()
   const transaction = database.transaction(UFO_METADATA_STORE, 'readonly')
   const store = transaction.objectStore(UFO_METADATA_STORE)
-  const results = await requestToPromise(store.getAll()) as UfoMetadataRecord[]
+  const results = (await requestToPromise(
+    store.getAll()
+  )) as UfoMetadataRecord[]
   return results.filter((record) => record.projectId === projectId)
 }
 
@@ -133,7 +135,9 @@ export const updateUfoGlyphDirtyState = async (
   const store = transaction.objectStore(UFO_GLYPHS_STORE)
 
   for (const key of keys) {
-    const record = (await requestToPromise(store.get(key))) as UfoGlyphRecord | undefined
+    const record = (await requestToPromise(store.get(key))) as
+      | UfoGlyphRecord
+      | undefined
     if (!record) {
       continue
     }
@@ -164,7 +168,9 @@ export const updateUfoGlyphExportState = async (
   const store = transaction.objectStore(UFO_GLYPHS_STORE)
 
   for (const update of updates) {
-    const record = (await requestToPromise(store.get(update.key))) as UfoGlyphRecord | undefined
+    const record = (await requestToPromise(store.get(update.key))) as
+      | UfoGlyphRecord
+      | undefined
     if (!record) {
       continue
     }
@@ -195,7 +201,9 @@ export const listUfoGlyphsInLayer = async (
 ) => {
   const database = await openDatabase()
   const transaction = database.transaction(UFO_GLYPHS_STORE, 'readonly')
-  const index = transaction.objectStore(UFO_GLYPHS_STORE).index('byProjectUfoLayer')
+  const index = transaction
+    .objectStore(UFO_GLYPHS_STORE)
+    .index('byProjectUfoLayer')
   return requestToPromise(
     index.getAll(IDBKeyRange.only([projectId, ufoId, layerId]))
   ) as Promise<UfoGlyphRecord[]>
@@ -205,15 +213,17 @@ export const findUfoGlyphsByUnicode = async (unicodeHex: string) => {
   const database = await openDatabase()
   const transaction = database.transaction(UFO_GLYPHS_STORE, 'readonly')
   const index = transaction.objectStore(UFO_GLYPHS_STORE).index('byUnicode')
-  return requestToPromise(
-    index.getAll(unicodeHex.toUpperCase())
-  ) as Promise<UfoGlyphRecord[]>
+  return requestToPromise(index.getAll(unicodeHex.toUpperCase())) as Promise<
+    UfoGlyphRecord[]
+  >
 }
 
 export const listDirtyUfoGlyphs = async (projectId: string) => {
   const database = await openDatabase()
   const transaction = database.transaction(UFO_GLYPHS_STORE, 'readonly')
-  const index = transaction.objectStore(UFO_GLYPHS_STORE).index('byProjectDirty')
+  const index = transaction
+    .objectStore(UFO_GLYPHS_STORE)
+    .index('byProjectDirty')
   return requestToPromise(
     index.getAll(IDBKeyRange.only([projectId, 1]))
   ) as Promise<UfoGlyphRecord[]>
@@ -234,7 +244,11 @@ export const loadUfoUiState = async (projectId: string, key: string) => {
   ) as Promise<UfoUiStateRecord | undefined>
 }
 
-export const saveUfoUiValue = async (projectId: string, key: string, value: unknown) => {
+export const saveUfoUiValue = async (
+  projectId: string,
+  key: string,
+  value: unknown
+) => {
   await saveUfoUiState({
     projectId,
     key,
@@ -250,14 +264,24 @@ export const loadUfoUiValue = async <T>(projectId: string, key: string) => {
 export const deleteUfoProjectData = async (projectId: string) => {
   const database = await openDatabase()
   const metadataRecords = await listUfoMetadataForProject(projectId)
-  const glyphReadTransaction = database.transaction(UFO_GLYPHS_STORE, 'readonly')
-  const glyphIndex = glyphReadTransaction.objectStore(UFO_GLYPHS_STORE).index('byProject')
-  const allProjectGlyphs = await requestToPromise(
+  const glyphReadTransaction = database.transaction(
+    UFO_GLYPHS_STORE,
+    'readonly'
+  )
+  const glyphIndex = glyphReadTransaction
+    .objectStore(UFO_GLYPHS_STORE)
+    .index('byProject')
+  const allProjectGlyphs = (await requestToPromise(
     glyphIndex.getAll(IDBKeyRange.only(projectId))
-  ) as UfoGlyphRecord[]
+  )) as UfoGlyphRecord[]
 
   const transaction = database.transaction(
-    [UFO_PROJECTS_STORE, UFO_METADATA_STORE, UFO_GLYPHS_STORE, UFO_UI_STATE_STORE],
+    [
+      UFO_PROJECTS_STORE,
+      UFO_METADATA_STORE,
+      UFO_GLYPHS_STORE,
+      UFO_UI_STATE_STORE,
+    ],
     'readwrite'
   )
 
@@ -273,7 +297,12 @@ export const deleteUfoProjectData = async (projectId: string) => {
 
   const glyphStore = transaction.objectStore(UFO_GLYPHS_STORE)
   for (const record of allProjectGlyphs) {
-    glyphStore.delete([record.projectId, record.ufoId, record.layerId, record.glyphName])
+    glyphStore.delete([
+      record.projectId,
+      record.ufoId,
+      record.layerId,
+      record.glyphName,
+    ])
   }
 
   await transactionDone(transaction)

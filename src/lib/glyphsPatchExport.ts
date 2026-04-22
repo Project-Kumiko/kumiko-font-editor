@@ -40,7 +40,12 @@ const skipWhitespaceAndComments = (source: string, start: number) => {
   return index
 }
 
-const findMatching = (source: string, start: number, openChar: string, closeChar: string) => {
+const findMatching = (
+  source: string,
+  start: number,
+  openChar: string,
+  closeChar: string
+) => {
   let index = start
   let depth = 0
   let quote: '"' | "'" | null = null
@@ -120,7 +125,8 @@ const getGlyphLookupKeys = (glyph: GlyphData) => {
   return [...keys]
 }
 
-const formatPointTuple = (x: number, y: number) => `{${Math.round(x)}, ${Math.round(y)}}`
+const formatPointTuple = (x: number, y: number) =>
+  `{${Math.round(x)}, ${Math.round(y)}}`
 
 const formatTransformTuple = (
   scaleX: number,
@@ -149,7 +155,11 @@ const findGlyphArrayRange = (source: string) => {
   return { start: arrayStart, end: arrayEnd }
 }
 
-const collectGlyphBlocks = (source: string, arrayStart: number, arrayEnd: number) => {
+const collectGlyphBlocks = (
+  source: string,
+  arrayStart: number,
+  arrayEnd: number
+) => {
   const blocks: GlyphBlockRange[] = []
   let cursor = arrayStart + 1
 
@@ -225,7 +235,12 @@ export const patchGlyphText = (
   const fallbackLayerId =
     glyph.activeLayerId ??
     (layers[0]
-      ? String(layers[0].layerId ?? layers[0].associatedMasterId ?? layers[0].name ?? 'default')
+      ? String(
+          layers[0].layerId ??
+            layers[0].associatedMasterId ??
+            layers[0].name ??
+            'default'
+        )
       : 'default')
 
   const editableLayerIds =
@@ -246,7 +261,10 @@ export const patchGlyphText = (
           id: layerId,
           name: String(layerMap.get(layerId)?.name ?? layerId),
           associatedMasterId:
-            (layerMap.get(layerId)?.associatedMasterId as string | null | undefined) ?? layerId,
+            (layerMap.get(layerId)?.associatedMasterId as
+              | string
+              | null
+              | undefined) ?? layerId,
           paths: glyph.paths,
           components: glyph.components,
           componentRefs: glyph.componentRefs,
@@ -266,7 +284,8 @@ export const patchGlyphText = (
       }
       const layerRecord = { ...(layerMap.get(layerId) ?? {}) }
       layerRecord.layerId = glyphLayer.id
-      layerRecord.associatedMasterId = glyphLayer.associatedMasterId ?? glyphLayer.id
+      layerRecord.associatedMasterId =
+        glyphLayer.associatedMasterId ?? glyphLayer.id
       layerRecord.name = glyphLayer.name
       layerRecord.width = Math.round(glyphLayer.metrics.width)
       layerRecord.paths = glyphLayer.paths.map((path) => ({
@@ -333,7 +352,11 @@ export const exportGlyphsByPatchingText = async (input: {
     throw new Error('Unable to locate glyphs array in original .glyphs text')
   }
 
-  const glyphBlocks = collectGlyphBlocks(input.rawText, arrayRange.start, arrayRange.end)
+  const glyphBlocks = collectGlyphBlocks(
+    input.rawText,
+    arrayRange.start,
+    arrayRange.end
+  )
   const glyphBlockMap = new Map<string, GlyphBlockRange>()
   for (const block of glyphBlocks) {
     for (const key of block.glyphKeys) {
@@ -363,11 +386,14 @@ export const exportGlyphsByPatchingText = async (input: {
   )
 
   const validReplacements = replacements.filter(
-    (replacement): replacement is NonNullable<typeof replacement> => Boolean(replacement)
+    (replacement): replacement is NonNullable<typeof replacement> =>
+      Boolean(replacement)
   )
 
   if (validReplacements.some((replacement) => replacement.append)) {
-    throw new Error('Appending brand new glyphs is not supported yet in patch export')
+    throw new Error(
+      'Appending brand new glyphs is not supported yet in patch export'
+    )
   }
 
   validReplacements.sort((a, b) => a.start - b.start)

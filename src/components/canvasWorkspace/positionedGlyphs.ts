@@ -1,6 +1,15 @@
 import { VarPackedPath } from '../../font/VarPackedPath'
-import { getEffectiveNodeType, getGlyphLayer, type FontData, type NodeType } from '../../store'
-import type { ComponentData, GuidelineData, PositionedGlyph } from '../../canvas'
+import {
+  getEffectiveNodeType,
+  getGlyphLayer,
+  type FontData,
+  type NodeType,
+} from '../../store'
+import type {
+  ComponentData,
+  GuidelineData,
+  PositionedGlyph,
+} from '../../canvas'
 import type { ToolId } from './types'
 
 export interface LayerGeometryCacheEntry {
@@ -196,12 +205,14 @@ export const buildPositionedGlyphs = ({
           const codePoint = Number.parseInt(glyph.unicode, 16)
           return Number.isFinite(codePoint)
             ? String.fromCodePoint(codePoint)
-            : (glyph.name || glyph.id)
+            : glyph.name || glyph.id
         })(),
         x: cursorX,
         y: 0,
         pointRefs,
-        isEditing: activeToolId !== 'text' && glyph.id === editorGlyphIds[editorActiveGlyphIndex],
+        isEditing:
+          activeToolId !== 'text' &&
+          glyph.id === editorGlyphIds[editorActiveGlyphIndex],
         isSelected: glyph.id === editorGlyphIds[editorActiveGlyphIndex],
         isEmpty: activeLayer.paths.length === 0,
       }

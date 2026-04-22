@@ -10,7 +10,9 @@ export interface GlyphSelectionNodeEntry {
   effectiveType: GlyphData['paths'][number]['nodes'][number]['type']
 }
 
-export const buildGlyphSelectionNodeEntries = (glyph: GlyphData): GlyphSelectionNodeEntry[] =>
+export const buildGlyphSelectionNodeEntries = (
+  glyph: GlyphData
+): GlyphSelectionNodeEntry[] =>
   glyph.paths.flatMap((path) =>
     path.nodes.map((node) => ({
       key: `${path.id}:${node.id}`,

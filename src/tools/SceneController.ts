@@ -48,7 +48,11 @@ export interface SceneControllerOptions {
 
 export type HitTestResult =
   | { type: 'point' | 'handle'; pointIndex: number; selection: Set<string> }
-  | { type: 'line-segment' | 'curve-segment'; pathHit: PathHitInfo; selection: Set<string> }
+  | {
+      type: 'line-segment' | 'curve-segment'
+      pathHit: PathHitInfo
+      selection: Set<string>
+    }
   | { type: 'contour-interior'; contourIndex: number; selection: Set<string> }
   | { type: 'empty'; selection: Set<string> }
 
@@ -72,7 +76,8 @@ export class SceneController {
   private readonly boundHandleMouseMove = this.handleMouseMove.bind(this)
   private readonly boundHandleMouseUp = this.handleMouseUp.bind(this)
   private readonly boundHandleDoubleClick = this.handleDoubleClick.bind(this)
-  private readonly boundPreventContextMenu = (e: MouseEvent) => e.preventDefault()
+  private readonly boundPreventContextMenu = (e: MouseEvent) =>
+    e.preventDefault()
   private onSelectionChange: SceneControllerOptions['onSelectionChange']
   private onSelectedPathHitChange: SceneControllerOptions['onSelectedPathHitChange']
   onUpdateNodePosition: SceneControllerOptions['onUpdateNodePosition']
@@ -188,7 +193,9 @@ export class SceneController {
 
     const toolEvent = this.mouseEventToToolEvent(event)
     this._eventStream = new EventStreamImpl()
-    this.activeTool.handleDrag(this._eventStream, toolEvent).catch(console.error)
+    this.activeTool
+      .handleDrag(this._eventStream, toolEvent)
+      .catch(console.error)
   }
 
   private handleMouseMove(event: MouseEvent) {
@@ -229,7 +236,10 @@ export class SceneController {
     }
   }
 
-  localPoint(event: { pageX: number; pageY: number }): { x: number; y: number } {
+  localPoint(event: { pageX: number; pageY: number }): {
+    x: number
+    y: number
+  } {
     return this.canvasController.localPoint({ x: event.pageX, y: event.pageY })
   }
 
@@ -244,7 +254,12 @@ export class SceneController {
       return { type: 'empty', selection: new Set() }
     }
     const threshold = size / this.canvasController.magnification
-    const selectedPointHit = this.findPointHit(point, threshold, currentSelection, path)
+    const selectedPointHit = this.findPointHit(
+      point,
+      threshold,
+      currentSelection,
+      path
+    )
     if (selectedPointHit) {
       return selectedPointHit
     }
@@ -257,7 +272,8 @@ export class SceneController {
     const pathHit = this.pathHitAtPoint(point, size)
     if (pathHit) {
       return {
-        type: pathHit.segment.type === 'line' ? 'line-segment' : 'curve-segment',
+        type:
+          pathHit.segment.type === 'line' ? 'line-segment' : 'curve-segment',
         pathHit,
         selection: new Set(),
       }
@@ -299,10 +315,18 @@ export class SceneController {
     let bestHit: PathHitInfo | null = null
     let bestDistance = Number.POSITIVE_INFINITY
 
-    for (let contourIndex = 0; contourIndex < path.numContours; contourIndex += 1) {
+    for (
+      let contourIndex = 0;
+      contourIndex < path.numContours;
+      contourIndex += 1
+    ) {
       for (const segment of path.iterContourSegments(contourIndex)) {
         const nearest = this.nearestPointOnSegment(point, segment.points)
-        if (!nearest || nearest.distance > threshold || nearest.distance >= bestDistance) {
+        if (
+          !nearest ||
+          nearest.distance > threshold ||
+          nearest.distance >= bestDistance
+        ) {
           continue
         }
 
@@ -324,22 +348,41 @@ export class SceneController {
     return bestHit
   }
 
-  private contourSelectionAtPoint(
-    point: { x: number; y: number }
-  ): Extract<HitTestResult, { type: 'contour-interior' }> | null {
+  private contourSelectionAtPoint(point: {
+    x: number
+    y: number
+  }): Extract<HitTestResult, { type: 'contour-interior' }> | null {
     const path = this.sceneModel.glyph?.glyph.path
-    if (!path || !this.canvasController.context || !path.contourInfo || !path.contourToPath2D) {
+    if (
+      !path ||
+      !this.canvasController.context ||
+      !path.contourInfo ||
+      !path.contourToPath2D
+    ) {
       return null
     }
 
-    for (let contourIndex = path.numContours - 1; contourIndex >= 0; contourIndex -= 1) {
+    for (
+      let contourIndex = path.numContours - 1;
+      contourIndex >= 0;
+      contourIndex -= 1
+    ) {
       const contourPath = path.contourToPath2D(contourIndex)
-      if (!this.canvasController.context.isPointInPath(contourPath, point.x, point.y)) {
+      if (
+        !this.canvasController.context.isPointInPath(
+          contourPath,
+          point.x,
+          point.y
+        )
+      ) {
         continue
       }
 
       const selection = new Set<string>()
-      const contourSelection = getOnCurveContourPointSelection(path, contourIndex)
+      const contourSelection = getOnCurveContourPointSelection(
+        path,
+        contourIndex
+      )
       for (const key of contourSelection) {
         selection.add(key)
       }
@@ -427,7 +470,10 @@ export class SceneController {
 
     const t = Math.max(
       0,
-      Math.min(1, ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy))
+      Math.min(
+        1,
+        ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (dx * dx + dy * dy)
+      )
     )
     const projected = { x: p1.x + t * dx, y: p1.y + t * dy }
     return { point: projected, distance: distance(point, projected) }

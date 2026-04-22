@@ -313,8 +313,12 @@ export function RightPanel() {
             />
 
             <ProjectSaveCard
-              canSaveDraft={Boolean(fontData && projectId && projectTitle && isDirty)}
-              canSaveLocal={Boolean(fontData && hasLocalChanges && !isSavingToLocal)}
+              canSaveDraft={Boolean(
+                fontData && projectId && projectTitle && isDirty
+              )}
+              canSaveLocal={Boolean(
+                fontData && hasLocalChanges && !isSavingToLocal
+              )}
               hasUfoSource={getProjectArchiveSourceFormat() === 'ufo'}
               isSavingToLocal={isSavingToLocal}
               loadingText={

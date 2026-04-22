@@ -2,9 +2,11 @@ import { BaseTool, type EventStream, type ToolEvent } from './BaseTool'
 import type { PathHitInfo } from '../canvas/SceneView'
 import { useStore, type NodeType, type PathData, type PathNode } from '../store'
 
-type AppendTarget =
-  | { mode: 'append' | 'prepend'; pathId: string; anchorNodeId: string }
-  | null
+type AppendTarget = {
+  mode: 'append' | 'prepend'
+  pathId: string
+  anchorNodeId: string
+} | null
 
 export class PenTool extends BaseTool {
   identifier = 'pen'
@@ -44,7 +46,8 @@ export class PenTool extends BaseTool {
           this.sceneModel.pathConnectTargetPoint = {
             x: point.x,
             y: point.y,
-            kind: endpointHit.pathId === appendTarget.pathId ? 'close' : 'connect',
+            kind:
+              endpointHit.pathId === appendTarget.pathId ? 'close' : 'connect',
           }
           this.setCursor('pointer')
           this.canvasController.requestUpdate()
@@ -74,7 +77,10 @@ export class PenTool extends BaseTool {
     this.canvasController.requestUpdate()
   }
 
-  async handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void> {
+  async handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void> {
     initialEvent.preventDefault()
 
     if (!this.sceneModel.canEdit || !this.sceneModel.glyph?.glyphId) {
@@ -93,7 +99,8 @@ export class PenTool extends BaseTool {
     const isDraggingSelectedPoint =
       (hit.type === 'point' || hit.type === 'handle') &&
       this.sceneController.selection.has(`point/${hit.pointIndex}`)
-    const isSegmentInteraction = hit.type === 'line-segment' || hit.type === 'curve-segment'
+    const isSegmentInteraction =
+      hit.type === 'line-segment' || hit.type === 'curve-segment'
 
     let endPoint = downPoint
     let didDrag = false
@@ -123,7 +130,11 @@ export class PenTool extends BaseTool {
       (hit.type === 'point' || hit.type === 'handle') &&
       this.sceneController.selection.has(`point/${hit.pointIndex}`)
     ) {
-      this.moveExistingSelection(glyphId, endPoint.x - downPoint.x, endPoint.y - downPoint.y)
+      this.moveExistingSelection(
+        glyphId,
+        endPoint.x - downPoint.x,
+        endPoint.y - downPoint.y
+      )
       this.clearPreviewState()
       this.canvasController.requestUpdate()
       return
@@ -131,10 +142,15 @@ export class PenTool extends BaseTool {
 
     if (hit.type === 'line-segment' || hit.type === 'curve-segment') {
       if (initialEvent.altKey && hit.type === 'line-segment') {
-        const insertedNodeIds = this.insertHandlesOnLineSegment(glyphId, hit.pathHit)
+        const insertedNodeIds = this.insertHandlesOnLineSegment(
+          glyphId,
+          hit.pathHit
+        )
         if (insertedNodeIds) {
           store.setSelectedNodeIds(
-            insertedNodeIds.nodeIds.map((nodeId) => `${insertedNodeIds.pathId}:${nodeId}`)
+            insertedNodeIds.nodeIds.map(
+              (nodeId) => `${insertedNodeIds.pathId}:${nodeId}`
+            )
           )
         }
         this.clearPreviewState()
@@ -150,7 +166,9 @@ export class PenTool extends BaseTool {
           endPoint.y - downPoint.y
         )
         if (draggedPoint) {
-          store.setSelectedNodeIds([`${draggedPoint.pathId}:${draggedPoint.nodeId}`])
+          store.setSelectedNodeIds([
+            `${draggedPoint.pathId}:${draggedPoint.nodeId}`,
+          ])
         }
         this.clearPreviewState()
         this.canvasController.requestUpdate()
@@ -159,7 +177,9 @@ export class PenTool extends BaseTool {
 
       const insertedPoint = this.insertPointOnSegment(glyphId, hit.pathHit)
       if (insertedPoint) {
-        store.setSelectedNodeIds([`${insertedPoint.pathId}:${insertedPoint.nodeId}`])
+        store.setSelectedNodeIds([
+          `${insertedPoint.pathId}:${insertedPoint.nodeId}`,
+        ])
       }
       this.clearPreviewState()
       this.canvasController.requestUpdate()
@@ -178,7 +198,9 @@ export class PenTool extends BaseTool {
         endpointHit.nodeId !== appendTarget.anchorNodeId
       ) {
         store.closePath(glyphId, appendTarget.pathId)
-        store.setSelectedNodeIds([`${appendTarget.pathId}:${appendTarget.anchorNodeId}`])
+        store.setSelectedNodeIds([
+          `${appendTarget.pathId}:${appendTarget.anchorNodeId}`,
+        ])
         this.clearPreviewState()
         this.canvasController.requestUpdate()
         return
@@ -197,9 +219,10 @@ export class PenTool extends BaseTool {
           endpointHit.nodeId
         )
         if (result) {
-          store.setSelectedNodeIds(
-            [`${result.pathId}:${appendTarget.anchorNodeId}`, `${result.pathId}:${endpointHit.nodeId}`]
-          )
+          store.setSelectedNodeIds([
+            `${result.pathId}:${appendTarget.anchorNodeId}`,
+            `${result.pathId}:${endpointHit.nodeId}`,
+          ])
           this.clearPreviewState()
           this.canvasController.requestUpdate()
           return
@@ -252,9 +275,16 @@ export class PenTool extends BaseTool {
       return
     }
 
-    const nodes = this.buildSegmentNodes(anchorPoint, endPoint, downPoint, didDrag)
+    const nodes = this.buildSegmentNodes(
+      anchorPoint,
+      endPoint,
+      downPoint,
+      didDrag
+    )
     const createdNodes = this.normalizeNodes(
-      appendTarget.mode === 'prepend' ? [...nodes].reverse().slice(0, -1) : nodes.slice(1)
+      appendTarget.mode === 'prepend'
+        ? [...nodes].reverse().slice(0, -1)
+        : nodes.slice(1)
     )
     store.appendNodesToPath(
       glyphId,
@@ -264,7 +294,9 @@ export class PenTool extends BaseTool {
     )
     store.setSelectedNodeIds([
       `${appendTarget.pathId}:${
-        appendTarget.mode === 'prepend' ? createdNodes[0]!.id : createdNodes.at(-1)!.id
+        appendTarget.mode === 'prepend'
+          ? createdNodes[0]!.id
+          : createdNodes.at(-1)!.id
       }`,
     ])
     this.clearPreviewState()
@@ -283,7 +315,13 @@ export class PenTool extends BaseTool {
     const [pathId, nodeId] = selectedNodeId.split(':')
     const path = glyph.paths.find((candidate) => candidate.id === pathId)
     const node = path?.nodes.find((candidate) => candidate.id === nodeId)
-    if (!path || !node || path.closed || node.type === 'offcurve' || node.type === 'qcurve') {
+    if (
+      !path ||
+      !node ||
+      path.closed ||
+      node.type === 'offcurve' ||
+      node.type === 'qcurve'
+    ) {
       return null
     }
 
@@ -305,9 +343,15 @@ export class PenTool extends BaseTool {
 
     const pointRef = this.sceneModel.glyph?.pointRefs?.[pointIndex]
     const glyphId = this.sceneModel.glyph?.glyphId
-    const glyph = glyphId ? useStore.getState().fontData?.glyphs[glyphId] : undefined
-    const path = glyph?.paths.find((candidate) => candidate.id === pointRef?.pathId)
-    const node = path?.nodes.find((candidate) => candidate.id === pointRef?.nodeId)
+    const glyph = glyphId
+      ? useStore.getState().fontData?.glyphs[glyphId]
+      : undefined
+    const path = glyph?.paths.find(
+      (candidate) => candidate.id === pointRef?.pathId
+    )
+    const node = path?.nodes.find(
+      (candidate) => candidate.id === pointRef?.nodeId
+    )
 
     if (
       !pointRef ||
@@ -340,7 +384,11 @@ export class PenTool extends BaseTool {
         pathId,
         segmentNodes[0].nodeId,
         segmentNodes[segmentNodes.length - 1].nodeId,
-        [segmentNodes[0].node, inserted, segmentNodes[segmentNodes.length - 1].node]
+        [
+          segmentNodes[0].node,
+          inserted,
+          segmentNodes[segmentNodes.length - 1].node,
+        ]
       )
       return { pathId, nodeId: inserted.id }
     }
@@ -378,8 +426,16 @@ export class PenTool extends BaseTool {
       const startNode = segmentNodes[0].node
       const endNode = segmentNodes[1].node
       const inserted = this.createNode(pathHit.x + dx, pathHit.y + dy, 'smooth')
-      const handleIn = this.createNode(inserted.x - dx, inserted.y - dy, 'offcurve')
-      const handleOut = this.createNode(inserted.x + dx, inserted.y + dy, 'offcurve')
+      const handleIn = this.createNode(
+        inserted.x - dx,
+        inserted.y - dy,
+        'offcurve'
+      )
+      const handleOut = this.createNode(
+        inserted.x + dx,
+        inserted.y + dy,
+        'offcurve'
+      )
       const startHandle = this.createNode(
         startNode.x + (inserted.x - startNode.x) / 3,
         startNode.y + (inserted.y - startNode.y) / 3,
@@ -408,7 +464,9 @@ export class PenTool extends BaseTool {
       return null
     }
 
-    const insertedIndex = splitNodes.nodes.findIndex((node) => node.id === splitNodes.insertedNodeId)
+    const insertedIndex = splitNodes.nodes.findIndex(
+      (node) => node.id === splitNodes.insertedNodeId
+    )
     for (const index of [insertedIndex - 1, insertedIndex, insertedIndex + 1]) {
       if (index < 0 || index >= splitNodes.nodes.length) {
         continue
@@ -432,7 +490,11 @@ export class PenTool extends BaseTool {
 
   private insertHandlesOnLineSegment(glyphId: string, pathHit: PathHitInfo) {
     const segmentNodes = this.getSegmentNodeRefs(pathHit.segment.pointIndices)
-    if (!segmentNodes || segmentNodes.length !== 2 || pathHit.segment.type !== 'line') {
+    if (
+      !segmentNodes ||
+      segmentNodes.length !== 2 ||
+      pathHit.segment.type !== 'line'
+    ) {
       return null
     }
 
@@ -456,14 +518,22 @@ export class PenTool extends BaseTool {
       handle2,
       { ...endNode, type: 'smooth' },
     ]
-    store.replacePathNodes(glyphId, pathId, startNode.id, endNode.id, replacement)
+    store.replacePathNodes(
+      glyphId,
+      pathId,
+      startNode.id,
+      endNode.id,
+      replacement
+    )
     return { pathId, nodeIds: [handle1.id, handle2.id] }
   }
 
   private getSegmentNodeRefs(pointIndices: number[]) {
     const pointRefs = this.sceneModel.glyph?.pointRefs ?? []
     const glyphId = this.sceneModel.glyph?.glyphId
-    const glyph = glyphId ? useStore.getState().fontData?.glyphs[glyphId] : undefined
+    const glyph = glyphId
+      ? useStore.getState().fontData?.glyphs[glyphId]
+      : undefined
     if (!glyph) {
       return null
     }
@@ -471,14 +541,21 @@ export class PenTool extends BaseTool {
     return pointIndices
       .map((pointIndex) => {
         const pointRef = pointRefs[pointIndex]
-        const path = glyph.paths.find((candidate) => candidate.id === pointRef?.pathId)
-        const node = path?.nodes.find((candidate) => candidate.id === pointRef?.nodeId)
+        const path = glyph.paths.find(
+          (candidate) => candidate.id === pointRef?.pathId
+        )
+        const node = path?.nodes.find(
+          (candidate) => candidate.id === pointRef?.nodeId
+        )
         if (!pointRef || !node) {
           return null
         }
         return { ...pointRef, node }
       })
-      .filter((entry): entry is { pathId: string; nodeId: string; node: PathNode } => !!entry)
+      .filter(
+        (entry): entry is { pathId: string; nodeId: string; node: PathNode } =>
+          !!entry
+      )
   }
 
   private splitCurveSegment(pathHit: PathHitInfo) {
@@ -487,7 +564,10 @@ export class PenTool extends BaseTool {
       return null
     }
 
-    const t = this.estimateSegmentT(pathHit.segment.points, { x: pathHit.x, y: pathHit.y })
+    const t = this.estimateSegmentT(pathHit.segment.points, {
+      x: pathHit.x,
+      y: pathHit.y,
+    })
     const startNode = segmentNodes[0].node
     const endNode = segmentNodes[segmentNodes.length - 1].node
 
@@ -538,7 +618,10 @@ export class PenTool extends BaseTool {
     return null
   }
 
-  private estimateSegmentT(points: Array<{ x: number; y: number }>, target: { x: number; y: number }) {
+  private estimateSegmentT(
+    points: Array<{ x: number; y: number }>,
+    target: { x: number; y: number }
+  ) {
     const steps = points.length === 3 ? 48 : 64
     let bestT = 0.5
     let bestDistance = Number.POSITIVE_INFINITY
@@ -549,7 +632,10 @@ export class PenTool extends BaseTool {
         points.length === 3
           ? quadraticAt(points[0], points[1], points[2], t)
           : cubicAt(points[0], points[1], points[2], points[3], t)
-      const sampleDistance = Math.hypot(sample.x - target.x, sample.y - target.y)
+      const sampleDistance = Math.hypot(
+        sample.x - target.x,
+        sample.y - target.y
+      )
       if (sampleDistance < bestDistance) {
         bestDistance = sampleDistance
         bestT = t
@@ -609,7 +695,9 @@ export class PenTool extends BaseTool {
 
   private getPointFromRef(pointRef: { pathId: string; nodeId: string }) {
     const glyphId = this.sceneModel.glyph?.glyphId
-    const glyph = glyphId ? useStore.getState().fontData?.glyphs[glyphId] : undefined
+    const glyph = glyphId
+      ? useStore.getState().fontData?.glyphs[glyphId]
+      : undefined
     return glyph?.paths
       .find((path) => path.id === pointRef.pathId)
       ?.nodes.find((node) => node.id === pointRef.nodeId)
@@ -628,7 +716,11 @@ export class PenTool extends BaseTool {
       return
     }
 
-    const updates: Array<{ pathId: string; nodeId: string; newPos: { x: number; y: number } }> = []
+    const updates: Array<{
+      pathId: string
+      nodeId: string
+      newPos: { x: number; y: number }
+    }> = []
     for (const item of this.sceneController.selection) {
       const match = item.match(/^point\/(\d+)$/)
       if (!match) {
@@ -667,7 +759,14 @@ export class PenTool extends BaseTool {
     if (nodes.length === 2) {
       path.lineTo(nodes[1].x, nodes[1].y)
     } else if (nodes.length >= 4) {
-      path.bezierCurveTo(nodes[1].x, nodes[1].y, nodes[2].x, nodes[2].y, nodes[3].x, nodes[3].y)
+      path.bezierCurveTo(
+        nodes[1].x,
+        nodes[1].y,
+        nodes[2].x,
+        nodes[2].y,
+        nodes[3].x,
+        nodes[3].y
+      )
     }
     return path
   }
@@ -698,8 +797,12 @@ export class PenTool extends BaseTool {
     }
 
     const glyph = useStore.getState().fontData?.glyphs[glyphId]
-    const path = glyph?.paths.find((candidate) => candidate.id === target.pathId)
-    const node = path?.nodes.find((candidate) => candidate.id === target.anchorNodeId)
+    const path = glyph?.paths.find(
+      (candidate) => candidate.id === target.pathId
+    )
+    const node = path?.nodes.find(
+      (candidate) => candidate.id === target.anchorNodeId
+    )
     if (!node) {
       return undefined
     }
@@ -708,7 +811,11 @@ export class PenTool extends BaseTool {
   }
 }
 
-function lerpPoint(a: { x: number; y: number }, b: { x: number; y: number }, t: number) {
+function lerpPoint(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  t: number
+) {
   return {
     x: a.x + (b.x - a.x) * t,
     y: a.y + (b.y - a.y) * t,

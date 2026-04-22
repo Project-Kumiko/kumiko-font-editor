@@ -21,7 +21,9 @@ const parseResponseBody = async (response: Response) => {
 }
 
 const readJsonOrThrow = async <T>(response: Response) => {
-  const payload = (await parseResponseBody(response)) as (T & { message?: string }) | null
+  const payload = (await parseResponseBody(response)) as
+    | (T & { message?: string })
+    | null
   if (!payload) {
     throw new Error(
       response.ok

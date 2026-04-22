@@ -54,7 +54,8 @@ let datasetPromise: Promise<{
 
 const cancelledRequests = new Set<string>()
 
-const toCodePointArray = (value: string) => Array.from(value.replace(/^\uFEFF/, ''))
+const toCodePointArray = (value: string) =>
+  Array.from(value.replace(/^\uFEFF/, ''))
 
 const shouldIgnoreCharacter = (character: string) => {
   const codePoint = character.codePointAt(0)
@@ -64,7 +65,9 @@ const shouldIgnoreCharacter = (character: string) => {
     character === ' ' ||
     character === '\r' ||
     character === '\n' ||
-    (typeof codePoint === 'number' && codePoint >= IDS_OPERATOR_MIN && codePoint <= IDS_OPERATOR_MAX)
+    (typeof codePoint === 'number' &&
+      codePoint >= IDS_OPERATOR_MIN &&
+      codePoint <= IDS_OPERATOR_MAX)
   )
 }
 
@@ -91,7 +94,10 @@ const loadVariantMap = async () => {
   return variantMap
 }
 
-const parseDecompositionVariants = (payload: string, variantMap: Map<string, string>) => {
+const parseDecompositionVariants = (
+  payload: string,
+  variantMap: Map<string, string>
+) => {
   const variants: string[][] = []
   let current = ''
 
@@ -170,7 +176,10 @@ const buildDataset = async () => {
   return {
     decompositionMap,
     reverseIndex: new Map(
-      [...reverseIndex.entries()].map(([component, characters]) => [component, [...characters]])
+      [...reverseIndex.entries()].map(([component, characters]) => [
+        component,
+        [...characters],
+      ])
     ),
   }
 }
@@ -201,9 +210,11 @@ const handleSearch = async (message: SearchComponentsMessage) => {
     return
   }
 
-  const components = dataset.decompositionMap.get(message.payload.character) ?? []
+  const components =
+    dataset.decompositionMap.get(message.payload.character) ?? []
   const activeComponent =
-    message.payload.selectedComponent && components.includes(message.payload.selectedComponent)
+    message.payload.selectedComponent &&
+    components.includes(message.payload.selectedComponent)
       ? message.payload.selectedComponent
       : (components[0] ?? null)
 

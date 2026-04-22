@@ -3,11 +3,7 @@
   background:
     radial-gradient(circle at top, rgba(147, 197, 253, 0.16), transparent 34%),
     linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  font-family:
-    'IBM Plex Sans',
-    'Noto Sans TC',
-    'Segoe UI',
-    sans-serif;
+  font-family: 'IBM Plex Sans', 'Noto Sans TC', 'Segoe UI', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

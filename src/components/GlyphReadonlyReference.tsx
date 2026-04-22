@@ -1,7 +1,13 @@
 import { Box, Text } from '@chakra-ui/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { VarPackedPath } from '../font/VarPackedPath'
-import { useStore, type GlyphData, type GlyphComponentRef, type PathData, type PathNode } from '../store'
+import {
+  useStore,
+  type GlyphData,
+  type GlyphComponentRef,
+  type PathData,
+  type PathNode,
+} from '../store'
 
 const PREVIEW_PADDING_X = 80
 const PREVIEW_ASCENDER = 900
@@ -15,7 +21,8 @@ interface PreviewPart {
   pathsToInsert: PathData[]
 }
 
-const generateId = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+const generateId = (prefix: string) =>
+  `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 
 const clonePath = (path: PathData): PathData => ({
   id: generateId('path'),
@@ -61,7 +68,8 @@ const getPathBounds = (path: PathData) => {
     xMax: Math.max(...xs),
     yMin: Math.min(...ys),
     yMax: Math.max(...ys),
-    area: (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)),
+    area:
+      (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)),
   }
 }
 
@@ -90,7 +98,9 @@ const buildRootPathParts = (glyph: GlyphData): PreviewPart[] => {
     path,
     bounds: getPathBounds(path),
     path2d: new Path2D(buildVarPackedPathForPaths([path]).toSVGPath()),
-    sample: path.nodes[0] ? { x: path.nodes[0].x, y: path.nodes[0].y } : { x: 0, y: 0 },
+    sample: path.nodes[0]
+      ? { x: path.nodes[0].x, y: path.nodes[0].y }
+      : { x: 0, y: 0 },
   }))
 
   const parentIndex = new Map<number, number | null>()
@@ -175,7 +185,13 @@ const materializeComponentPaths = (
       .rotate(component.rotation)
       .scale(component.scaleX, component.scaleY)
     paths.push(
-      ...materializeComponentPaths(glyphMap, component.glyphId, componentMatrix, nextVisited, depth + 1)
+      ...materializeComponentPaths(
+        glyphMap,
+        component.glyphId,
+        componentMatrix,
+        nextVisited,
+        depth + 1
+      )
     )
   }
 
@@ -187,10 +203,14 @@ const buildComponentParts = (
   components: GlyphComponentRef[]
 ): PreviewPart[] =>
   components.flatMap((component) => {
-    const paths = materializeComponentPaths(glyphMap, component.glyphId, new DOMMatrix()
-      .translate(component.x, component.y)
-      .rotate(component.rotation)
-      .scale(component.scaleX, component.scaleY))
+    const paths = materializeComponentPaths(
+      glyphMap,
+      component.glyphId,
+      new DOMMatrix()
+        .translate(component.x, component.y)
+        .rotate(component.rotation)
+        .scale(component.scaleX, component.scaleY)
+    )
     if (paths.length === 0) {
       return []
     }
@@ -204,9 +224,14 @@ const buildComponentParts = (
     ]
   })
 
-const getPreviewWidth = (glyph: GlyphData) => Math.max(glyph.metrics.width || 0, 240)
+const getPreviewWidth = (glyph: GlyphData) =>
+  Math.max(glyph.metrics.width || 0, 240)
 
-const getPreviewTransform = (cssWidth: number, cssHeight: number, glyphWidth: number) => {
+const getPreviewTransform = (
+  cssWidth: number,
+  cssHeight: number,
+  glyphWidth: number
+) => {
   const viewWidth = glyphWidth + PREVIEW_PADDING_X * 2
   const scale = Math.min(cssWidth / viewWidth, cssHeight / PREVIEW_HEIGHT)
   const offsetX = (cssWidth - viewWidth * scale) / 2
@@ -232,7 +257,10 @@ export function GlyphReadonlyReference({
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null)
   const width = useMemo(() => getPreviewWidth(glyph), [glyph])
   const previewParts = useMemo(
-    () => [...buildComponentParts(glyphMap, glyph.componentRefs), ...buildRootPathParts(glyph)],
+    () => [
+      ...buildComponentParts(glyphMap, glyph.componentRefs),
+      ...buildRootPathParts(glyph),
+    ],
     [glyph, glyphMap]
   )
 

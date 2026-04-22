@@ -1,4 +1,13 @@
-import { Box, Button, Grid, GridItem, Select, Stack, Tag, Text } from '@chakra-ui/react'
+import {
+  Box,
+  Button,
+  Grid,
+  GridItem,
+  Select,
+  Stack,
+  Tag,
+  Text,
+} from '@chakra-ui/react'
 import {
   getGlyphBlockLabel,
   getGlyphDisplayCharacter,
@@ -131,14 +140,20 @@ export function GlyphSummaryCard({
                   Contours / Components
                 </Text>
                 <Text fontSize="sm" color="gray.700">
-                  {overviewStats?.contourCount ?? 0} / {overviewStats?.componentCount ?? 0}
+                  {overviewStats?.contourCount ?? 0} /{' '}
+                  {overviewStats?.componentCount ?? 0}
                 </Text>
               </GridItem>
             </Grid>
             <Button size="sm" colorScheme="teal" onClick={onEnterEditor}>
               進入字符編輯器
             </Button>
-            <Button size="sm" colorScheme="red" variant="outline" onClick={onDeleteGlyph}>
+            <Button
+              size="sm"
+              colorScheme="red"
+              variant="outline"
+              onClick={onDeleteGlyph}
+            >
               刪除字符
             </Button>
           </>

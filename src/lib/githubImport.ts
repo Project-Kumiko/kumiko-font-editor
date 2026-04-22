@@ -96,7 +96,9 @@ const parseResponseBody = async (response: Response) => {
 }
 
 const fetchJsonOrThrow = async <T>(response: Response) => {
-  const payload = (await parseResponseBody(response)) as (T & { message?: string }) | null
+  const payload = (await parseResponseBody(response)) as
+    | (T & { message?: string })
+    | null
   if (!payload) {
     throw new Error(
       response.ok
@@ -121,7 +123,8 @@ export const importGitHubRepo = async (input: {
       credentials: 'include',
     }
   )
-  const repoMetadata = await fetchJsonOrThrow<RepoMetadataResponse>(metadataResponse)
+  const repoMetadata =
+    await fetchJsonOrThrow<RepoMetadataResponse>(metadataResponse)
 
   const archiveUrl = new URL('/api/github/archive', window.location.origin)
   archiveUrl.searchParams.set('repo', `${parsed.owner}/${parsed.repo}`)
@@ -134,7 +137,10 @@ export const importGitHubRepo = async (input: {
   })
   if (!archiveResponse.ok) {
     const payload = await parseResponseBody(archiveResponse)
-    throw new Error(payload?.message || `下載 GitHub ZIP 失敗（HTTP ${archiveResponse.status}）`)
+    throw new Error(
+      payload?.message ||
+        `下載 GitHub ZIP 失敗（HTTP ${archiveResponse.status}）`
+    )
   }
 
   const zipBuffer = new Uint8Array(await archiveResponse.arrayBuffer())
@@ -144,8 +150,7 @@ export const importGitHubRepo = async (input: {
     repoMetadata.defaultBranch ??
     'unknown'
   const zipballUrl =
-    archiveResponse.headers.get('x-kumiko-github-url') ??
-    archiveUrl.toString()
+    archiveResponse.headers.get('x-kumiko-github-url') ?? archiveUrl.toString()
 
   const { archiveRoot, ufoEntries } = collectUfoEntriesFromZip(zipBuffer)
   if (ufoEntries.length === 0) {

@@ -17,7 +17,10 @@ export class TextTool extends BaseTool {
     this.setCursor('text')
   }
 
-  async handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void> {
+  async handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void> {
     initialEvent.preventDefault()
     for await (const event of asyncEventIterator(eventStream)) {
       event.preventDefault()
@@ -25,7 +28,9 @@ export class TextTool extends BaseTool {
   }
 }
 
-async function* asyncEventIterator(eventStream: EventStream): AsyncGenerator<ToolEvent, void> {
+async function* asyncEventIterator(
+  eventStream: EventStream
+): AsyncGenerator<ToolEvent, void> {
   while (true) {
     const value = await eventStream.next()
     if (!value) {

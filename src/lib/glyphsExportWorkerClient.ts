@@ -21,9 +21,12 @@ export const exportGlyphsWithWorker = (input: {
   dirtyGlyphs: Record<string, GlyphData>
 }) =>
   new Promise<Blob>((resolve, reject) => {
-    const worker = new Worker(new URL('../workers/glyphsExportWorker.ts', import.meta.url), {
-      type: 'module',
-    })
+    const worker = new Worker(
+      new URL('../workers/glyphsExportWorker.ts', import.meta.url),
+      {
+        type: 'module',
+      }
+    )
 
     worker.onmessage = (event: MessageEvent<ExportResponseMessage>) => {
       worker.terminate()

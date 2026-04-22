@@ -19,7 +19,8 @@ const buildGlyphIdFromChar = (character: string) => {
 }
 
 export const parseGlyphAdditionInput = (input: string) => {
-  const results: Array<{ id: string; name: string; unicode: string | null }> = []
+  const results: Array<{ id: string; name: string; unicode: string | null }> =
+    []
   const seen = new Set<string>()
   const uniPattern = /uni([0-9a-fA-F]{4,6})/g
   const consumedRanges: Array<[number, number]> = []

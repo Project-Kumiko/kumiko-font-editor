@@ -32,8 +32,12 @@ export function useGlyphReferenceSearch({
   glyphMap,
   selectedGlyph,
 }: UseGlyphReferenceSearchOptions) {
-  const [selectedComponent, setSelectedComponent] = useState<string | null>(null)
-  const [manualPreviewGlyphId, setManualPreviewGlyphId] = useState<string | null>(null)
+  const [selectedComponent, setSelectedComponent] = useState<string | null>(
+    null
+  )
+  const [manualPreviewGlyphId, setManualPreviewGlyphId] = useState<
+    string | null
+  >(null)
   const [searchState, setSearchState] = useState<SearchState | null>(null)
 
   const selectedCharacter = getGlyphCharacter(selectedGlyph)

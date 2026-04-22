@@ -30,7 +30,9 @@ export function FontOverviewScreen() {
   const setOverviewGrouping = useStore((state) => state.setOverviewGrouping)
   const selectedSectionId = useStore((state) => state.overviewSectionId)
   const setOverviewSectionId = useStore((state) => state.setOverviewSectionId)
-  const overviewGridState = useStore((state) => state.overviewGridState) as GridStateSnapshot | null
+  const overviewGridState = useStore(
+    (state) => state.overviewGridState
+  ) as GridStateSnapshot | null
   const setOverviewGridState = useStore((state) => state.setOverviewGridState)
   const gridRef = useRef<VirtuosoGridHandle | null>(null)
 
@@ -38,7 +40,8 @@ export function FontOverviewScreen() {
     () =>
       showOnlyEmptyGlyphs
         ? filteredGlyphList.filter(
-            (glyph) => glyph.paths.length === 0 && glyph.componentRefs.length === 0
+            (glyph) =>
+              glyph.paths.length === 0 && glyph.componentRefs.length === 0
           )
         : filteredGlyphList,
     [filteredGlyphList, showOnlyEmptyGlyphs]
@@ -83,7 +86,8 @@ export function FontOverviewScreen() {
     }
   }, [sections, selectedSectionId, setOverviewSectionId])
 
-  const selectedGlyph = overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
+  const selectedGlyph =
+    overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
   const glyphMap = fontData?.glyphs ?? {}
 
   const handleAddGlyphs = () => {
@@ -134,7 +138,10 @@ export function FontOverviewScreen() {
       return
     }
 
-    if (!selectedGlyph || !targetSection.glyphs.some((glyph) => glyph.id === selectedGlyph.id)) {
+    if (
+      !selectedGlyph ||
+      !targetSection.glyphs.some((glyph) => glyph.id === selectedGlyph.id)
+    ) {
       setSelectedGlyphId(targetSection.glyphs[0]?.id ?? null)
     }
   }

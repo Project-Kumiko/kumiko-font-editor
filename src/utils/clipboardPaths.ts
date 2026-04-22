@@ -21,7 +21,9 @@ export function serializeClipboardPaths(payload: ClipboardPathPayload) {
   return `${CLIPBOARD_PREFIX}${JSON.stringify(payload)}`
 }
 
-export function parseClipboardPathsText(text: string): ClipboardPathPayload | null {
+export function parseClipboardPathsText(
+  text: string
+): ClipboardPathPayload | null {
   const trimmed = text.trim()
   if (!trimmed) {
     return null
@@ -29,7 +31,9 @@ export function parseClipboardPathsText(text: string): ClipboardPathPayload | nu
 
   if (trimmed.startsWith(CLIPBOARD_PREFIX)) {
     try {
-      const parsed = JSON.parse(trimmed.slice(CLIPBOARD_PREFIX.length)) as ClipboardPathPayload
+      const parsed = JSON.parse(
+        trimmed.slice(CLIPBOARD_PREFIX.length)
+      ) as ClipboardPathPayload
       if (parsed?.type === 'kumiko-paths' && Array.isArray(parsed.paths)) {
         return parsed
       }
@@ -77,14 +81,22 @@ export function buildClipboardPayloadFromSelection(
   const paths: ClipboardPathPayload['paths'] = []
 
   if (selectedSegment) {
-    const path = glyph.paths.find((candidate) => candidate.id === selectedSegment.pathId)
+    const path = glyph.paths.find(
+      (candidate) => candidate.id === selectedSegment.pathId
+    )
     if (path) {
-      const startIndex = path.nodes.findIndex((node) => node.id === selectedSegment.startNodeId)
-      const endIndex = path.nodes.findIndex((node) => node.id === selectedSegment.endNodeId)
+      const startIndex = path.nodes.findIndex(
+        (node) => node.id === selectedSegment.startNodeId
+      )
+      const endIndex = path.nodes.findIndex(
+        (node) => node.id === selectedSegment.endNodeId
+      )
       if (startIndex >= 0 && endIndex >= startIndex) {
         paths.push({
           closed: false,
-          nodes: path.nodes.slice(startIndex, endIndex + 1).map(toClipboardNode),
+          nodes: path.nodes
+            .slice(startIndex, endIndex + 1)
+            .map(toClipboardNode),
         })
       }
     }
@@ -211,7 +223,9 @@ function parseSvgLikePaths(text: string): ClipboardPathPayload['paths'] {
   const pathEntries = extractPathStrings(text)
   return pathEntries.flatMap((entry) => {
     const paths = parseSvgPathData(entry.pathData)
-    return entry.viewBoxHeight ? flipSvgPathsY(paths, entry.viewBoxHeight) : paths
+    return entry.viewBoxHeight
+      ? flipSvgPathsY(paths, entry.viewBoxHeight)
+      : paths
   })
 }
 
@@ -251,9 +265,9 @@ function parseViewBoxHeight(viewBox: string | undefined) {
 }
 
 function parseSvgPathData(pathData: string): ClipboardPathPayload['paths'] {
-  const tokens = [...pathData.matchAll(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g)].map(
-    (match) => match[0]
-  )
+  const tokens = [
+    ...pathData.matchAll(/[a-zA-Z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g),
+  ].map((match) => match[0])
   const contours: ClipboardPathPayload['paths'] = []
   let index = 0
   let command = ''
@@ -296,7 +310,10 @@ function parseSvgPathData(pathData: string): ClipboardPathPayload['paths'] {
       currentY = relative ? currentY + y : y
       startX = currentX
       startY = currentY
-      currentContour = { closed: false, nodes: [{ x: currentX, y: currentY, type: 'corner' }] }
+      currentContour = {
+        closed: false,
+        nodes: [{ x: currentX, y: currentY, type: 'corner' }],
+      }
       contours.push(currentContour)
       command = relative ? 'l' : 'L'
       lastCubicControlX = null

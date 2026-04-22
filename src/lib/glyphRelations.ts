@@ -32,7 +32,10 @@ export const isCjkCharacter = (character: string | null | undefined) => {
   }
 
   const codePoint = character.codePointAt(0)
-  if (!codePoint || (codePoint >= IDS_OPERATOR_MIN && codePoint <= IDS_OPERATOR_MAX)) {
+  if (
+    !codePoint ||
+    (codePoint >= IDS_OPERATOR_MIN && codePoint <= IDS_OPERATOR_MAX)
+  ) {
     return false
   }
 
@@ -42,7 +45,10 @@ export const isCjkCharacter = (character: string | null | undefined) => {
 const normalizeGlyphRelationBase = (glyphId: string) =>
   glyphId.split(/[._-]/, 1)[0]?.toLowerCase() ?? glyphId.toLowerCase()
 
-export const getRelatedGlyphs = (glyph: GlyphData | null | undefined, glyphs: GlyphData[]) => {
+export const getRelatedGlyphs = (
+  glyph: GlyphData | null | undefined,
+  glyphs: GlyphData[]
+) => {
   if (!glyph) {
     return []
   }

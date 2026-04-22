@@ -1,5 +1,11 @@
 import type { GlyphsDocument } from './glyphsDocument'
-import type { FontData, GlyphData, GlyphLayerData, PathData, PathNode } from '../store'
+import type {
+  FontData,
+  GlyphData,
+  GlyphLayerData,
+  PathData,
+  PathNode,
+} from '../store'
 
 const quoteString = (value: string) => {
   if (/^[A-Za-z0-9._\/+-]+$/.test(value)) {
@@ -112,12 +118,17 @@ const serializeGlyphNode = (path: PathData, node: PathNode, index: number) => {
 const serializeLayerPaths = (layer: GlyphLayerData) =>
   layer.paths.map((path) => ({
     closed: path.closed ? 1 : 0,
-    nodes: path.nodes.map((node, nodeIndex) => serializeGlyphNode(path, node, nodeIndex)),
+    nodes: path.nodes.map((node, nodeIndex) =>
+      serializeGlyphNode(path, node, nodeIndex)
+    ),
   }))
 
-const formatPointTuple = (x: number, y: number) => `{${Math.round(x)}, ${Math.round(y)}}`
+const formatPointTuple = (x: number, y: number) =>
+  `{${Math.round(x)}, ${Math.round(y)}}`
 
-const isIdentityTransform = (component: GlyphLayerData['componentRefs'][number]) =>
+const isIdentityTransform = (
+  component: GlyphLayerData['componentRefs'][number]
+) =>
   component.scaleX === 1 &&
   component.scaleY === 1 &&
   component.rotation === 0 &&
@@ -148,7 +159,10 @@ const serializeLayerGuides = (layer: GlyphLayerData) =>
     ...(guide.name ? { name: guide.name } : {}),
   }))
 
-const applyLayerEdits = (targetLayer: Record<string, unknown>, layer: GlyphLayerData) => {
+const applyLayerEdits = (
+  targetLayer: Record<string, unknown>,
+  layer: GlyphLayerData
+) => {
   targetLayer.layerId = layer.id
   targetLayer.associatedMasterId = layer.associatedMasterId ?? layer.id
   targetLayer.name = layer.name
@@ -174,7 +188,12 @@ const getRawGlyphExportId = (rawGlyph: Record<string, unknown>) => {
 const buildLayerMap = (layers: Array<Record<string, unknown>>) =>
   new Map(
     layers.map((layer, index) => [
-      String(layer.layerId ?? layer.associatedMasterId ?? layer.name ?? `layer_${index}`),
+      String(
+        layer.layerId ??
+          layer.associatedMasterId ??
+          layer.name ??
+          `layer_${index}`
+      ),
       layer,
     ])
   )
@@ -184,13 +203,21 @@ const createBaseGlyphsDocument = (
   projectMetadata: Record<string, unknown> | null
 ): GlyphsDocument => ({
   familyName:
-    typeof projectMetadata?.familyName === 'string' ? projectMetadata.familyName : 'Untitled',
+    typeof projectMetadata?.familyName === 'string'
+      ? projectMetadata.familyName
+      : 'Untitled',
   unitsPerEm:
-    typeof projectMetadata?.unitsPerEm === 'number' ? projectMetadata.unitsPerEm : 1000,
+    typeof projectMetadata?.unitsPerEm === 'number'
+      ? projectMetadata.unitsPerEm
+      : 1000,
   versionMajor:
-    typeof projectMetadata?.versionMajor === 'number' ? projectMetadata.versionMajor : 1,
+    typeof projectMetadata?.versionMajor === 'number'
+      ? projectMetadata.versionMajor
+      : 1,
   versionMinor:
-    typeof projectMetadata?.versionMinor === 'number' ? projectMetadata.versionMinor : 0,
+    typeof projectMetadata?.versionMinor === 'number'
+      ? projectMetadata.versionMinor
+      : 0,
   customParameters: Array.isArray(projectMetadata?.customParameters)
     ? (projectMetadata.customParameters as GlyphsDocument['customParameters'])
     : [],
@@ -211,7 +238,8 @@ const createBaseGlyphsDocument = (
     : [],
   glyphs: [],
   lineMetricsHorizontalLayout:
-    (fontData.lineMetricsHorizontalLayout as GlyphsDocument['lineMetricsHorizontalLayout']) ?? {},
+    (fontData.lineMetricsHorizontalLayout as GlyphsDocument['lineMetricsHorizontalLayout']) ??
+    {},
 })
 
 const createPatchedGlyphRecord = (
@@ -238,7 +266,10 @@ const createPatchedGlyphRecord = (
 
   for (const rawLayer of rawLayers) {
     const layerId = String(
-      rawLayer.layerId ?? rawLayer.associatedMasterId ?? rawLayer.name ?? `layer_${patchedLayers.length}`
+      rawLayer.layerId ??
+        rawLayer.associatedMasterId ??
+        rawLayer.name ??
+        `layer_${patchedLayers.length}`
     )
     const editedLayer = glyphLayers[layerId]
     if (!editedLayer) {
@@ -258,7 +289,14 @@ const createPatchedGlyphRecord = (
       continue
     }
 
-    if (patchedLayers.some((candidate) => String(candidate.layerId ?? candidate.associatedMasterId ?? candidate.name) === layerId)) {
+    if (
+      patchedLayers.some(
+        (candidate) =>
+          String(
+            candidate.layerId ?? candidate.associatedMasterId ?? candidate.name
+          ) === layerId
+      )
+    ) {
       continue
     }
 
@@ -283,7 +321,10 @@ const serializeGlyphsArrayToChunks = (
   const indent = '  '.repeat(indentLevel)
   const childIndent = '  '.repeat(indentLevel + 1)
   const editedGlyphsById = new Map(
-    Object.values(fontData.glyphs).map((glyph) => [getGlyphExportId(glyph), glyph])
+    Object.values(fontData.glyphs).map((glyph) => [
+      getGlyphExportId(glyph),
+      glyph,
+    ])
   )
   const seenGlyphIds = new Set<string>()
 
@@ -311,7 +352,11 @@ const serializeGlyphsArrayToChunks = (
     }
 
     chunks.push(childIndent)
-    serializeOpenStepValueToChunks(createPatchedGlyphRecord(undefined, glyph), chunks, indentLevel + 1)
+    serializeOpenStepValueToChunks(
+      createPatchedGlyphRecord(undefined, glyph),
+      chunks,
+      indentLevel + 1
+    )
     chunks.push(',\n')
     wroteAny = true
   }
@@ -338,9 +383,9 @@ export const serializeGlyphsFileToBlob = (
 
   const chunks: string[] = []
 
-  const entries = Object.entries(baseDocument as Record<string, unknown>).filter(
-    ([, entryValue]) => entryValue !== undefined
-  )
+  const entries = Object.entries(
+    baseDocument as Record<string, unknown>
+  ).filter(([, entryValue]) => entryValue !== undefined)
 
   chunks.push('{\n')
   entries.forEach(([key, entryValue], index) => {

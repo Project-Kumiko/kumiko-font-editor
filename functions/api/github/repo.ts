@@ -1,4 +1,10 @@
-import { fetchRepoMetadata, json, parseRepoInput, readGitHubAccessToken, type Env } from './_utils'
+import {
+  fetchRepoMetadata,
+  json,
+  parseRepoInput,
+  readGitHubAccessToken,
+  type Env,
+} from './_utils'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
@@ -26,7 +32,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return json(
       {
         error: 'repo_metadata_failed',
-        message: error instanceof Error ? error.message : '讀取 repo metadata 失敗',
+        message:
+          error instanceof Error ? error.message : '讀取 repo metadata 失敗',
       },
       { status: 502 }
     )

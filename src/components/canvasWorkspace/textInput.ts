@@ -3,7 +3,10 @@ import type { FontData } from '../../store'
 export const charIndexToCodeUnitIndex = (text: string, charIndex: number) =>
   Array.from(text).slice(0, charIndex).join('').length
 
-export const codeUnitIndexToCharIndex = (text: string, codeUnitIndex: number) => {
+export const codeUnitIndexToCharIndex = (
+  text: string,
+  codeUnitIndex: number
+) => {
   let consumedUnits = 0
   let charIndex = 0
   for (const character of Array.from(text)) {

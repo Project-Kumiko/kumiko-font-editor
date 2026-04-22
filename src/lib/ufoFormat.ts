@@ -1,4 +1,10 @@
-import type { FontData, GlyphData, GlyphMetrics, PathData, PathNode } from '../store'
+import type {
+  FontData,
+  GlyphData,
+  GlyphMetrics,
+  PathData,
+  PathNode,
+} from '../store'
 import type { ProjectSourceFormat } from './projectFormats'
 import { hashString } from './hash'
 import {
@@ -135,7 +141,12 @@ const parsePlistElement = (element: Element): unknown => {
     return childrenOf(element).map((child) => parsePlistElement(child))
   }
 
-  if (tagName === 'string' || tagName === 'key' || tagName === 'date' || tagName === 'data') {
+  if (
+    tagName === 'string' ||
+    tagName === 'key' ||
+    tagName === 'date' ||
+    tagName === 'data'
+  ) {
     return element.textContent ?? ''
   }
 
@@ -205,7 +216,9 @@ const serializePlistValue = (value: unknown, indentLevel = 1): string => {
   return `${indent}<string>${escapeXml(String(value ?? ''))}</string>`
 }
 
-export const serializeXmlPlist = (value: unknown) => `<?xml version="1.0" encoding="UTF-8"?>
+export const serializeXmlPlist = (
+  value: unknown
+) => `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 ${serializePlistValue(value)}
@@ -251,7 +264,13 @@ const inferOffcurveType = (
   return normalized
 }
 
-const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'projectId' | 'ufoId' | 'layerId' | 'dirty' | 'dirtyIndex' | 'updatedAt'> => {
+const parseGlifText = (
+  text: string,
+  fileName: string
+): Omit<
+  UfoGlyphRecord,
+  'projectId' | 'ufoId' | 'layerId' | 'dirty' | 'dirtyIndex' | 'updatedAt'
+> => {
   const parser = new DOMParser()
   const document = parser.parseFromString(text, 'application/xml')
   const glyphElement = document.querySelector('glyph')
@@ -269,7 +288,9 @@ const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'pr
     height: parseNumeric(advanceElement?.getAttribute('height')) ?? null,
   }
 
-  const anchors: UfoGlyphAnchor[] = Array.from(glyphElement.querySelectorAll(':scope > anchor')).map((anchor) => ({
+  const anchors: UfoGlyphAnchor[] = Array.from(
+    glyphElement.querySelectorAll(':scope > anchor')
+  ).map((anchor) => ({
     x: parseNumeric(anchor.getAttribute('x')) ?? 0,
     y: parseNumeric(anchor.getAttribute('y')) ?? 0,
     name: anchor.getAttribute('name') ?? '',
@@ -277,7 +298,9 @@ const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'pr
     identifier: anchor.getAttribute('identifier'),
   }))
 
-  const guidelines: UfoGlyphGuideline[] = Array.from(glyphElement.querySelectorAll(':scope > guideline')).map((guide) => ({
+  const guidelines: UfoGlyphGuideline[] = Array.from(
+    glyphElement.querySelectorAll(':scope > guideline')
+  ).map((guide) => ({
     x: parseNumeric(guide.getAttribute('x')),
     y: parseNumeric(guide.getAttribute('y')),
     angle: parseNumeric(guide.getAttribute('angle')),
@@ -288,32 +311,57 @@ const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'pr
 
   const outlineElement = glyphElement.querySelector(':scope > outline')
   const contours: UfoGlyphContour[] = outlineElement
-    ? Array.from(outlineElement.querySelectorAll(':scope > contour')).map((contour) => ({
-        points: inferOffcurveType(
-          Array.from(contour.querySelectorAll(':scope > point')).map((point) => ({
-            x: parseNumeric(point.getAttribute('x')) ?? 0,
-            y: parseNumeric(point.getAttribute('y')) ?? 0,
-            type: (point.getAttribute('type') as 'move' | 'line' | 'offcurve' | 'curve' | 'qcurve' | null) ?? undefined,
-            smooth: point.getAttribute('smooth') === 'yes',
-            name: point.getAttribute('name'),
-          }))
-        ),
-      }))
+    ? Array.from(outlineElement.querySelectorAll(':scope > contour')).map(
+        (contour) => ({
+          points: inferOffcurveType(
+            Array.from(contour.querySelectorAll(':scope > point')).map(
+              (point) => ({
+                x: parseNumeric(point.getAttribute('x')) ?? 0,
+                y: parseNumeric(point.getAttribute('y')) ?? 0,
+                type:
+                  (point.getAttribute('type') as
+                    | 'move'
+                    | 'line'
+                    | 'offcurve'
+                    | 'curve'
+                    | 'qcurve'
+                    | null) ?? undefined,
+                smooth: point.getAttribute('smooth') === 'yes',
+                name: point.getAttribute('name'),
+              })
+            )
+          ),
+        })
+      )
     : []
 
   const components: UfoGlyphComponent[] = outlineElement
-    ? Array.from(outlineElement.querySelectorAll(':scope > component')).map((component) => ({
-        base: component.getAttribute('base') ?? '',
-        ...(component.hasAttribute('identifier')
-          ? { identifier: component.getAttribute('identifier') }
-          : {}),
-        ...(component.hasAttribute('xScale') ? { xScale: parseNumeric(component.getAttribute('xScale')) ?? 1 } : {}),
-        ...(component.hasAttribute('xyScale') ? { xyScale: parseNumeric(component.getAttribute('xyScale')) ?? 0 } : {}),
-        ...(component.hasAttribute('yxScale') ? { yxScale: parseNumeric(component.getAttribute('yxScale')) ?? 0 } : {}),
-        ...(component.hasAttribute('yScale') ? { yScale: parseNumeric(component.getAttribute('yScale')) ?? 1 } : {}),
-        ...(component.hasAttribute('xOffset') ? { xOffset: parseNumeric(component.getAttribute('xOffset')) ?? 0 } : {}),
-        ...(component.hasAttribute('yOffset') ? { yOffset: parseNumeric(component.getAttribute('yOffset')) ?? 0 } : {}),
-      }))
+    ? Array.from(outlineElement.querySelectorAll(':scope > component')).map(
+        (component) => ({
+          base: component.getAttribute('base') ?? '',
+          ...(component.hasAttribute('identifier')
+            ? { identifier: component.getAttribute('identifier') }
+            : {}),
+          ...(component.hasAttribute('xScale')
+            ? { xScale: parseNumeric(component.getAttribute('xScale')) ?? 1 }
+            : {}),
+          ...(component.hasAttribute('xyScale')
+            ? { xyScale: parseNumeric(component.getAttribute('xyScale')) ?? 0 }
+            : {}),
+          ...(component.hasAttribute('yxScale')
+            ? { yxScale: parseNumeric(component.getAttribute('yxScale')) ?? 0 }
+            : {}),
+          ...(component.hasAttribute('yScale')
+            ? { yScale: parseNumeric(component.getAttribute('yScale')) ?? 1 }
+            : {}),
+          ...(component.hasAttribute('xOffset')
+            ? { xOffset: parseNumeric(component.getAttribute('xOffset')) ?? 0 }
+            : {}),
+          ...(component.hasAttribute('yOffset')
+            ? { yOffset: parseNumeric(component.getAttribute('yOffset')) ?? 0 }
+            : {}),
+        })
+      )
     : []
 
   const note = glyphElement.querySelector(':scope > note')?.textContent ?? null
@@ -321,21 +369,38 @@ const parseGlifText = (text: string, fileName: string): Omit<UfoGlyphRecord, 'pr
   const image = imageElement
     ? {
         fileName: imageElement.getAttribute('fileName') ?? '',
-        ...(imageElement.hasAttribute('xScale') ? { xScale: parseNumeric(imageElement.getAttribute('xScale')) ?? 1 } : {}),
-        ...(imageElement.hasAttribute('xyScale') ? { xyScale: parseNumeric(imageElement.getAttribute('xyScale')) ?? 0 } : {}),
-        ...(imageElement.hasAttribute('yxScale') ? { yxScale: parseNumeric(imageElement.getAttribute('yxScale')) ?? 0 } : {}),
-        ...(imageElement.hasAttribute('yScale') ? { yScale: parseNumeric(imageElement.getAttribute('yScale')) ?? 1 } : {}),
-        ...(imageElement.hasAttribute('xOffset') ? { xOffset: parseNumeric(imageElement.getAttribute('xOffset')) ?? 0 } : {}),
-        ...(imageElement.hasAttribute('yOffset') ? { yOffset: parseNumeric(imageElement.getAttribute('yOffset')) ?? 0 } : {}),
-        ...(imageElement.hasAttribute('color') ? { color: imageElement.getAttribute('color') } : {}),
+        ...(imageElement.hasAttribute('xScale')
+          ? { xScale: parseNumeric(imageElement.getAttribute('xScale')) ?? 1 }
+          : {}),
+        ...(imageElement.hasAttribute('xyScale')
+          ? { xyScale: parseNumeric(imageElement.getAttribute('xyScale')) ?? 0 }
+          : {}),
+        ...(imageElement.hasAttribute('yxScale')
+          ? { yxScale: parseNumeric(imageElement.getAttribute('yxScale')) ?? 0 }
+          : {}),
+        ...(imageElement.hasAttribute('yScale')
+          ? { yScale: parseNumeric(imageElement.getAttribute('yScale')) ?? 1 }
+          : {}),
+        ...(imageElement.hasAttribute('xOffset')
+          ? { xOffset: parseNumeric(imageElement.getAttribute('xOffset')) ?? 0 }
+          : {}),
+        ...(imageElement.hasAttribute('yOffset')
+          ? { yOffset: parseNumeric(imageElement.getAttribute('yOffset')) ?? 0 }
+          : {}),
+        ...(imageElement.hasAttribute('color')
+          ? { color: imageElement.getAttribute('color') }
+          : {}),
       }
     : null
 
   const libElement = glyphElement.querySelector(':scope > lib > dict')
-  const lib = libElement ? (parsePlistElement(libElement) as Record<string, unknown>) : null
+  const lib = libElement
+    ? (parsePlistElement(libElement) as Record<string, unknown>)
+    : null
 
   return {
-    glyphName: glyphElement.getAttribute('name') ?? fileName.replace(/\.glif$/i, ''),
+    glyphName:
+      glyphElement.getAttribute('name') ?? fileName.replace(/\.glif$/i, ''),
     fileName,
     sourceHash: hashString(text),
     unicodes,
@@ -363,13 +428,17 @@ const getUnicodeDisplayName = (unicodes: string[], glyphName: string) => {
   }
   try {
     const codePoint = Number.parseInt(primary, 16)
-    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : glyphName
+    return Number.isFinite(codePoint)
+      ? String.fromCodePoint(codePoint)
+      : glyphName
   } catch {
     return glyphName
   }
 }
 
-const buildLineMetrics = (fontinfo: Record<string, unknown> | null | undefined) => {
+const buildLineMetrics = (
+  fontinfo: Record<string, unknown> | null | undefined
+) => {
   if (!fontinfo) {
     return undefined
   }
@@ -407,7 +476,8 @@ const buildPathNodesFromContour = (contour: UfoGlyphContour): PathNode[] =>
             : 'corner',
   }))
 
-const isOpenContour = (contour: UfoGlyphContour) => contour.points[0]?.type === 'move'
+const isOpenContour = (contour: UfoGlyphContour) =>
+  contour.points[0]?.type === 'move'
 
 const rotateContourToFirstOnCurve = (nodes: PathNode[]) => {
   if (nodes.length === 0) {
@@ -422,10 +492,17 @@ const rotateContourToFirstOnCurve = (nodes: PathNode[]) => {
     return nodes
   }
 
-  return [...nodes.slice(firstOnCurveIndex), ...nodes.slice(0, firstOnCurveIndex)]
+  return [
+    ...nodes.slice(firstOnCurveIndex),
+    ...nodes.slice(0, firstOnCurveIndex),
+  ]
 }
 
-const getPreviousHandleRun = (nodes: PathNode[], index: number, isClosed: boolean) => {
+const getPreviousHandleRun = (
+  nodes: PathNode[],
+  index: number,
+  isClosed: boolean
+) => {
   const handleIndices: number[] = []
   let cursor = index - 1
 
@@ -456,7 +533,9 @@ const getPreviousHandleRun = (nodes: PathNode[], index: number, isClosed: boolea
 }
 
 const pathToUfoContour = (path: PathData): UfoGlyphContour => {
-  const orderedNodes = path.closed ? rotateContourToFirstOnCurve(path.nodes) : path.nodes
+  const orderedNodes = path.closed
+    ? rotateContourToFirstOnCurve(path.nodes)
+    : path.nodes
 
   return {
     points: orderedNodes.map((node, index) => {
@@ -467,7 +546,11 @@ const pathToUfoContour = (path: PathData): UfoGlyphContour => {
         }
       }
 
-      const previousHandles = getPreviousHandleRun(orderedNodes, index, path.closed)
+      const previousHandles = getPreviousHandleRun(
+        orderedNodes,
+        index,
+        path.closed
+      )
       const pointType =
         !path.closed && index === 0
           ? 'move'
@@ -493,7 +576,9 @@ interface GlyphBounds {
 }
 
 const getContourBounds = (contour: UfoGlyphContour): GlyphBounds | null => {
-  const relevantPoints = contour.points.filter((point) => point.type !== 'move' || contour.points.length === 1)
+  const relevantPoints = contour.points.filter(
+    (point) => point.type !== 'move' || contour.points.length === 1
+  )
   if (relevantPoints.length === 0) {
     return null
   }
@@ -512,7 +597,10 @@ const getContourBounds = (contour: UfoGlyphContour): GlyphBounds | null => {
   return { xMin, xMax }
 }
 
-const transformBounds = (bounds: GlyphBounds, component: UfoGlyphComponent): GlyphBounds => {
+const transformBounds = (
+  bounds: GlyphBounds,
+  component: UfoGlyphComponent
+): GlyphBounds => {
   const xScale = component.xScale ?? 1
   const yxScale = component.yxScale ?? 0
   const xOffset = component.xOffset ?? 0
@@ -530,8 +618,12 @@ const transformBounds = (bounds: GlyphBounds, component: UfoGlyphComponent): Gly
   }
 }
 
-const unionBounds = (boundsList: Array<GlyphBounds | null>): GlyphBounds | null => {
-  const validBounds = boundsList.filter((bounds): bounds is GlyphBounds => Boolean(bounds))
+const unionBounds = (
+  boundsList: Array<GlyphBounds | null>
+): GlyphBounds | null => {
+  const validBounds = boundsList.filter((bounds): bounds is GlyphBounds =>
+    Boolean(bounds)
+  )
   if (validBounds.length === 0) {
     return null
   }
@@ -543,7 +635,9 @@ const unionBounds = (boundsList: Array<GlyphBounds | null>): GlyphBounds | null 
 }
 
 const buildBoundsResolver = (glyphRecords: UfoGlyphRecord[]) => {
-  const recordMap = new Map(glyphRecords.map((record) => [record.glyphName, record]))
+  const recordMap = new Map(
+    glyphRecords.map((record) => [record.glyphName, record])
+  )
   const cache = new Map<string, GlyphBounds | null>()
   const resolving = new Set<string>()
 
@@ -584,70 +678,71 @@ const buildFontDataFromUfoGlyphs = (
   const resolveBounds = buildBoundsResolver(glyphRecords)
 
   return {
-  glyphs: Object.fromEntries(
-    glyphRecords.map((record) => {
-      const glyphId = record.glyphName
-      const name = getUnicodeDisplayName(record.unicodes, record.glyphName)
-      const bounds = resolveBounds(record.glyphName)
-      const width = record.advance.width ?? 0
-      const metrics: GlyphMetrics = {
-        width,
-        lsb: Math.round(bounds?.xMin ?? 0),
-        rsb: Math.round(width - (bounds?.xMax ?? width)),
-      }
-      const paths: PathData[] = record.contours.map((contour, index) => ({
-        id: `p${index}`,
-        closed: !isOpenContour(contour),
-        nodes: buildPathNodesFromContour(contour),
-      }))
+    glyphs: Object.fromEntries(
+      glyphRecords.map((record) => {
+        const glyphId = record.glyphName
+        const name = getUnicodeDisplayName(record.unicodes, record.glyphName)
+        const bounds = resolveBounds(record.glyphName)
+        const width = record.advance.width ?? 0
+        const metrics: GlyphMetrics = {
+          width,
+          lsb: Math.round(bounds?.xMin ?? 0),
+          rsb: Math.round(width - (bounds?.xMax ?? width)),
+        }
+        const paths: PathData[] = record.contours.map((contour, index) => ({
+          id: `p${index}`,
+          closed: !isOpenContour(contour),
+          nodes: buildPathNodesFromContour(contour),
+        }))
 
-      const components = record.components.map((component) => component.base)
-      const componentRefs = record.components.map((component, index) => ({
-        id: component.identifier ?? `c${index}`,
-        glyphId: component.base,
-        x: component.xOffset ?? 0,
-        y: component.yOffset ?? 0,
-        scaleX: component.xScale ?? 1,
-        scaleY: component.yScale ?? 1,
-        rotation: 0,
-      }))
+        const components = record.components.map((component) => component.base)
+        const componentRefs = record.components.map((component, index) => ({
+          id: component.identifier ?? `c${index}`,
+          glyphId: component.base,
+          x: component.xOffset ?? 0,
+          y: component.yOffset ?? 0,
+          scaleX: component.xScale ?? 1,
+          scaleY: component.yScale ?? 1,
+          rotation: 0,
+        }))
 
-      return [
-        glyphId,
-        {
-          id: glyphId,
-          name,
-          activeLayerId: metadata.layers[0]?.layerId ?? 'public.default',
-          unicode: record.unicodes[0] ?? null,
-          export: true,
-          paths,
-          components,
-          componentRefs,
-          anchors: record.anchors.map((anchor, index) => ({
-            id: anchor.identifier ?? `a${index}`,
-            name: anchor.name,
-            x: anchor.x,
-            y: anchor.y,
-          })),
-          guidelines: record.guidelines.map((guide, index) => ({
-            id: guide.identifier ?? `g${index}`,
-            x: guide.x ?? 0,
-            y: guide.y ?? 0,
-            angle: guide.angle ?? 0,
-            locked: false,
-            name: guide.name ?? undefined,
-          })),
-          metrics,
-        } satisfies GlyphData,
-      ]
-    })
-  ),
-  lineMetricsHorizontalLayout: buildLineMetrics(metadata.fontinfo),
-}
+        return [
+          glyphId,
+          {
+            id: glyphId,
+            name,
+            activeLayerId: metadata.layers[0]?.layerId ?? 'public.default',
+            unicode: record.unicodes[0] ?? null,
+            export: true,
+            paths,
+            components,
+            componentRefs,
+            anchors: record.anchors.map((anchor, index) => ({
+              id: anchor.identifier ?? `a${index}`,
+              name: anchor.name,
+              x: anchor.x,
+              y: anchor.y,
+            })),
+            guidelines: record.guidelines.map((guide, index) => ({
+              id: guide.identifier ?? `g${index}`,
+              x: guide.x ?? 0,
+              y: guide.y ?? 0,
+              angle: guide.angle ?? 0,
+              locked: false,
+              name: guide.name ?? undefined,
+            })),
+            metrics,
+          } satisfies GlyphData,
+        ]
+      })
+    ),
+    lineMetricsHorizontalLayout: buildLineMetrics(metadata.fontinfo),
+  }
 }
 
 export const pickDefaultLayer = (metadata: UfoMetadataRecord) =>
-  metadata.layers.find((layer) => layer.layerId === 'public.default') ?? metadata.layers[0] ?? {
+  metadata.layers.find((layer) => layer.layerId === 'public.default') ??
+  metadata.layers[0] ?? {
     layerId: 'public.default',
     glyphDir: 'glyphs',
   }
@@ -676,10 +771,14 @@ const buildWorkspaceFileMapFromEntries = (entries: UfoWorkspaceEntry[]) => {
     byUfo.set(root.relativePath, parsed)
   }
 
-  return [...byUfo.values()].sort((left, right) => left.ufoId.localeCompare(right.ufoId))
+  return [...byUfo.values()].sort((left, right) =>
+    left.ufoId.localeCompare(right.ufoId)
+  )
 }
 
-const buildWorkspaceEntriesFromFiles = async (inputFiles: FileList | File[]) => {
+const buildWorkspaceEntriesFromFiles = async (
+  inputFiles: FileList | File[]
+) => {
   const candidateFiles = Array.from(inputFiles).filter((file) =>
     isRelevantUfoTextFile(file.webkitRelativePath || file.name)
   )
@@ -720,11 +819,27 @@ export const importUfoWorkspaceEntries = async (
   const glyphRecords: UfoGlyphRecord[] = []
 
   for (const ufo of parsedUfos) {
-    const metainfo = (ufo.files['metainfo.plist'] ? parseXmlPlist(ufo.files['metainfo.plist']) : {}) as Record<string, unknown>
-    const fontinfo = (ufo.files['fontinfo.plist'] ? parseXmlPlist(ufo.files['fontinfo.plist']) : {}) as Record<string, unknown>
-    const lib = (ufo.files['lib.plist'] ? parseXmlPlist(ufo.files['lib.plist']) : {}) as Record<string, unknown>
-    const groups = (ufo.files['groups.plist'] ? parseXmlPlist(ufo.files['groups.plist']) : {}) as Record<string, unknown>
-    const kerning = (ufo.files['kerning.plist'] ? parseXmlPlist(ufo.files['kerning.plist']) : {}) as Record<string, unknown>
+    const metainfo = (
+      ufo.files['metainfo.plist']
+        ? parseXmlPlist(ufo.files['metainfo.plist'])
+        : {}
+    ) as Record<string, unknown>
+    const fontinfo = (
+      ufo.files['fontinfo.plist']
+        ? parseXmlPlist(ufo.files['fontinfo.plist'])
+        : {}
+    ) as Record<string, unknown>
+    const lib = (
+      ufo.files['lib.plist'] ? parseXmlPlist(ufo.files['lib.plist']) : {}
+    ) as Record<string, unknown>
+    const groups = (
+      ufo.files['groups.plist'] ? parseXmlPlist(ufo.files['groups.plist']) : {}
+    ) as Record<string, unknown>
+    const kerning = (
+      ufo.files['kerning.plist']
+        ? parseXmlPlist(ufo.files['kerning.plist'])
+        : {}
+    ) as Record<string, unknown>
     const featuresText = ufo.files['features.fea'] ?? null
     const layercontents = ufo.files['layercontents.plist']
       ? (parseXmlPlist(ufo.files['layercontents.plist']) as unknown[])
@@ -757,9 +872,12 @@ export const importUfoWorkspaceEntries = async (
     })
 
     const contentsPath = `${defaultLayer.glyphDir}/contents.plist`
-    const contents = (ufo.files[contentsPath] ? parseXmlPlist(ufo.files[contentsPath]) : {}) as Record<string, string>
-    const glyphOrder =
-      Array.isArray(lib?.['public.glyphOrder']) ? (lib['public.glyphOrder'] as string[]) : Object.keys(contents)
+    const contents = (
+      ufo.files[contentsPath] ? parseXmlPlist(ufo.files[contentsPath]) : {}
+    ) as Record<string, string>
+    const glyphOrder = Array.isArray(lib?.['public.glyphOrder'])
+      ? (lib['public.glyphOrder'] as string[])
+      : Object.keys(contents)
 
     const metadataRecord: UfoMetadataRecord = {
       projectId,
@@ -808,13 +926,20 @@ export const importUfoWorkspaceEntries = async (
     githubSource: options.githubSource ?? null,
   }
 
-  const activeMetadata = metadataRecords.find((record) => record.ufoId === activeUfoId) ?? metadataRecords[0]
-  const activeLayer = activeMetadata ? pickDefaultLayer(activeMetadata) : { layerId: 'public.default', glyphDir: 'glyphs' }
+  const activeMetadata =
+    metadataRecords.find((record) => record.ufoId === activeUfoId) ??
+    metadataRecords[0]
+  const activeLayer = activeMetadata
+    ? pickDefaultLayer(activeMetadata)
+    : { layerId: 'public.default', glyphDir: 'glyphs' }
   const activeGlyphs = glyphRecords.filter(
-    (record) => record.ufoId === activeUfoId && record.layerId === activeLayer.layerId
+    (record) =>
+      record.ufoId === activeUfoId && record.layerId === activeLayer.layerId
   )
 
-  const fontData = activeMetadata ? buildFontDataFromUfoGlyphs(activeGlyphs, activeMetadata) : { glyphs: {} }
+  const fontData = activeMetadata
+    ? buildFontDataFromUfoGlyphs(activeGlyphs, activeMetadata)
+    : { glyphs: {} }
   const projectMetadata = {
     activeUfoId,
     ufoIds: project.ufoIds,
@@ -845,7 +970,9 @@ export const importUfoWorkspaceEntries = async (
   }
 }
 
-export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise<ImportedUfoWorkspace> => {
+export const importUfoWorkspace = async (
+  inputFiles: FileList | File[]
+): Promise<ImportedUfoWorkspace> => {
   const entries = await buildWorkspaceEntriesFromFiles(inputFiles)
   return importUfoWorkspaceEntries(entries, {
     title: getProjectTitleFromFolder(inputFiles),
@@ -862,13 +989,18 @@ export const loadUfoProjectIntoFontData = async (projectId: string) => {
 
   const metadataRecords = await listUfoMetadataForProject(projectId)
   const activeMetadata =
-    metadataRecords.find((record) => record.ufoId === project.selectedUfoId) ?? metadataRecords[0]
+    metadataRecords.find((record) => record.ufoId === project.selectedUfoId) ??
+    metadataRecords[0]
   if (!activeMetadata) {
     return null
   }
 
   const activeLayer = pickDefaultLayer(activeMetadata)
-  const glyphRecords = await listUfoGlyphsInLayer(projectId, activeMetadata.ufoId, activeLayer.layerId)
+  const glyphRecords = await listUfoGlyphsInLayer(
+    projectId,
+    activeMetadata.ufoId,
+    activeLayer.layerId
+  )
   const fontData = buildFontDataFromUfoGlyphs(glyphRecords, activeMetadata)
 
   return {
@@ -913,8 +1045,12 @@ export const syncHotFontDataToUfoRecords = async (input: {
   for (const glyphId of input.deletedGlyphIds ?? []) {
     const fileName = metadata?.contents?.[glyphId]
     if (fileName) {
-      for (const layer of metadata?.layers ?? [{ layerId: input.activeLayerId, glyphDir: 'glyphs' }]) {
-        deletedFilePaths.push(`${metadata.relativePath}/${layer.glyphDir}/${fileName}`)
+      for (const layer of metadata?.layers ?? [
+        { layerId: input.activeLayerId, glyphDir: 'glyphs' },
+      ]) {
+        deletedFilePaths.push(
+          `${metadata.relativePath}/${layer.glyphDir}/${fileName}`
+        )
       }
     }
     if (nextContents[glyphId]) {
@@ -926,9 +1062,16 @@ export const syncHotFontDataToUfoRecords = async (input: {
       nextGlyphOrder.splice(glyphOrderIndex, 1)
       didUpdateMetadata = true
     }
-    for (const layer of metadata?.layers ?? [{ layerId: input.activeLayerId, glyphDir: 'glyphs' }]) {
+    for (const layer of metadata?.layers ?? [
+      { layerId: input.activeLayerId, glyphDir: 'glyphs' },
+    ]) {
       deletedKeys.push(
-        makeUfoGlyphKey(input.projectId, input.activeUfoId, layer.layerId, glyphId)
+        makeUfoGlyphKey(
+          input.projectId,
+          input.activeUfoId,
+          layer.layerId,
+          glyphId
+        )
       )
     }
   }
@@ -939,7 +1082,12 @@ export const syncHotFontDataToUfoRecords = async (input: {
       continue
     }
     const existingRecord = await loadUfoGlyph(
-      makeUfoGlyphKey(input.projectId, input.activeUfoId, input.activeLayerId, glyph.id)
+      makeUfoGlyphKey(
+        input.projectId,
+        input.activeUfoId,
+        input.activeLayerId,
+        glyph.id
+      )
     )
     const nextFileName = existingRecord?.fileName ?? `${glyph.id}.glif`
     if (!nextContents[glyph.id]) {
@@ -1025,7 +1173,9 @@ ${contour.points
     const attrs = [
       `x="${point.x}"`,
       `y="${point.y}"`,
-      ...(point.type ? [`type="${point.type === 'qcurve' ? 'qcurve' : point.type}"`] : []),
+      ...(point.type
+        ? [`type="${point.type === 'qcurve' ? 'qcurve' : point.type}"`]
+        : []),
       ...(point.smooth ? ['smooth="yes"'] : []),
       ...(point.name ? [`name="${escapeXml(point.name)}"`] : []),
     ]
@@ -1040,13 +1190,27 @@ ${contour.points
     .map((component) => {
       const attrs = [
         `base="${escapeXml(component.base)}"`,
-        ...(component.identifier ? [`identifier="${escapeXml(component.identifier)}"`] : []),
-        ...(component.xScale !== undefined ? [`xScale="${component.xScale}"`] : []),
-        ...(component.xyScale !== undefined ? [`xyScale="${component.xyScale}"`] : []),
-        ...(component.yxScale !== undefined ? [`yxScale="${component.yxScale}"`] : []),
-        ...(component.yScale !== undefined ? [`yScale="${component.yScale}"`] : []),
-        ...(component.xOffset !== undefined ? [`xOffset="${component.xOffset}"`] : []),
-        ...(component.yOffset !== undefined ? [`yOffset="${component.yOffset}"`] : []),
+        ...(component.identifier
+          ? [`identifier="${escapeXml(component.identifier)}"`]
+          : []),
+        ...(component.xScale !== undefined
+          ? [`xScale="${component.xScale}"`]
+          : []),
+        ...(component.xyScale !== undefined
+          ? [`xyScale="${component.xyScale}"`]
+          : []),
+        ...(component.yxScale !== undefined
+          ? [`yxScale="${component.yxScale}"`]
+          : []),
+        ...(component.yScale !== undefined
+          ? [`yScale="${component.yScale}"`]
+          : []),
+        ...(component.xOffset !== undefined
+          ? [`xOffset="${component.xOffset}"`]
+          : []),
+        ...(component.yOffset !== undefined
+          ? [`yOffset="${component.yOffset}"`]
+          : []),
       ]
       return `    <component ${attrs.join(' ')}/>`
     })
@@ -1064,10 +1228,14 @@ ${record.guidelines
     const attrs = [
       ...(guide.x !== null && guide.x !== undefined ? [`x="${guide.x}"`] : []),
       ...(guide.y !== null && guide.y !== undefined ? [`y="${guide.y}"`] : []),
-      ...(guide.angle !== null && guide.angle !== undefined ? [`angle="${guide.angle}"`] : []),
+      ...(guide.angle !== null && guide.angle !== undefined
+        ? [`angle="${guide.angle}"`]
+        : []),
       ...(guide.name ? [`name="${escapeXml(guide.name)}"`] : []),
       ...(guide.color ? [`color="${escapeXml(guide.color)}"`] : []),
-      ...(guide.identifier ? [`identifier="${escapeXml(guide.identifier)}"`] : []),
+      ...(guide.identifier
+        ? [`identifier="${escapeXml(guide.identifier)}"`]
+        : []),
     ]
     return `  <guideline ${attrs.join(' ')}/>`
   })
@@ -1079,7 +1247,9 @@ ${record.anchors
       `y="${anchor.y}"`,
       `name="${escapeXml(anchor.name)}"`,
       ...(anchor.color ? [`color="${escapeXml(anchor.color)}"`] : []),
-      ...(anchor.identifier ? [`identifier="${escapeXml(anchor.identifier)}"`] : []),
+      ...(anchor.identifier
+        ? [`identifier="${escapeXml(anchor.identifier)}"`]
+        : []),
     ]
     return `  <anchor ${attrs.join(' ')}/>`
   })
@@ -1098,7 +1268,9 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
 
   const picker = (
     window as Window & {
-      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>
+      showDirectoryPicker?: (options?: {
+        mode?: 'read' | 'readwrite'
+      }) => Promise<FileSystemDirectoryHandle>
     }
   ).showDirectoryPicker
   if (!picker) {
@@ -1109,7 +1281,10 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
   const metadataRecords = await listUfoMetadataForProject(projectId)
   const dirtyGlyphs = await listDirtyUfoGlyphs(projectId)
   const dirtyKeySet = new Set(
-    dirtyGlyphs.map((glyph) => `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`)
+    dirtyGlyphs.map(
+      (glyph) =>
+        `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`
+    )
   )
   const exportStateUpdates: Array<{
     key: [string, string, string, string]
@@ -1124,17 +1299,30 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
     const segments = relativePath.split('/').filter(Boolean)
     let currentHandle = directoryHandle
     for (const segment of segments) {
-      currentHandle = await currentHandle.getDirectoryHandle(segment, { create: true })
+      currentHandle = await currentHandle.getDirectoryHandle(segment, {
+        create: true,
+      })
     }
     return currentHandle
   }
 
   for (const metadata of metadataRecords) {
-    const ufoHandle = await ensureDirectoryPath(rootHandle, metadata.relativePath)
+    const ufoHandle = await ensureDirectoryPath(
+      rootHandle,
+      metadata.relativePath
+    )
     const defaultLayer = pickDefaultLayer(metadata)
-    const glyphRecords = await listUfoGlyphsInLayer(projectId, metadata.ufoId, defaultLayer.layerId)
+    const glyphRecords = await listUfoGlyphsInLayer(
+      projectId,
+      metadata.ufoId,
+      defaultLayer.layerId
+    )
 
-    const writeTextFile = async (directory: FileSystemDirectoryHandle, name: string, content: string) => {
+    const writeTextFile = async (
+      directory: FileSystemDirectoryHandle,
+      name: string,
+      content: string
+    ) => {
       const fileHandle = await directory.getFileHandle(name, { create: true })
       const writable = await fileHandle.createWritable()
       await writable.write(content)
@@ -1150,21 +1338,41 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
         formatVersionMinor: metadata.metainfo?.formatVersionMinor ?? 0,
       })
     )
-    await writeTextFile(ufoHandle, 'fontinfo.plist', serializeXmlPlist(metadata.fontinfo ?? {}))
-    await writeTextFile(ufoHandle, 'lib.plist', serializeXmlPlist(metadata.lib ?? {}))
-    await writeTextFile(ufoHandle, 'groups.plist', serializeXmlPlist(metadata.groups ?? {}))
-    await writeTextFile(ufoHandle, 'kerning.plist', serializeXmlPlist(metadata.kerning ?? {}))
+    await writeTextFile(
+      ufoHandle,
+      'fontinfo.plist',
+      serializeXmlPlist(metadata.fontinfo ?? {})
+    )
+    await writeTextFile(
+      ufoHandle,
+      'lib.plist',
+      serializeXmlPlist(metadata.lib ?? {})
+    )
+    await writeTextFile(
+      ufoHandle,
+      'groups.plist',
+      serializeXmlPlist(metadata.groups ?? {})
+    )
+    await writeTextFile(
+      ufoHandle,
+      'kerning.plist',
+      serializeXmlPlist(metadata.kerning ?? {})
+    )
     if (metadata.featuresText !== null) {
       await writeTextFile(ufoHandle, 'features.fea', metadata.featuresText)
     }
     await writeTextFile(
       ufoHandle,
       'layercontents.plist',
-      serializeXmlPlist(metadata.layers.map((layer) => [layer.layerId, layer.glyphDir]))
+      serializeXmlPlist(
+        metadata.layers.map((layer) => [layer.layerId, layer.glyphDir])
+      )
     )
 
     for (const layer of metadata.layers) {
-      const layerHandle = await ufoHandle.getDirectoryHandle(layer.glyphDir, { create: true })
+      const layerHandle = await ufoHandle.getDirectoryHandle(layer.glyphDir, {
+        create: true,
+      })
       const layerGlyphs =
         layer.layerId === defaultLayer.layerId
           ? glyphRecords
@@ -1172,7 +1380,11 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
       const contents = Object.fromEntries(
         layerGlyphs.map((glyph) => [glyph.glyphName, glyph.fileName])
       )
-      await writeTextFile(layerHandle, 'contents.plist', serializeXmlPlist(contents))
+      await writeTextFile(
+        layerHandle,
+        'contents.plist',
+        serializeXmlPlist(contents)
+      )
       for (const glyph of layerGlyphs) {
         const key = `${glyph.projectId}::${glyph.ufoId}::${glyph.layerId}::${glyph.glyphName}`
         if (dirtyKeySet.size > 0 && !dirtyKeySet.has(key)) {

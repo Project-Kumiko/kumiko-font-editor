@@ -15,7 +15,10 @@ export class BrushTool extends BaseTool {
     this.setCursor('crosshair')
   }
 
-  async handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void> {
+  async handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void> {
     initialEvent.preventDefault()
 
     if (!this.sceneModel.canEdit || !this.sceneModel.glyph?.glyphId) {

@@ -73,7 +73,10 @@ export class PointerTool extends BaseTool {
     this.canvasController.requestUpdate()
   }
 
-  async handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void> {
+  async handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void> {
     initialEvent.preventDefault()
 
     const point = this.localPoint(initialEvent)
@@ -197,7 +200,9 @@ export class PointerTool extends BaseTool {
     }
 
     if (!this.dragState.didMove) {
-      this.sceneController.onClearPreviewGlyphMetrics?.(this.sceneModel.glyph?.glyphId)
+      this.sceneController.onClearPreviewGlyphMetrics?.(
+        this.sceneModel.glyph?.glyphId
+      )
       this.handleClick(this.dragState.pendingHit)
       this.canvasController.requestUpdate()
       return
@@ -209,7 +214,9 @@ export class PointerTool extends BaseTool {
 
     this.commitMovedPoints()
     this.restoreSelectionAfterDrag(finalRectSelection)
-    this.sceneController.onClearPreviewGlyphMetrics?.(this.sceneModel.glyph?.glyphId)
+    this.sceneController.onClearPreviewGlyphMetrics?.(
+      this.sceneModel.glyph?.glyphId
+    )
     this.sceneController.setHoverSelection(new Set())
     this.sceneController.setHoverPathHit(undefined)
     this.sceneModel.alignmentGuides = []
@@ -253,12 +260,14 @@ export class PointerTool extends BaseTool {
           endRef &&
           startRef.pathId === endRef.pathId
         ) {
-          useStore.getState().convertLineSegmentToCurve(
-            glyphId,
-            startRef.pathId,
-            startRef.nodeId,
-            endRef.nodeId
-          )
+          useStore
+            .getState()
+            .convertLineSegmentToCurve(
+              glyphId,
+              startRef.pathId,
+              startRef.nodeId,
+              endRef.nodeId
+            )
           this.sceneController.setSelection(new Set())
           this.sceneController.setSelectedPathHit(undefined)
           return
@@ -282,7 +291,10 @@ export class PointerTool extends BaseTool {
   }
 
   private handleDoubleClick(hit: HitTestResult) {
-    if ((hit.type === 'point' || hit.type === 'handle') && this.sceneModel.glyph?.glyph.path) {
+    if (
+      (hit.type === 'point' || hit.type === 'handle') &&
+      this.sceneModel.glyph?.glyph.path
+    ) {
       const idx = hit.pointIndex
       const path = this.sceneModel.glyph.glyph.path
       const pt = this.getPointByIndex(path, idx)
@@ -334,7 +346,10 @@ export class PointerTool extends BaseTool {
       return
     }
 
-    this.dragState.pointToggleOnClick = { selectionKey: normalizedSelectionKey, remove: true }
+    this.dragState.pointToggleOnClick = {
+      selectionKey: normalizedSelectionKey,
+      remove: true,
+    }
   }
 
   private resolveDragMode(hit: HitTestResult): DragMode {
@@ -346,7 +361,10 @@ export class PointerTool extends BaseTool {
       if (this.shouldDragCurrentSelection(hit.pathHit)) {
         return 'point-drag'
       }
-      return this.isSameSegment(hit.pathHit, this.dragState.initialSelectedPathHit)
+      return this.isSameSegment(
+        hit.pathHit,
+        this.dragState.initialSelectedPathHit
+      )
         ? 'line-segment-drag'
         : 'rect-select'
     }
@@ -355,7 +373,10 @@ export class PointerTool extends BaseTool {
       if (this.shouldDragCurrentSelection(hit.pathHit)) {
         return 'point-drag'
       }
-      return this.isSameSegment(hit.pathHit, this.dragState.initialSelectedPathHit)
+      return this.isSameSegment(
+        hit.pathHit,
+        this.dragState.initialSelectedPathHit
+      )
         ? 'curve-segment-drag'
         : 'curve-segment-deform'
     }
@@ -409,7 +430,10 @@ export class PointerTool extends BaseTool {
     )
     this.capturePointSnapshot(path, this.dragState.activePointIndices)
 
-    if (this.dragState.mode === 'line-segment-drag' || this.dragState.mode === 'curve-segment-drag') {
+    if (
+      this.dragState.mode === 'line-segment-drag' ||
+      this.dragState.mode === 'curve-segment-drag'
+    ) {
       this.sceneController.setSelectedPathHit(hit.pathHit)
       return
     }
@@ -417,7 +441,10 @@ export class PointerTool extends BaseTool {
     this.sceneController.setSelectedPathHit(undefined)
   }
 
-  private updateRectSelection(currentPoint: { x: number; y: number }, event?: ToolEvent) {
+  private updateRectSelection(
+    currentPoint: { x: number; y: number },
+    event?: ToolEvent
+  ) {
     const selection = this.getSelectionInRect(currentPoint)
     if (!selection) {
       return
@@ -433,7 +460,10 @@ export class PointerTool extends BaseTool {
     this.sceneModel.selectionRect = selectionRect
 
     const additiveSelection =
-      event?.shiftKey || event?.metaKey || event?.ctrlKey || this.dragState.additiveSelection
+      event?.shiftKey ||
+      event?.metaKey ||
+      event?.ctrlKey ||
+      this.dragState.additiveSelection
     this.sceneController.previewSelection(
       additiveSelection
         ? new Set([...this.dragState.initialSelection, ...selection])
@@ -441,7 +471,10 @@ export class PointerTool extends BaseTool {
     )
   }
 
-  private getSelectionInRect(currentPoint: { x: number; y: number }): Set<string> | undefined {
+  private getSelectionInRect(currentPoint: {
+    x: number
+    y: number
+  }): Set<string> | undefined {
     if (!this.sceneModel.glyph?.glyph.path) {
       return undefined
     }
@@ -461,20 +494,28 @@ export class PointerTool extends BaseTool {
 
   private deformDraggedSegment(
     path: {
-      setPoint?(index: number, point: { x: number; y: number; type?: string; smooth?: boolean }): void
+      setPoint?(
+        index: number,
+        point: { x: number; y: number; type?: string; smooth?: boolean }
+      ): void
     },
     pointIndices: number[],
     dx: number,
     dy: number
   ) {
-    for (let segmentIndex = 0; segmentIndex < pointIndices.length; segmentIndex += 1) {
+    for (
+      let segmentIndex = 0;
+      segmentIndex < pointIndices.length;
+      segmentIndex += 1
+    ) {
       const pointIndex = pointIndices[segmentIndex]
       const snapshotPoint = this.dragState.pathSnapshot.get(pointIndex)
       if (!snapshotPoint || !path.setPoint) {
         continue
       }
 
-      const isEndpoint = segmentIndex === 0 || segmentIndex === pointIndices.length - 1
+      const isEndpoint =
+        segmentIndex === 0 || segmentIndex === pointIndices.length - 1
       const factor = isEndpoint ? 0 : 1
       path.setPoint(pointIndex, {
         x: snapshotPoint.x + dx * factor,
@@ -496,10 +537,15 @@ export class PointerTool extends BaseTool {
       return
     }
 
-    const uniquePointIndices = Array.from(new Set(this.dragState.activePointIndices))
+    const uniquePointIndices = Array.from(
+      new Set(this.dragState.activePointIndices)
+    )
     const committedPointIndices = this.dragState.linkedHandle
       ? Array.from(
-          new Set([...uniquePointIndices, this.dragState.linkedHandle.oppositeHandleIndex])
+          new Set([
+            ...uniquePointIndices,
+            this.dragState.linkedHandle.oppositeHandleIndex,
+          ])
         )
       : uniquePointIndices
     const dx = this.dragState.snappedDelta.x
@@ -532,7 +578,8 @@ export class PointerTool extends BaseTool {
       } else if (this.dragState.mode === 'curve-segment-deform') {
         const pointIndex = this.dragState.activePointIndices.indexOf(idx)
         const isEndpoint =
-          pointIndex === 0 || pointIndex === this.dragState.activePointIndices.length - 1
+          pointIndex === 0 ||
+          pointIndex === this.dragState.activePointIndices.length - 1
         const factor = isEndpoint ? 0 : 1
         newPos = {
           x: snapshotPoint.x + dx * factor,
@@ -552,7 +599,6 @@ export class PointerTool extends BaseTool {
     if (updates.length > 0) {
       this.sceneController.onCommitNodePositions(glyphId, updates)
     }
-
   }
 
   private createInitialDragState() {
@@ -575,11 +621,9 @@ export class PointerTool extends BaseTool {
     }
   }
 
-  private updatePreviewGlyphMetrics(
-    path: {
-      getControlBounds?(): { xMin: number; xMax: number } | undefined
-    }
-  ) {
+  private updatePreviewGlyphMetrics(path: {
+    getControlBounds?(): { xMin: number; xMax: number } | undefined
+  }) {
     const glyphId = this.sceneModel.glyph?.glyphId
     const width = this.sceneModel.glyph?.glyph.xAdvance
     const bounds = path.getControlBounds?.()
@@ -600,25 +644,32 @@ export class PointerTool extends BaseTool {
       this.sceneController.setSelection(
         additiveSelection && finalRectSelection
           ? new Set([...this.dragState.initialSelection, ...finalRectSelection])
-          : finalRectSelection ?? new Set()
+          : (finalRectSelection ?? new Set())
       )
       return
     }
 
     if (this.dragState.mode === 'point-drag') {
       if (this.dragState.selectionToRestore.size > 0) {
-        this.sceneController.setSelection(new Set(this.dragState.selectionToRestore))
+        this.sceneController.setSelection(
+          new Set(this.dragState.selectionToRestore)
+        )
         return
       }
 
-      if (this.dragState.pendingHit.type === 'point' || this.dragState.pendingHit.type === 'handle') {
+      if (
+        this.dragState.pendingHit.type === 'point' ||
+        this.dragState.pendingHit.type === 'handle'
+      ) {
         this.sceneController.setSelection(
           new Set([pointSelectionKey(this.dragState.pendingHit.pointIndex)])
         )
         return
       }
 
-      this.sceneController.setSelection(new Set(this.dragState.initialSelection))
+      this.sceneController.setSelection(
+        new Set(this.dragState.initialSelection)
+      )
       return
     }
 
@@ -627,7 +678,9 @@ export class PointerTool extends BaseTool {
         this.dragState.mode === 'curve-segment-drag') &&
       this.sceneController.selectedPathHit
     ) {
-      this.sceneController.setSelectedPathHit(this.sceneController.selectedPathHit)
+      this.sceneController.setSelectedPathHit(
+        this.sceneController.selectedPathHit
+      )
     }
   }
 
@@ -635,8 +688,12 @@ export class PointerTool extends BaseTool {
     if (!this.sceneController.selection.size) {
       return false
     }
-    const selectedPointIndices = new Set(this.getSelectedPointIndices(this.sceneController.selection))
-    return pathHit.segment.pointIndices.some((index) => selectedPointIndices.has(index))
+    const selectedPointIndices = new Set(
+      this.getSelectedPointIndices(this.sceneController.selection)
+    )
+    return pathHit.segment.pointIndices.some((index) =>
+      selectedPointIndices.has(index)
+    )
   }
 
   private expandPointIndicesForMove(
@@ -677,14 +734,22 @@ export class PointerTool extends BaseTool {
       return undefined
     }
 
-    const contourBounds = this.findContourBounds(path.contourInfo, hit.pointIndex)
+    const contourBounds = this.findContourBounds(
+      path.contourInfo,
+      hit.pointIndex
+    )
     if (!contourBounds) {
       return undefined
     }
 
-    const previousIndex = this.stepContourIndex(hit.pointIndex, -1, contourBounds)
+    const previousIndex = this.stepContourIndex(
+      hit.pointIndex,
+      -1,
+      contourBounds
+    )
     const nextIndex = this.stepContourIndex(hit.pointIndex, 1, contourBounds)
-    const previousPoint = previousIndex === null ? null : path.getPoint(previousIndex)
+    const previousPoint =
+      previousIndex === null ? null : path.getPoint(previousIndex)
     const nextPoint = nextIndex === null ? null : path.getPoint(nextIndex)
 
     let anchorIndex: number | null = null
@@ -692,10 +757,20 @@ export class PointerTool extends BaseTool {
 
     if (previousPoint?.type === 'onCurve' && previousIndex !== null) {
       anchorIndex = previousIndex
-      oppositeHandleIndex = this.findAdjacentHandleIndex(path, previousIndex, -1, contourBounds)
+      oppositeHandleIndex = this.findAdjacentHandleIndex(
+        path,
+        previousIndex,
+        -1,
+        contourBounds
+      )
     } else if (nextPoint?.type === 'onCurve' && nextIndex !== null) {
       anchorIndex = nextIndex
-      oppositeHandleIndex = this.findAdjacentHandleIndex(path, nextIndex, 1, contourBounds)
+      oppositeHandleIndex = this.findAdjacentHandleIndex(
+        path,
+        nextIndex,
+        1,
+        contourBounds
+      )
     }
 
     if (anchorIndex === null || oppositeHandleIndex === null) {
@@ -720,7 +795,11 @@ export class PointerTool extends BaseTool {
     direction: -1 | 1,
     contourBounds: { start: number; end: number; isClosed: boolean }
   ) {
-    const candidateIndex = this.stepContourIndex(anchorIndex, direction, contourBounds)
+    const candidateIndex = this.stepContourIndex(
+      anchorIndex,
+      direction,
+      contourBounds
+    )
     if (candidateIndex === null || !path.getPoint) {
       return null
     }
@@ -750,7 +829,10 @@ export class PointerTool extends BaseTool {
 
   private updateLinkedSmoothHandle(
     path: {
-      setPoint?(index: number, point: { x: number; y: number; type?: string; smooth?: boolean }): void
+      setPoint?(
+        index: number,
+        point: { x: number; y: number; type?: string; smooth?: boolean }
+      ): void
     },
     dx: number,
     dy: number
@@ -775,9 +857,15 @@ export class PointerTool extends BaseTool {
       return undefined
     }
 
-    const draggedSnapshot = this.dragState.pathSnapshot.get(linkedHandle.draggedHandleIndex)
-    const anchorSnapshot = this.dragState.pathSnapshot.get(linkedHandle.anchorIndex)
-    const oppositeSnapshot = this.dragState.pathSnapshot.get(linkedHandle.oppositeHandleIndex)
+    const draggedSnapshot = this.dragState.pathSnapshot.get(
+      linkedHandle.draggedHandleIndex
+    )
+    const anchorSnapshot = this.dragState.pathSnapshot.get(
+      linkedHandle.anchorIndex
+    )
+    const oppositeSnapshot = this.dragState.pathSnapshot.get(
+      linkedHandle.oppositeHandleIndex
+    )
     if (!draggedSnapshot || !anchorSnapshot || !oppositeSnapshot) {
       return undefined
     }
@@ -841,12 +929,14 @@ export class PointerTool extends BaseTool {
     while (true) {
       currentIndex += direction
 
-      if (currentIndex < contourBounds.start || currentIndex > contourBounds.end) {
+      if (
+        currentIndex < contourBounds.start ||
+        currentIndex > contourBounds.end
+      ) {
         if (!contourBounds.isClosed) {
           return
         }
-        currentIndex =
-          direction > 0 ? contourBounds.start : contourBounds.end
+        currentIndex = direction > 0 ? contourBounds.start : contourBounds.end
       }
 
       if (currentIndex === startIndex) {
@@ -895,7 +985,9 @@ export class PointerTool extends BaseTool {
       return false
     }
 
-    return pointIndex === contourBounds.start || pointIndex === contourBounds.end
+    return (
+      pointIndex === contourBounds.start || pointIndex === contourBounds.end
+    )
   }
 
   private capturePointSnapshot(
@@ -912,7 +1004,9 @@ export class PointerTool extends BaseTool {
   }
 
   private isSameSegment(a?: PathHitInfo, b?: PathHitInfo) {
-    return !!a?.segment.key && !!b?.segment.key && a.segment.key === b.segment.key
+    return (
+      !!a?.segment.key && !!b?.segment.key && a.segment.key === b.segment.key
+    )
   }
 
   private getSelectedPointIndices(selection: Set<string>): number[] {
@@ -925,7 +1019,16 @@ export class PointerTool extends BaseTool {
 
   private getPointByIndex(
     path: {
-      iterPoints(): Generator<{ x: number; y: number; index: number; type?: string; smooth?: boolean }, void>
+      iterPoints(): Generator<
+        {
+          x: number
+          y: number
+          index: number
+          type?: string
+          smooth?: boolean
+        },
+        void
+      >
     },
     index: number
   ) {
@@ -937,8 +1040,16 @@ export class PointerTool extends BaseTool {
 
   private updatePointPosition(
     path: {
-      setPoint?(index: number, point: { x: number; y: number; type?: string; smooth?: boolean }): void
-      getPoint?(index: number): { x: number; y: number; type?: string; smooth?: boolean }
+      setPoint?(
+        index: number,
+        point: { x: number; y: number; type?: string; smooth?: boolean }
+      ): void
+      getPoint?(index: number): {
+        x: number
+        y: number
+        type?: string
+        smooth?: boolean
+      }
       coordinates?: Float64Array
     },
     index: number,
@@ -1016,13 +1127,18 @@ export class PointerTool extends BaseTool {
     )
     const tolerance = 8 / this.canvasController.magnification
 
-    let bestX: { diff: number; guideX: number; y1: number; y2: number } | null = null
-    let bestY: { diff: number; guideY: number; x1: number; x2: number } | null = null
+    let bestX: { diff: number; guideX: number; y1: number; y2: number } | null =
+      null
+    let bestY: { diff: number; guideY: number; x1: number; x2: number } | null =
+      null
 
     for (const moving of movingPoints) {
       for (const candidate of candidates) {
         const diffX = candidate.x - (moving.point!.x + snappedDx)
-        if (Math.abs(diffX) <= tolerance && (!bestX || Math.abs(diffX) < Math.abs(bestX.diff))) {
+        if (
+          Math.abs(diffX) <= tolerance &&
+          (!bestX || Math.abs(diffX) < Math.abs(bestX.diff))
+        ) {
           bestX = {
             diff: diffX,
             guideX: candidate.x,
@@ -1032,7 +1148,10 @@ export class PointerTool extends BaseTool {
         }
 
         const diffY = candidate.y - (moving.point!.y + snappedDy)
-        if (Math.abs(diffY) <= tolerance && (!bestY || Math.abs(diffY) < Math.abs(bestY.diff))) {
+        if (
+          Math.abs(diffY) <= tolerance &&
+          (!bestY || Math.abs(diffY) < Math.abs(bestY.diff))
+        ) {
           bestY = {
             diff: diffY,
             guideY: candidate.y,
@@ -1045,11 +1164,21 @@ export class PointerTool extends BaseTool {
 
     if (bestX) {
       snappedDx += bestX.diff
-      guides.push({ x1: bestX.guideX, y1: bestX.y1, x2: bestX.guideX, y2: bestX.y2 })
+      guides.push({
+        x1: bestX.guideX,
+        y1: bestX.y1,
+        x2: bestX.guideX,
+        y2: bestX.y2,
+      })
     }
     if (bestY) {
       snappedDy += bestY.diff
-      guides.push({ x1: bestY.x1, y1: bestY.guideY, x2: bestY.x2, y2: bestY.guideY })
+      guides.push({
+        x1: bestY.x1,
+        y1: bestY.guideY,
+        x2: bestY.x2,
+        y2: bestY.guideY,
+      })
     }
 
     return { x: snappedDx, y: snappedDy, guides }
@@ -1071,7 +1200,8 @@ export class PointerTool extends BaseTool {
     if (this.sceneModel.glyph?.glyph) {
       const glyph = this.sceneModel.glyph.glyph
       ;(glyph as { flattenedPath2d?: Path2D }).flattenedPath2d = undefined
-      ;(glyph as { closedContoursPath2d?: Path2D }).closedContoursPath2d = undefined
+      ;(glyph as { closedContoursPath2d?: Path2D }).closedContoursPath2d =
+        undefined
     }
   }
 }

@@ -65,7 +65,11 @@ const signValue = async (secret: string, value: string) => {
     false,
     ['sign']
   )
-  const signature = await crypto.subtle.sign('HMAC', key, textEncoder.encode(value))
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    textEncoder.encode(value)
+  )
   return encodeBase64Url(new Uint8Array(signature))
 }
 
@@ -81,18 +85,25 @@ const parseCookies = (request: Request) => {
         if (separatorIndex < 0) {
           return [entry, '']
         }
-        return [entry.slice(0, separatorIndex), decodeURIComponent(entry.slice(separatorIndex + 1))]
+        return [
+          entry.slice(0, separatorIndex),
+          decodeURIComponent(entry.slice(separatorIndex + 1)),
+        ]
       })
   )
 }
 
-const serializeCookie = (name: string, value: string, options?: {
-  maxAge?: number
-  httpOnly?: boolean
-  sameSite?: 'Lax' | 'Strict' | 'None'
-  secure?: boolean
-  path?: string
-}) => {
+const serializeCookie = (
+  name: string,
+  value: string,
+  options?: {
+    maxAge?: number
+    httpOnly?: boolean
+    sameSite?: 'Lax' | 'Strict' | 'None'
+    secure?: boolean
+    path?: string
+  }
+) => {
   const segments = [`${name}=${encodeURIComponent(value)}`]
   segments.push(`Path=${options?.path ?? '/'}`)
   segments.push(`SameSite=${options?.sameSite ?? 'Lax'}`)
@@ -125,26 +136,41 @@ export const createStateCookieHeader = (state: string) =>
     maxAge: 600,
   })
 
-export const clearStateCookieHeader = () => clearCookieHeader(GITHUB_STATE_COOKIE)
+export const clearStateCookieHeader = () =>
+  clearCookieHeader(GITHUB_STATE_COOKIE)
 
-export const readOAuthState = (request: Request) => parseCookies(request)[GITHUB_STATE_COOKIE] ?? null
+export const readOAuthState = (request: Request) =>
+  parseCookies(request)[GITHUB_STATE_COOKIE] ?? null
 
-export const createSessionCookieHeader = async (env: Env, payload: GitHubSessionPayload) => {
+export const createSessionCookieHeader = async (
+  env: Env,
+  payload: GitHubSessionPayload
+) => {
   const secret = env.GITHUB_SESSION_SECRET?.trim()
   if (!secret) {
     throw new Error('Cloudflare 環境變數 GITHUB_SESSION_SECRET 尚未設定')
   }
 
-  const encodedPayload = encodeBase64Url(textEncoder.encode(JSON.stringify(payload)))
+  const encodedPayload = encodeBase64Url(
+    textEncoder.encode(JSON.stringify(payload))
+  )
   const signature = await signValue(secret, encodedPayload)
-  return serializeCookie(GITHUB_SESSION_COOKIE, `${encodedPayload}.${signature}`, {
-    maxAge: 60 * 60 * 24 * 7,
-  })
+  return serializeCookie(
+    GITHUB_SESSION_COOKIE,
+    `${encodedPayload}.${signature}`,
+    {
+      maxAge: 60 * 60 * 24 * 7,
+    }
+  )
 }
 
-export const clearSessionCookieHeader = () => clearCookieHeader(GITHUB_SESSION_COOKIE)
+export const clearSessionCookieHeader = () =>
+  clearCookieHeader(GITHUB_SESSION_COOKIE)
 
-const readSessionPayload = async (request: Request, env: Env): Promise<GitHubSessionPayload | null> => {
+const readSessionPayload = async (
+  request: Request,
+  env: Env
+): Promise<GitHubSessionPayload | null> => {
   const secret = env.GITHUB_SESSION_SECRET?.trim()
   if (!secret) {
     return null
@@ -166,7 +192,9 @@ const readSessionPayload = async (request: Request, env: Env): Promise<GitHubSes
   }
 
   try {
-    return JSON.parse(textDecoder.decode(decodeBase64Url(encodedPayload))) as GitHubSessionPayload
+    return JSON.parse(
+      textDecoder.decode(decodeBase64Url(encodedPayload))
+    ) as GitHubSessionPayload
   } catch {
     return null
   }
@@ -188,7 +216,9 @@ export const parseRepoInput = (value: string | null) => {
   }
 
   const trimmed = value.trim()
-  const normalized = trimmed.replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '')
+  const normalized = trimmed
+    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/\/+$/, '')
   const segments = normalized.split('/').filter(Boolean)
 
   if (segments.length < 2) {
@@ -223,7 +253,9 @@ const parseDefaultBranchFromHtml = (html: string) => {
 }
 
 const parseRepoTitleFromHtml = (html: string, fallbackRepo: string) => {
-  const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i)
+  const ogTitleMatch = html.match(
+    /<meta property="og:title" content="([^"]+)"/i
+  )
   const ogTitle = ogTitleMatch?.[1]?.trim()
   if (!ogTitle) {
     return fallbackRepo
@@ -239,13 +271,16 @@ export const fetchRepoMetadata = async (input: {
   token?: string | null
 }): Promise<RepoMetadataResponse> => {
   if (input.token) {
-    const response = await fetch(`https://api.github.com/repos/${input.owner}/${input.repo}`, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${input.token}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    })
+    const response = await fetch(
+      `https://api.github.com/repos/${input.owner}/${input.repo}`,
+      {
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${input.token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      }
+    )
 
     if (response.ok) {
       const payload = (await response.json()) as {
@@ -256,7 +291,8 @@ export const fetchRepoMetadata = async (input: {
       return {
         title: payload.name ?? input.repo,
         defaultBranch: payload.default_branch ?? null,
-        repoUrl: payload.html_url ?? `https://github.com/${input.owner}/${input.repo}`,
+        repoUrl:
+          payload.html_url ?? `https://github.com/${input.owner}/${input.repo}`,
       }
     }
   }
@@ -289,7 +325,8 @@ export const buildArchiveAttempts = (input: {
   const refsToTry = input.explicitRef?.trim()
     ? [input.explicitRef.trim()]
     : [input.defaultBranch, ...DEFAULT_REF_CANDIDATES].filter(
-        (value, index, list): value is string => Boolean(value) && list.indexOf(value) === index
+        (value, index, list): value is string =>
+          Boolean(value) && list.indexOf(value) === index
       )
 
   const attempts: Array<{ ref: string; url: string; useAuth: boolean }> = []

@@ -50,13 +50,21 @@ export function NodeInspectorCard({
         selectedSegment ? (
           <Stack spacing={3}>
             <Text fontSize="sm" color="gray.600">
-              Segment <Tag size="sm" ml={2}>{selectedSegment.pathId}</Tag>
+              Segment{' '}
+              <Tag size="sm" ml={2}>
+                {selectedSegment.pathId}
+              </Tag>
             </Text>
             <Text fontSize="sm" color="gray.500">
-              目前高亮的是一段{selectedSegment.type === 'line' ? '直線' : '曲線'}。
+              目前高亮的是一段
+              {selectedSegment.type === 'line' ? '直線' : '曲線'}。
             </Text>
             {selectedSegment.type === 'line' ? (
-              <Button size="sm" colorScheme="blue" onClick={onConvertSelectedSegment}>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                onClick={onConvertSelectedSegment}
+              >
                 轉成曲線
               </Button>
             ) : (
@@ -73,7 +81,10 @@ export function NodeInspectorCard({
       ) : (
         <Stack spacing={3}>
           <Text fontSize="sm" color="gray.600">
-            Path <Tag size="sm" ml={2}>{nodeRef.pathId}</Tag>
+            Path{' '}
+            <Tag size="sm" ml={2}>
+              {nodeRef.pathId}
+            </Tag>
           </Text>
 
           <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
@@ -85,7 +96,9 @@ export function NodeInspectorCard({
                 size="sm"
                 type="number"
                 value={selectedNode.x}
-                onChange={(event) => onCoordinateChange('x', event.target.value)}
+                onChange={(event) =>
+                  onCoordinateChange('x', event.target.value)
+                }
               />
             </GridItem>
             <GridItem>
@@ -96,7 +109,9 @@ export function NodeInspectorCard({
                 size="sm"
                 type="number"
                 value={selectedNode.y}
-                onChange={(event) => onCoordinateChange('y', event.target.value)}
+                onChange={(event) =>
+                  onCoordinateChange('y', event.target.value)
+                }
               />
             </GridItem>
           </Grid>

@@ -34,7 +34,9 @@ type UfoExportResponseMessage =
 const pickExportDirectory = async () => {
   const picker = (
     window as Window & {
-      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>
+      showDirectoryPicker?: (options?: {
+        mode?: 'read' | 'readwrite'
+      }) => Promise<FileSystemDirectoryHandle>
     }
   ).showDirectoryPicker
 
@@ -60,7 +62,10 @@ export const exportUfoWithWorker = async (input: {
   const baseHandle = input.rootHandle ?? (await pickExportDirectory())
   const rootHandle =
     input.directoryMode === 'save-as'
-      ? await baseHandle.getDirectoryHandle(input.saveAsName ?? 'Untitled Export', { create: true })
+      ? await baseHandle.getDirectoryHandle(
+          input.saveAsName ?? 'Untitled Export',
+          { create: true }
+        )
       : baseHandle
 
   return new Promise<{
@@ -69,44 +74,45 @@ export const exportUfoWithWorker = async (input: {
     totalGlyphs: number
     didFullRebuild: boolean
     manifest: UfoLocalSaveManifest
-  }>(
-    (resolve, reject) => {
-      const worker = new Worker(new URL('../workers/ufoExportWorker.ts', import.meta.url), {
+  }>((resolve, reject) => {
+    const worker = new Worker(
+      new URL('../workers/ufoExportWorker.ts', import.meta.url),
+      {
         type: 'module',
-      })
+      }
+    )
 
-      worker.onmessage = (event: MessageEvent<UfoExportResponseMessage>) => {
-        if (event.data.type === 'export-progress') {
-          input.onProgress?.(event.data.payload)
-          return
-        }
-
-        worker.terminate()
-        if (event.data.type === 'export-success') {
-          resolve(event.data.payload)
-          return
-        }
-
-        reject(new Error(event.data.payload.message))
+    worker.onmessage = (event: MessageEvent<UfoExportResponseMessage>) => {
+      if (event.data.type === 'export-progress') {
+        input.onProgress?.(event.data.payload)
+        return
       }
 
-      worker.onerror = (event) => {
-        worker.terminate()
-        reject(new Error(event.message || 'UFO export worker failed'))
+      worker.terminate()
+      if (event.data.type === 'export-success') {
+        resolve(event.data.payload)
+        return
       }
 
-      worker.postMessage({
-        type: 'export-ufo',
-        payload: {
-          projectId: input.projectId,
-          rootHandle,
-          exportAll: input.exportAll,
-          markClean: input.markClean,
-          fixedConcurrency: input.fixedConcurrency,
-          localManifest: input.localManifest,
-          deletedFilePaths: input.deletedFilePaths,
-        },
-      })
+      reject(new Error(event.data.payload.message))
     }
-  )
+
+    worker.onerror = (event) => {
+      worker.terminate()
+      reject(new Error(event.message || 'UFO export worker failed'))
+    }
+
+    worker.postMessage({
+      type: 'export-ufo',
+      payload: {
+        projectId: input.projectId,
+        rootHandle,
+        exportAll: input.exportAll,
+        markClean: input.markClean,
+        fixedConcurrency: input.fixedConcurrency,
+        localManifest: input.localManifest,
+        deletedFilePaths: input.deletedFilePaths,
+      },
+    })
+  })
 }

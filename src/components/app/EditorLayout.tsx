@@ -9,7 +9,9 @@ export function EditorLayout() {
   return (
     <Grid
       templateColumns={isDesktop ? '300px minmax(0, 1fr) 320px' : '1fr'}
-      templateRows={isDesktop ? '1fr' : 'minmax(280px, 36vh) minmax(420px, 1fr) auto'}
+      templateRows={
+        isDesktop ? '1fr' : 'minmax(280px, 36vh) minmax(420px, 1fr) auto'
+      }
       templateAreas={
         isDesktop
           ? `"left canvas right"`

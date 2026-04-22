@@ -48,13 +48,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   for (const attempt of attempts) {
     const response = await fetch(attempt.url, {
-      headers: attempt.useAuth && token
-        ? {
-            Accept: 'application/vnd.github+json',
-            Authorization: `Bearer ${token}`,
-            'X-GitHub-Api-Version': '2022-11-28',
-          }
-        : undefined,
+      headers:
+        attempt.useAuth && token
+          ? {
+              Accept: 'application/vnd.github+json',
+              Authorization: `Bearer ${token}`,
+              'X-GitHub-Api-Version': '2022-11-28',
+            }
+          : undefined,
       redirect: 'follow',
     })
 
@@ -62,7 +63,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       continue
     }
 
-    const contentType = response.headers.get('content-type') ?? 'application/zip'
+    const contentType =
+      response.headers.get('content-type') ?? 'application/zip'
     const archiveBuffer = await response.arrayBuffer()
     return new Response(archiveBuffer, {
       status: 200,
@@ -83,7 +85,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         }
       : {
           error: 'archive_not_found',
-          message: '無法自動判斷這個 repo 的預設分支。請手動輸入 branch、tag 或 commit 再試一次。',
+          message:
+            '無法自動判斷這個 repo 的預設分支。請手動輸入 branch、tag 或 commit 再試一次。',
         },
     { status: 404 }
   )

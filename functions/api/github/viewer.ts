@@ -3,7 +3,10 @@ import { json, readGitHubAccessToken, type Env } from './_utils'
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const token = await readGitHubAccessToken(context.request, context.env)
   if (!token) {
-    return json({ error: 'missing_token', message: '缺少 GitHub access token' }, { status: 401 })
+    return json(
+      { error: 'missing_token', message: '缺少 GitHub access token' },
+      { status: 401 }
+    )
   }
 
   const response = await fetch('https://api.github.com/user', {
@@ -16,7 +19,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (!response.ok) {
     return json(
-      { error: 'viewer_fetch_failed', message: `讀取 GitHub 使用者資訊失敗（HTTP ${response.status}）` },
+      {
+        error: 'viewer_fetch_failed',
+        message: `讀取 GitHub 使用者資訊失敗（HTTP ${response.status}）`,
+      },
       { status: response.status }
     )
   }
