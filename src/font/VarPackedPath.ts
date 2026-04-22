@@ -1,5 +1,4 @@
-// 從 Fontra 移植的 VarPackedPath
-// 字體路徑資料結構，支援 Variable Fonts
+// 字體路徑資料結構
 
 export const POINT_TYPE_ON_CURVE = 0x00
 export const POINT_TYPE_OFF_CURVE_QUAD = 0x01
@@ -57,7 +56,9 @@ export class VarPackedPath {
     )
   }
 
-  static fromUnpackedContours(unpackedContours: UnpackedContour[]): VarPackedPath {
+  static fromUnpackedContours(
+    unpackedContours: UnpackedContour[]
+  ): VarPackedPath {
     const path = new VarPackedPath()
     for (const contour of unpackedContours) {
       path.appendUnpackedContour(contour)
@@ -92,8 +93,8 @@ export class VarPackedPath {
         type === POINT_TYPE_ON_CURVE
           ? 'onCurve'
           : type === POINT_TYPE_OFF_CURVE_QUAD
-          ? 'offCurveQuad'
-          : 'offCurveCubic',
+            ? 'offCurveQuad'
+            : 'offCurveCubic',
       smooth,
     }
   }
@@ -131,7 +132,8 @@ export class VarPackedPath {
       return [-1, -1]
     }
 
-    const contourPointIndex = pointIndex - this._getContourStartPoint(contourIndex)
+    const contourPointIndex =
+      pointIndex - this._getContourStartPoint(contourIndex)
     return [contourIndex, contourPointIndex]
   }
 
@@ -198,10 +200,7 @@ export class VarPackedPath {
     newTypes.set(this.pointTypes.slice(0, startPoint))
 
     // Copy after
-    newCoords.set(
-      this.coordinates.slice((endPoint + 1) * 2),
-      startPoint * 2
-    )
+    newCoords.set(this.coordinates.slice((endPoint + 1) * 2), startPoint * 2)
     newTypes.set(this.pointTypes.slice(endPoint + 1), startPoint)
 
     this.coordinates = newCoords
@@ -349,10 +348,16 @@ export class VarPackedPath {
   getControlBoundsForContour(contourIndex: number): Rect | undefined {
     const normalizedIndex = this._normalizeContourIndex(contourIndex)
     const startPoint = this._getContourStartPoint(normalizedIndex)
-    return this._getControlBounds(startPoint, this.contourInfo[normalizedIndex].endPoint)
+    return this._getControlBounds(
+      startPoint,
+      this.contourInfo[normalizedIndex].endPoint
+    )
   }
 
-  private _getControlBounds(startPoint: number, endPoint: number): Rect | undefined {
+  private _getControlBounds(
+    startPoint: number,
+    endPoint: number
+  ): Rect | undefined {
     const startIndex = startPoint * 2
     const endIndex = (endPoint + 1) * 2
 
@@ -469,7 +474,10 @@ export class VarPackedPath {
     return path
   }
 
-  getAbsolutePointIndex(contourIndex: number, contourPointIndex: number): number {
+  getAbsolutePointIndex(
+    contourIndex: number,
+    contourPointIndex: number
+  ): number {
     const normalizedIndex = this._normalizeContourIndex(contourIndex)
     const startPoint = this._getContourStartPoint(normalizedIndex)
     return startPoint + contourPointIndex
@@ -479,7 +487,14 @@ export class VarPackedPath {
     startPoint: number,
     endPoint: number,
     isClosed: boolean
-  ): Generator<{ type: 'line' | 'quad' | 'cubic'; coordinates: number[]; pointIndices: number[] }, void> {
+  ): Generator<
+    {
+      type: 'line' | 'quad' | 'cubic'
+      coordinates: number[]
+      pointIndices: number[]
+    },
+    void
+  > {
     for (const segment of iterContourSegmentPointIndices(
       this.pointTypes,
       startPoint,
@@ -489,7 +504,10 @@ export class VarPackedPath {
       const coordinates: number[] = []
       for (const pointIndex of segment.pointIndices) {
         const pointIndex2 = pointIndex * 2
-        coordinates.push(this.coordinates[pointIndex2], this.coordinates[pointIndex2 + 1])
+        coordinates.push(
+          this.coordinates[pointIndex2],
+          this.coordinates[pointIndex2 + 1]
+        )
       }
       yield* decomposeSegment({
         type: segment.type,
@@ -512,12 +530,18 @@ function* iterContourSegmentPointIndices(
   startPoint: number,
   endPoint: number,
   isClosed: boolean
-): Generator<{ type: 'line' | 'quad' | 'cubic' | 'quadBlob'; pointIndices: number[] }, void> {
+): Generator<
+  { type: 'line' | 'quad' | 'cubic' | 'quadBlob'; pointIndices: number[] },
+  void
+> {
   const numPoints = endPoint - startPoint + 1
   let firstOnCurve: number | null = null
 
   for (let i = 0; i < numPoints; i++) {
-    if ((pointTypes[i + startPoint] & POINT_TYPE_MASK) === POINT_TYPE_ON_CURVE) {
+    if (
+      (pointTypes[i + startPoint] & POINT_TYPE_MASK) ===
+      POINT_TYPE_ON_CURVE
+    ) {
       firstOnCurve = i
       break
     }
@@ -526,7 +550,10 @@ function* iterContourSegmentPointIndices(
   if (firstOnCurve === null) {
     yield {
       type: 'quadBlob',
-      pointIndices: Array.from({ length: numPoints }, (_, index) => startPoint + index),
+      pointIndices: Array.from(
+        { length: numPoints },
+        (_, index) => startPoint + index
+      ),
     }
     return
   }
@@ -568,7 +595,14 @@ function* decomposeSegment(segment: {
   type: 'line' | 'quad' | 'cubic' | 'quadBlob'
   coordinates: number[]
   pointIndices: number[]
-}): Generator<{ type: 'line' | 'quad' | 'cubic'; coordinates: number[]; pointIndices: number[] }, void> {
+}): Generator<
+  {
+    type: 'line' | 'quad' | 'cubic'
+    coordinates: number[]
+    pointIndices: number[]
+  },
+  void
+> {
   switch (segment.type) {
     case 'line':
       if (segment.coordinates.length === 4) {
@@ -639,7 +673,10 @@ function* decomposeQuad(segment: {
   type: 'quad'
   coordinates: number[]
   pointIndices: number[]
-}): Generator<{ type: 'quad'; coordinates: number[]; pointIndices: number[] }, void> {
+}): Generator<
+  { type: 'quad'; coordinates: number[]; pointIndices: number[] },
+  void
+> {
   if (segment.coordinates.length < 6) {
     return
   }
@@ -666,7 +703,14 @@ function* decomposeQuad(segment: {
 
   yield {
     type: 'quad',
-    coordinates: [x0, y0, x1, y1, coordinates[lastIndex], coordinates[lastIndex + 1]],
+    coordinates: [
+      x0,
+      y0,
+      x1,
+      y1,
+      coordinates[lastIndex],
+      coordinates[lastIndex + 1],
+    ],
     pointIndices: pointIndices.slice(0, 3),
   }
 }

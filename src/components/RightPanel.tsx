@@ -1,26 +1,15 @@
+import { Box, Heading, Stack, Text, useToast } from '@chakra-ui/react'
+import { useState } from 'react'
 import {
   getArchivedGlyphLayerEntries,
   getProjectArchiveMetadata,
   getProjectArchiveSourceFormat,
 } from '../lib/projectArchive'
-import { syncHotFontDataToUfoRecords } from '../lib/ufoFormat'
-import { exportUfoWithWorker } from '../lib/ufoExportWorkerClient'
 import { saveDraftSnapshot } from '../lib/draftSave'
-import {
-  Box,
-  Button,
-  Grid,
-  GridItem,
-  Heading,
-  Input,
-  Select,
-  Stack,
-  Tag,
-  Text,
-  useToast,
-} from '@chakra-ui/react'
-import { useState } from 'react'
-import { CornerNodeIcon, SmoothNodeIcon } from '../icons'
+import { exportUfoWithWorker } from '../lib/ufoExportWorkerClient'
+import { loadUfoUiValue, saveUfoUiValue } from '../lib/ufoPersistence'
+import type { UfoLocalSaveManifest } from '../lib/ufoTypes'
+import { syncHotFontDataToUfoRecords } from '../lib/ufoFormat'
 import {
   getEffectiveNodeType,
   getGlyphLayer,
@@ -28,35 +17,16 @@ import {
   useStore,
   type NodeType,
 } from '../store'
-import { loadUfoUiValue, saveUfoUiValue } from '../lib/ufoPersistence'
-import type { UfoLocalSaveManifest } from '../lib/ufoTypes'
+import { GlyphSummaryCard } from './rightPanel/GlyphSummaryCard'
+import { MetricsCard } from './rightPanel/MetricsCard'
+import { NodeInspectorCard } from './rightPanel/NodeInspectorCard'
+import { ProjectSaveCard } from './rightPanel/ProjectSaveCard'
 import {
-  getGlyphBlockLabel,
-  getGlyphDisplayCharacter,
-  getGlyphOverviewStats,
-  getGlyphScriptLabel,
-} from '../lib/glyphOverview'
-
-const UFO_LOCAL_TARGET_KEY = 'localSaveTarget'
-const UFO_LOCAL_MANIFEST_KEY = 'localSaveManifest'
-
-const parseSelectedNode = (selectedNodeId: string | undefined) => {
-  if (!selectedNodeId) {
-    return null
-  }
-
-  const [pathId, nodeId] = selectedNodeId.split(':')
-  if (!pathId || !nodeId) {
-    return null
-  }
-
-  return { pathId, nodeId }
-}
-
-const parseNumberInput = (value: string) => {
-  const parsed = Number.parseInt(value, 10)
-  return Number.isFinite(parsed) ? parsed : 0
-}
+  parseNumberInput,
+  parseSelectedNode,
+  UFO_LOCAL_MANIFEST_KEY,
+  UFO_LOCAL_TARGET_KEY,
+} from './rightPanel/utils'
 
 export function RightPanel() {
   const toast = useToast()
@@ -99,8 +69,6 @@ export function RightPanel() {
     glyph && previewGlyphMetrics?.glyphId === glyph.id
       ? previewGlyphMetrics.metrics
       : (activeLayer?.metrics ?? glyph?.metrics)
-  const overviewStats = glyph ? getGlyphOverviewStats(glyph) : null
-  const glyphDisplayCharacter = glyph ? getGlyphDisplayCharacter(glyph) : null
   const availableLayers = glyph ? getArchivedGlyphLayerEntries(glyph.id) : []
   const nodeRef = parseSelectedNode(selectedNodeIds[0])
   const selectedPath =
@@ -323,383 +291,57 @@ export function RightPanel() {
           </Text>
         ) : (
           <Stack spacing={4}>
-            <Box
-              p={4}
-              bg="white"
-              borderRadius="xl"
-              border="1px solid"
-              borderColor="blackAlpha.100"
-            >
-              <Stack spacing={2}>
-                <Text fontWeight="bold" color="gray.800">
-                  {glyph.name}
-                </Text>
-                <Text fontSize="sm" color="gray.500">
-                  {glyph.id}
-                </Text>
-                {workspaceView === 'overview' && (
-                  <Box
-                    mt={1}
-                    px={3}
-                    py={4}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor="blackAlpha.100"
-                    bg="gray.50"
-                    textAlign="center"
-                  >
-                    <Text
-                      fontSize={glyphDisplayCharacter ? '5xl' : 'xl'}
-                      lineHeight={1}
-                      color="gray.800"
-                    >
-                      {glyphDisplayCharacter ?? glyph.name}
-                    </Text>
-                  </Box>
-                )}
-                <Stack direction="row" spacing={2} align="center">
-                  <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
-                    Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
-                  </Tag>
-                  <Tag
-                    alignSelf="start"
-                    colorScheme={isDirty ? 'orange' : 'green'}
-                    variant="subtle"
-                  >
-                    {isDirty ? '未儲存' : '已儲存'}
-                  </Tag>
-                </Stack>
-                {availableLayers.length > 0 && (
-                  <Box>
-                    <Text fontSize="xs" color="gray.500" mb={1}>
-                      圖層 / Master
-                    </Text>
-                    <Select
-                      size="sm"
-                      bg="white"
-                      value={activeLayer?.id ?? ''}
-                      onChange={(event) =>
-                        setSelectedLayerId(event.target.value)
-                      }
-                    >
-                      {availableLayers.map((layer) => {
-                        return (
-                          <option key={layer.id} value={layer.id}>
-                            {layer.name || layer.id}
-                          </option>
-                        )
-                      })}
-                    </Select>
-                  </Box>
-                )}
-                {workspaceView === 'overview' && (
-                  <>
-                    <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">
-                          Unicode
-                        </Text>
-                        <Text fontSize="sm" color="gray.700">
-                          {glyph.unicode ?? '未編碼'}
-                        </Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">
-                          Script
-                        </Text>
-                        <Text fontSize="sm" color="gray.700">
-                          {getGlyphScriptLabel(glyph)}
-                        </Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">
-                          Block
-                        </Text>
-                        <Text fontSize="sm" color="gray.700">
-                          {getGlyphBlockLabel(glyph)}
-                        </Text>
-                      </GridItem>
-                      <GridItem>
-                        <Text fontSize="xs" color="gray.500">
-                          Contours / Components
-                        </Text>
-                        <Text fontSize="sm" color="gray.700">
-                          {overviewStats?.contourCount ?? 0} /{' '}
-                          {overviewStats?.componentCount ?? 0}
-                        </Text>
-                      </GridItem>
-                    </Grid>
-                    <Button
-                      size="sm"
-                      colorScheme="teal"
-                      onClick={() => setWorkspaceView('editor')}
-                    >
-                      進入字符編輯器
-                    </Button>
-                    <Button
-                      size="sm"
-                      colorScheme="red"
-                      variant="outline"
-                      onClick={() => {
-                        if (!glyph) {
-                          return
-                        }
-                        deleteGlyph(glyph.id)
-                        toast({
-                          title: '已刪除字符',
-                          description: `${glyph.id} 已從目前專案移除。`,
-                          status: 'success',
-                          duration: 2200,
-                          isClosable: true,
-                        })
-                      }}
-                    >
-                      刪除字符
-                    </Button>
-                  </>
-                )}
-              </Stack>
-            </Box>
+            <GlyphSummaryCard
+              activeLayer={activeLayer ?? null}
+              availableLayers={availableLayers}
+              glyph={glyph}
+              isDirty={isDirty}
+              selectedLayerId={selectedLayerId}
+              workspaceView={workspaceView}
+              onDeleteGlyph={() => {
+                deleteGlyph(glyph.id)
+                toast({
+                  title: '已刪除字符',
+                  description: `${glyph.id} 已從目前專案移除。`,
+                  status: 'success',
+                  duration: 2200,
+                  isClosable: true,
+                })
+              }}
+              onEnterEditor={() => setWorkspaceView('editor')}
+              onLayerChange={setSelectedLayerId}
+            />
 
-            <Box
-              p={4}
-              bg="white"
-              borderRadius="xl"
-              border="1px solid"
-              borderColor="blackAlpha.100"
-            >
-              <Stack spacing={3}>
-                <Heading size="sm">專案儲存</Heading>
-                {getProjectArchiveSourceFormat() === 'ufo' ? (
-                  <>
-                    <Button
-                      colorScheme="blue"
-                      onClick={handleSaveUfoToLocal}
-                      isDisabled={!fontData || isSavingToLocal || !hasLocalChanges}
-                      isLoading={isSavingToLocal}
-                      loadingText={
-                        ufoExportProgress
-                          ? `儲存中 ${ufoExportProgress.completed}/${ufoExportProgress.total}`
-                          : '儲存中...'
-                      }
-                    >
-                      儲存至本地
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleSaveProject}
-                      isDisabled={
-                        !fontData ||
-                        !projectId ||
-                        !projectTitle ||
-                        !isDirty ||
-                        isSavingToLocal
-                      }
-                    >
-                      儲存草稿
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      colorScheme="blue"
-                      onClick={handleSaveProject}
-                      isDisabled={
-                        !fontData || !projectId || !projectTitle || !isDirty
-                      }
-                    >
-                      儲存目前專案
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleSaveProject}
-                      isDisabled={
-                        !fontData || !projectId || !projectTitle || !isDirty
-                      }
-                    >
-                      儲存草稿
-                    </Button>
-                  </>
-                )}
-              </Stack>
-            </Box>
+            <ProjectSaveCard
+              canSaveDraft={Boolean(fontData && projectId && projectTitle && isDirty)}
+              canSaveLocal={Boolean(fontData && hasLocalChanges && !isSavingToLocal)}
+              hasUfoSource={getProjectArchiveSourceFormat() === 'ufo'}
+              isSavingToLocal={isSavingToLocal}
+              loadingText={
+                ufoExportProgress
+                  ? `儲存中 ${ufoExportProgress.completed}/${ufoExportProgress.total}`
+                  : '儲存中...'
+              }
+              onSaveLocal={handleSaveUfoToLocal}
+              onSaveProject={handleSaveProject}
+            />
 
-            <Box
-              p={4}
-              bg="white"
-              borderRadius="xl"
-              border="1px solid"
-              borderColor="blackAlpha.100"
-            >
-              <Heading size="sm" mb={3}>
-                節點檢視
-              </Heading>
-              {!selectedNode || !nodeRef ? (
-                selectedSegment ? (
-                  <Stack spacing={3}>
-                    <Text fontSize="sm" color="gray.600">
-                      Segment{' '}
-                      <Tag size="sm" ml={2}>
-                        {selectedSegment.pathId}
-                      </Tag>
-                    </Text>
-                    <Text fontSize="sm" color="gray.500">
-                      目前高亮的是一段
-                      {selectedSegment.type === 'line' ? '直線' : '曲線'}。
-                    </Text>
-                    {selectedSegment.type === 'line' ? (
-                      <Button
-                        size="sm"
-                        colorScheme="blue"
-                        onClick={handleConvertSelectedSegment}
-                      >
-                        轉成曲線
-                      </Button>
-                    ) : (
-                      <Text fontSize="sm" color="gray.500">
-                        這段已經是曲線，不需要再轉換。
-                      </Text>
-                    )}
-                  </Stack>
-                ) : (
-                  <Text fontSize="sm" color="gray.500">
-                    目前沒有選取節點。點擊畫布上的節點即可在這裡微調座標與節點類型。
-                  </Text>
-                )
-              ) : (
-                <Stack spacing={3}>
-                  <Text fontSize="sm" color="gray.600">
-                    Path{' '}
-                    <Tag size="sm" ml={2}>
-                      {nodeRef.pathId}
-                    </Tag>
-                  </Text>
+            <NodeInspectorCard
+              effectiveNodeType={effectiveNodeType}
+              isEndpointNode={isEndpointNode}
+              isOnCurveNode={isOnCurveNode}
+              nodeRef={nodeRef}
+              selectedNode={selectedNode ?? null}
+              selectedSegment={selectedSegment}
+              onCoordinateChange={handleCoordinateChange}
+              onConvertSelectedSegment={handleConvertSelectedSegment}
+              onNodeTypeChange={handleNodeTypeChange}
+            />
 
-                  <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
-                    <GridItem>
-                      <Text fontSize="xs" color="gray.500" mb={1}>
-                        X
-                      </Text>
-                      <Input
-                        size="sm"
-                        type="number"
-                        value={selectedNode.x}
-                        onChange={(event) =>
-                          handleCoordinateChange('x', event.target.value)
-                        }
-                      />
-                    </GridItem>
-                    <GridItem>
-                      <Text fontSize="xs" color="gray.500" mb={1}>
-                        Y
-                      </Text>
-                      <Input
-                        size="sm"
-                        type="number"
-                        value={selectedNode.y}
-                        onChange={(event) =>
-                          handleCoordinateChange('y', event.target.value)
-                        }
-                      />
-                    </GridItem>
-                  </Grid>
-
-                  {!isOnCurveNode ? (
-                    <Text fontSize="sm" color="gray.500">
-                      目前選到的是控制把手。把手本身沒有方形／圓形節點類型。
-                    </Text>
-                  ) : (
-                    <Stack spacing={2}>
-                      <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-                        <Button
-                          size="sm"
-                          variant={
-                            effectiveNodeType === 'corner' ? 'solid' : 'outline'
-                          }
-                          colorScheme="orange"
-                          onClick={() => handleNodeTypeChange('corner')}
-                          leftIcon={<CornerNodeIcon />}
-                        >
-                          折線
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={
-                            effectiveNodeType === 'smooth' ? 'solid' : 'outline'
-                          }
-                          colorScheme="blue"
-                          onClick={() => handleNodeTypeChange('smooth')}
-                          isDisabled={isEndpointNode}
-                          leftIcon={<SmoothNodeIcon />}
-                        >
-                          平滑
-                        </Button>
-                      </Grid>
-                      <Text fontSize="xs" color="gray.500">
-                        {isEndpointNode
-                          ? '開放路徑的起點與終點只有一根手把，所以固定為折線。'
-                          : effectiveNodeType === 'smooth'
-                            ? '平滑節點的兩根手把會連動，維持曲線方向。'
-                            : '折線節點的兩根手把可分開移動，會視為折線轉折。'}
-                      </Text>
-                    </Stack>
-                  )}
-                </Stack>
-              )}
-            </Box>
-
-            <Box
-              p={4}
-              bg="white"
-              borderRadius="xl"
-              border="1px solid"
-              borderColor="blackAlpha.100"
-            >
-              <Heading size="sm" mb={3}>
-                Metrics
-              </Heading>
-              <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap={3}>
-                <GridItem>
-                  <Text fontSize="xs" color="gray.500" mb={1}>
-                    LSB
-                  </Text>
-                  <Input
-                    size="sm"
-                    type="number"
-                    value={displayedMetrics?.lsb ?? 0}
-                    onChange={(event) =>
-                      handleMetricsChange('lsb', event.target.value)
-                    }
-                  />
-                </GridItem>
-                <GridItem>
-                  <Text fontSize="xs" color="gray.500" mb={1}>
-                    Width
-                  </Text>
-                  <Input
-                    size="sm"
-                    type="number"
-                    value={displayedMetrics?.width ?? 0}
-                    onChange={(event) =>
-                      handleMetricsChange('width', event.target.value)
-                    }
-                  />
-                </GridItem>
-                <GridItem>
-                  <Text fontSize="xs" color="gray.500" mb={1}>
-                    RSB
-                  </Text>
-                  <Input
-                    size="sm"
-                    type="number"
-                    value={displayedMetrics?.rsb ?? 0}
-                    onChange={(event) =>
-                      handleMetricsChange('rsb', event.target.value)
-                    }
-                  />
-                </GridItem>
-              </Grid>
-            </Box>
+            <MetricsCard
+              displayedMetrics={displayedMetrics}
+              onMetricsChange={handleMetricsChange}
+            />
           </Stack>
         )}
       </Stack>

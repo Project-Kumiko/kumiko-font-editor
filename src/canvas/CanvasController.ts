@@ -1,4 +1,3 @@
-// 從 Fontra 移植的 CanvasController
 // 處理 Canvas 基礎渲染、縮放、平移和事件處理
 
 import type { SceneView } from './SceneView'

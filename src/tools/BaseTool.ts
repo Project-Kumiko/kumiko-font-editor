@@ -1,5 +1,4 @@
-// 編輯工具基礎類
-// 從 Fontra 移植
+// 編輯工具
 
 import type { CanvasController } from '../canvas/CanvasController'
 import type { SceneModel } from '../canvas/SceneView'
@@ -51,32 +50,28 @@ export interface SceneControllerInterface {
   }
   mouseClickMargin: number
   setHoverSelection(selection: Set<string>): void
-  setHoverPathHit(
-    pathHit?: {
-      segment: {
-        points: { x: number; y: number }[]
-        pointIndices: number[]
-        type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
-        contourIndex?: number
-        key?: string
-      }
-      x: number
-      y: number
+  setHoverPathHit(pathHit?: {
+    segment: {
+      points: { x: number; y: number }[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      contourIndex?: number
+      key?: string
     }
-  ): void
-  setSelectedPathHit(
-    pathHit?: {
-      segment: {
-        points: { x: number; y: number }[]
-        pointIndices: number[]
-        type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
-        contourIndex?: number
-        key?: string
-      }
-      x: number
-      y: number
+    x: number
+    y: number
+  }): void
+  setSelectedPathHit(pathHit?: {
+    segment: {
+      points: { x: number; y: number }[]
+      pointIndices: number[]
+      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      contourIndex?: number
+      key?: string
     }
-  ): void
+    x: number
+    y: number
+  }): void
   localPoint(event: { pageX: number; pageY: number }): { x: number; y: number }
   hitTestAtPoint(
     point: { x: number; y: number },
@@ -190,7 +185,10 @@ export abstract class BaseTool {
     // Override in subclass
   }
 
-  abstract handleDrag(eventStream: EventStream, initialEvent: ToolEvent): Promise<void>
+  abstract handleDrag(
+    eventStream: EventStream,
+    initialEvent: ToolEvent
+  ): Promise<void>
 
   // Utility methods
   setCursor(cursor?: string): void {
@@ -202,7 +200,10 @@ export abstract class BaseTool {
   }
 
   localPoint(event: ToolEvent): { x: number; y: number } {
-    const point = this.canvasController.localPoint({ x: event.pageX, y: event.pageY })
+    const point = this.canvasController.localPoint({
+      x: event.pageX,
+      y: event.pageY,
+    })
     const glyphX = this.sceneModel.glyph?.x ?? 0
     const glyphY = this.sceneModel.glyph?.y ?? 0
     return {

@@ -1,5 +1,4 @@
 // SceneView 與 Visualization Layers 架構
-// 從 Fontra 移植
 
 import { withSavedState, type CanvasController } from './CanvasController'
 
@@ -25,7 +24,11 @@ export interface SceneModel {
   hoverPathHit?: PathHitInfo
   selectedPathHit?: PathHitInfo
   activeToolIdentifier?: string
-  pathConnectTargetPoint?: { x: number; y: number; kind?: 'insert' | 'close' | 'connect' }
+  pathConnectTargetPoint?: {
+    x: number
+    y: number
+    kind?: 'insert' | 'close' | 'connect'
+  }
   pathInsertHandles?: { points: Array<{ x: number; y: number }> }
   penPreviewPath?: Path2D
   alignmentGuides?: Array<{ x1: number; y1: number; x2: number; y2: number }>
@@ -64,13 +67,14 @@ export interface GlyphData {
     iterPoints(): Generator<Point & { index: number }, void>
     iterHandles(): Generator<[Point, Point], void>
     iterContours(): Generator<{ points: Point[]; isClosed: boolean }, void>
-    iterContourSegments?(
-      contourIndex: number
-    ): Generator<{
-      points: Point[]
-      pointIndices: number[]
-      type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
-    }, void>
+    iterContourSegments?(contourIndex: number): Generator<
+      {
+        points: Point[]
+        pointIndices: number[]
+        type?: 'line' | 'quad' | 'cubic' | 'quadBlob'
+      },
+      void
+    >
     appendUnpackedContour?(contour: {
       points: Point[]
       isClosed: boolean
@@ -202,7 +206,7 @@ export class VisualizationLayer {
   }
 
   draw(canvasController: CanvasController, model: SceneModel) {
-    if (!this.visible || (!model.glyph && !(model.glyphs?.length))) {
+    if (!this.visible || (!model.glyph && !model.glyphs?.length)) {
       return
     }
 
@@ -213,7 +217,11 @@ export class VisualizationLayer {
     }
 
     // Get glyphs to render
-    const allGlyphs = model.glyphs?.length ? model.glyphs : model.glyph ? [model.glyph] : []
+    const allGlyphs = model.glyphs?.length
+      ? model.glyphs
+      : model.glyph
+        ? [model.glyph]
+        : []
     const visContext: VisContext = {
       glyphsBySelectionMode: {
         editing: allGlyphs.filter((glyph) => glyph.isEditing),

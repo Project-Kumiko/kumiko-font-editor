@@ -22,7 +22,7 @@ function strokeLine(
 
 // 基線
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.baseline',
+  identifier: 'main.baseline',
   name: 'Baseline',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,
@@ -31,7 +31,13 @@ registerVisualizationLayerDefinition({
   screenParameters: { strokeWidth: 2 },
   colors: { strokeColor: '#000' },
   colorsDarkMode: { strokeColor: '#FFF' },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    _model: SceneModel,
+    _controller: CanvasController
+  ) => {
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
     context.lineWidth = parameters.strokeWidth as number
@@ -43,7 +49,7 @@ registerVisualizationLayerDefinition({
 
 // 進階字體度量線
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.lineMetrics',
+  identifier: 'main.lineMetrics',
   name: 'Line Metrics',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,
@@ -60,7 +66,13 @@ registerVisualizationLayerDefinition({
     zoneColor: '#00BFFF18',
     zoneStrokeColor: '#80DFFF18',
   },
-  draw: (canvasController: CanvasController, _positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel, _controller: CanvasController) => {
+  draw: (
+    canvasController: CanvasController,
+    _positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    _model: SceneModel,
+    _controller: CanvasController
+  ) => {
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number
 
@@ -112,7 +124,7 @@ registerVisualizationLayerDefinition({
 
 // 度量線 (左側邊緣、寬度)
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.metrics',
+  identifier: 'main.metrics',
   name: 'Glyph Metrics',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,
@@ -123,7 +135,12 @@ registerVisualizationLayerDefinition({
     lsbColor: '#f6ad55',
     widthColor: '#68d391',
   },
-  draw: (canvasController: CanvasController, positionedGlyph: PositionedGlyph, parameters: Record<string, number | number[] | string>, _model: SceneModel) => {
+  draw: (
+    canvasController: CanvasController,
+    positionedGlyph: PositionedGlyph,
+    parameters: Record<string, number | number[] | string>,
+    _model: SceneModel
+  ) => {
     const glyph = positionedGlyph.glyph
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number

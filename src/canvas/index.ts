@@ -9,9 +9,11 @@ export {
   visualizationLayerDefinitions,
 } from './SceneView'
 export type {
+  ComponentData,
   SceneModel,
   PositionedGlyph,
   GlyphData,
+  GuidelineData,
   Point,
   VisualizationLayerDefinition,
 } from './SceneView'

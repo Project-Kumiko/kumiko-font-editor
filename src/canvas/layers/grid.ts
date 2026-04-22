@@ -1,5 +1,3 @@
-// 格線圖層 - 從 Fontra 移植
-
 import {
   registerVisualizationLayerDefinition,
   glyphSelector,
@@ -22,7 +20,7 @@ function strokeLine(
 
 // 細格點 (每 10 單位一個點)
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.upm.grid',
+  identifier: 'main.upm.grid',
   name: 'UPM Grid',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,
@@ -69,7 +67,7 @@ registerVisualizationLayerDefinition({
 
 // 主要格線 (每 50 單位)
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.major.grid',
+  identifier: 'main.major.grid',
   name: 'Major Grid',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,

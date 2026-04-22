@@ -34,7 +34,7 @@ function screenArray(canvasController: CanvasController, values: number[]) {
 
 // 編輯路徑填充
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.context.path.fill',
+  identifier: 'main.context.path.fill',
   name: 'Context Path Fill',
   selectionFunc: glyphSelector('notediting'),
   zIndex: 450,
@@ -59,7 +59,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.edit.path.fill',
+  identifier: 'main.edit.path.fill',
   name: 'Path Fill',
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
@@ -90,7 +90,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.edit.empty.placeholder',
+  identifier: 'main.edit.empty.placeholder',
   name: 'Empty Glyph Placeholder',
   selectionFunc: glyphSelector('editing'),
   zIndex: 499,
@@ -101,7 +101,11 @@ registerVisualizationLayerDefinition({
     parameters: Record<string, number | number[] | string>,
     model: SceneModel
   ) => {
-    if (isHandTool(model) || !positionedGlyph.isEmpty || !positionedGlyph.displayCharacter) {
+    if (
+      isHandTool(model) ||
+      !positionedGlyph.isEmpty ||
+      !positionedGlyph.displayCharacter
+    ) {
       return
     }
 
@@ -109,7 +113,7 @@ registerVisualizationLayerDefinition({
     context.save()
     context.scale(1, -1)
     context.fillStyle = parameters.fillColor as string
-    context.font = `${screenLength(canvasController, 220)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+    context.font = `${screenLength(canvasController, 250)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
     context.textAlign = 'center'
     context.textBaseline = 'middle'
     context.fillText(
@@ -123,7 +127,7 @@ registerVisualizationLayerDefinition({
 
 // 路徑輪廓
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.path.stroke',
+  identifier: 'main.path.stroke',
   name: 'Path Stroke',
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
@@ -159,7 +163,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.connect-insert.point',
+  identifier: 'main.connect-insert.point',
   name: 'Connect/Insert Point',
   selectionFunc: glyphSelector('editing'),
   zIndex: 545,
@@ -220,7 +224,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.pen.preview',
+  identifier: 'main.pen.preview',
   name: 'Pen Preview',
   selectionFunc: glyphSelector('editing'),
   zIndex: 546,
@@ -255,7 +259,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.alignment.guides',
+  identifier: 'main.alignment.guides',
   name: 'Alignment Guides',
   selectionFunc: glyphSelector('editing'),
   zIndex: 547,
@@ -292,7 +296,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.text.cursor',
+  identifier: 'main.text.cursor',
   name: 'Text Cursor',
   selectionFunc: (visContext) => {
     const glyphs = visContext.glyphsBySelectionMode.all || []
@@ -328,7 +332,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.selected.segments',
+  identifier: 'main.selected.segments',
   name: 'Selected Segments',
   selectionFunc: glyphSelector('editing'),
   zIndex: 540,
@@ -389,7 +393,7 @@ registerVisualizationLayerDefinition({
 
 // 控制杆 (Bezier handles)
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.handles',
+  identifier: 'main.handles',
   name: 'Bezier Handles',
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
@@ -438,7 +442,7 @@ registerVisualizationLayerDefinition({
 
 // 節點
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.nodes',
+  identifier: 'main.nodes',
   name: 'Nodes',
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
@@ -482,7 +486,7 @@ registerVisualizationLayerDefinition({
 
 // 選中的節點
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.selected.nodes',
+  identifier: 'main.selected.nodes',
   name: 'Selected Nodes',
   selectionFunc: glyphSelector('editing'),
   zIndex: 600,
@@ -585,7 +589,7 @@ registerVisualizationLayerDefinition({
 
 // 游標十字線
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.crosshair',
+  identifier: 'main.crosshair',
   name: 'Crosshair',
   selectionFunc: glyphSelector('editing'),
   userSwitchable: true,
@@ -630,7 +634,7 @@ registerVisualizationLayerDefinition({
 })
 
 registerVisualizationLayerDefinition({
-  identifier: 'fontra.selection.rect',
+  identifier: 'main.selection.rect',
   name: 'Selection Rect',
   selectionFunc: glyphSelector('editing'),
   zIndex: 800,
