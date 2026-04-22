@@ -87,6 +87,22 @@ const writeTextFile = async (
   await writable.close()
 }
 
+const ensureDirectoryPath = async (
+  rootHandle: FileSystemDirectoryHandle,
+  relativePath: string
+) => {
+  const segments = relativePath.split('/').filter(Boolean)
+  let directoryHandle = rootHandle
+
+  for (const segment of segments) {
+    directoryHandle = await directoryHandle.getDirectoryHandle(segment, {
+      create: true,
+    })
+  }
+
+  return directoryHandle
+}
+
 const readRelativeFileText = async (
   rootHandle: FileSystemDirectoryHandle,
   relativePath: string
@@ -198,7 +214,7 @@ self.onmessage = async (event: MessageEvent<UfoExportRequestMessage>) => {
       const ufoRootPath = useDirectUfoRoot ? '' : metadata.relativePath
       const ufoHandle = useDirectUfoRoot
         ? rootHandle
-        : await rootHandle.getDirectoryHandle(metadata.relativePath, { create: true })
+        : await ensureDirectoryPath(rootHandle, metadata.relativePath)
       const defaultLayer = pickDefaultLayer(metadata)
       const defaultLayerGlyphs = await listUfoGlyphsInLayer(projectId, metadata.ufoId, defaultLayer.layerId)
 

@@ -17,6 +17,7 @@ import {
   updateUfoGlyphExportState,
 } from './ufoPersistence'
 import type {
+  UfoGithubSource,
   UfoGlyphAdvance,
   UfoGlyphAnchor,
   UfoGlyphComponent,
@@ -39,6 +40,11 @@ interface UfoTextEntry {
   text: string
 }
 
+export interface UfoWorkspaceEntry {
+  relativePath: string
+  text: string
+}
+
 interface ImportedUfoWorkspace {
   project: UfoProjectRecord
   metadataRecords: UfoMetadataRecord[]
@@ -46,6 +52,13 @@ interface ImportedUfoWorkspace {
   fontData: FontData
   projectMetadata: Record<string, unknown>
   projectSourceFormat: ProjectSourceFormat
+}
+
+interface UfoImportSourceOptions {
+  title: string
+  sourceFolderName: string
+  sourceType?: 'local' | 'github'
+  githubSource?: UfoGithubSource | null
 }
 
 const UFO_CREATOR = 'org.kumiko.fonteditor'
@@ -71,7 +84,8 @@ const findUfoRoot = (relativePath: string) => {
   for (let index = 0; index < segments.length; index += 1) {
     if (segments[index]?.endsWith('.ufo')) {
       return {
-        ufoId: segments[index] ?? 'Untitled.ufo',
+        ufoId: segments.slice(0, index + 1).join('/'),
+        relativePath: segments.slice(0, index + 1).join('/'),
         innerPath: segments.slice(index + 1).join('/'),
       }
     }
@@ -638,14 +652,37 @@ export const pickDefaultLayer = (metadata: UfoMetadataRecord) =>
     glyphDir: 'glyphs',
   }
 
-const buildWorkspaceFileMap = async (inputFiles: FileList | File[]) => {
+const buildWorkspaceFileMapFromEntries = (entries: UfoWorkspaceEntry[]) => {
+  const candidateEntries = entries.filter((entry) =>
+    isRelevantUfoTextFile(entry.relativePath)
+  )
+
+  if (candidateEntries.length === 0) {
+    throw new Error('選到的資料夾裡沒有找到任何可讀的 UFO 文字檔')
+  }
+
+  const byUfo = new Map<string, ParsedUfoFolder>()
+  for (const entry of candidateEntries) {
+    const root = findUfoRoot(entry.relativePath)
+    if (!root || !root.innerPath) {
+      continue
+    }
+    const parsed = byUfo.get(root.relativePath) ?? {
+      ufoId: root.ufoId,
+      relativePath: root.relativePath,
+      files: {},
+    }
+    parsed.files[root.innerPath] = entry.text
+    byUfo.set(root.relativePath, parsed)
+  }
+
+  return [...byUfo.values()].sort((left, right) => left.ufoId.localeCompare(right.ufoId))
+}
+
+const buildWorkspaceEntriesFromFiles = async (inputFiles: FileList | File[]) => {
   const candidateFiles = Array.from(inputFiles).filter((file) =>
     isRelevantUfoTextFile(file.webkitRelativePath || file.name)
   )
-
-  if (candidateFiles.length === 0) {
-    throw new Error('選到的資料夾裡沒有找到任何可讀的 UFO 文字檔')
-  }
 
   const entries: UfoTextEntry[] = []
   for (const file of candidateFiles) {
@@ -662,32 +699,20 @@ const buildWorkspaceFileMap = async (inputFiles: FileList | File[]) => {
     }
   }
 
-  const byUfo = new Map<string, ParsedUfoFolder>()
-  for (const entry of entries) {
-    const root = findUfoRoot(entry.relativePath)
-    if (!root || !root.innerPath) {
-      continue
-    }
-    const parsed = byUfo.get(root.ufoId) ?? {
-      ufoId: root.ufoId,
-      relativePath: root.ufoId,
-      files: {},
-    }
-    parsed.files[root.innerPath] = entry.text
-    byUfo.set(root.ufoId, parsed)
-  }
-
-  return [...byUfo.values()].sort((left, right) => left.ufoId.localeCompare(right.ufoId))
+  return entries
 }
 
-export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise<ImportedUfoWorkspace> => {
-  const parsedUfos = await buildWorkspaceFileMap(inputFiles)
+export const importUfoWorkspaceEntries = async (
+  entries: UfoWorkspaceEntry[],
+  options: UfoImportSourceOptions
+): Promise<ImportedUfoWorkspace> => {
+  const parsedUfos = buildWorkspaceFileMapFromEntries(entries)
   if (parsedUfos.length === 0) {
     throw new Error('選到的資料夾裡沒有找到任何 .ufo')
   }
 
   const projectId = `ufo-${Date.now()}`
-  const title = getProjectTitleFromFolder(inputFiles)
+  const title = options.title
   const activeUfoId = parsedUfos[0]?.ufoId ?? null
   const createdAt = Date.now()
 
@@ -774,11 +799,13 @@ export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise
   const project: UfoProjectRecord = {
     projectId,
     title,
-    sourceFolderName: title,
+    sourceFolderName: options.sourceFolderName,
     ufoIds: parsedUfos.map((ufo) => ufo.ufoId),
     selectedUfoId: activeUfoId,
     createdAt,
     updatedAt: createdAt,
+    sourceType: options.sourceType ?? 'local',
+    githubSource: options.githubSource ?? null,
   }
 
   const activeMetadata = metadataRecords.find((record) => record.ufoId === activeUfoId) ?? metadataRecords[0]
@@ -791,6 +818,8 @@ export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise
   const projectMetadata = {
     activeUfoId,
     ufoIds: project.ufoIds,
+    sourceType: project.sourceType ?? 'local',
+    githubSource: project.githubSource ?? null,
     ufos: metadataRecords.map((record) => ({
       ufoId: record.ufoId,
       relativePath: record.relativePath,
@@ -814,6 +843,15 @@ export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise
     projectMetadata,
     projectSourceFormat: 'ufo',
   }
+}
+
+export const importUfoWorkspace = async (inputFiles: FileList | File[]): Promise<ImportedUfoWorkspace> => {
+  const entries = await buildWorkspaceEntriesFromFiles(inputFiles)
+  return importUfoWorkspaceEntries(entries, {
+    title: getProjectTitleFromFolder(inputFiles),
+    sourceFolderName: getProjectTitleFromFolder(inputFiles),
+    sourceType: 'local',
+  })
 }
 
 export const loadUfoProjectIntoFontData = async (projectId: string) => {
@@ -840,6 +878,8 @@ export const loadUfoProjectIntoFontData = async (projectId: string) => {
     projectMetadata: {
       activeUfoId: activeMetadata.ufoId,
       ufoIds: project.ufoIds,
+      sourceType: project.sourceType ?? 'local',
+      githubSource: project.githubSource ?? null,
       ufos: metadataRecords.map((record) => ({
         ufoId: record.ufoId,
         relativePath: record.relativePath,
@@ -1077,8 +1117,20 @@ export const exportUfoProjectToDirectory = async (projectId: string) => {
     sourceHash: string | null
   }> = []
 
+  const ensureDirectoryPath = async (
+    directoryHandle: FileSystemDirectoryHandle,
+    relativePath: string
+  ) => {
+    const segments = relativePath.split('/').filter(Boolean)
+    let currentHandle = directoryHandle
+    for (const segment of segments) {
+      currentHandle = await currentHandle.getDirectoryHandle(segment, { create: true })
+    }
+    return currentHandle
+  }
+
   for (const metadata of metadataRecords) {
-    const ufoHandle = await rootHandle.getDirectoryHandle(metadata.relativePath, { create: true })
+    const ufoHandle = await ensureDirectoryPath(rootHandle, metadata.relativePath)
     const defaultLayer = pickDefaultLayer(metadata)
     const glyphRecords = await listUfoGlyphsInLayer(projectId, metadata.ufoId, defaultLayer.layerId)
 

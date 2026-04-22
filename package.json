@@ -7,20 +7,23 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cf:dev": "pnpm build && npx wrangler pages dev",
+    "cf:deploy": "pnpm build && npx wrangler pages deploy"
   },
   "dependencies": {
     "@chakra-ui/react": "^2.10.0",
-    "@plist/openstep.parse": "^1.1.1",
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
+    "@plist/openstep.parse": "^1.1.1",
+    "fflate": "^0.8.2",
     "framer-motion": "latest",
-    "zundo": "^2.3.0",
     "immer": "latest",
     "paper": "latest",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-virtuoso": "^4.12.5",
+    "zundo": "^2.3.0",
     "zustand": "latest"
   },
   "devDependencies": {

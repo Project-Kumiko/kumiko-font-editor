@@ -6,6 +6,19 @@ export interface UfoProjectRecord {
   selectedUfoId: string | null
   createdAt: number
   updatedAt: number
+  sourceType?: 'local' | 'github'
+  githubSource?: UfoGithubSource | null
+}
+
+export interface UfoGithubSource {
+  owner: string
+  repo: string
+  ref: string
+  defaultBranch: string
+  repoUrl: string
+  zipballUrl: string
+  archiveRoot: string
+  commitSha?: string | null
 }
 
 export interface UfoLayerRecord {
