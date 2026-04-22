@@ -1,5 +1,10 @@
 import { Box, Heading, HStack, Stack, Tag, Text } from '@chakra-ui/react'
-import { VirtuosoGrid, type GridStateSnapshot, type ListRange, type VirtuosoGridHandle } from 'react-virtuoso'
+import {
+  VirtuosoGrid,
+  type GridStateSnapshot,
+  type ListRange,
+  type VirtuosoGridHandle,
+} from 'react-virtuoso'
 import { GlyphCard } from './GlyphCard'
 import { OverviewGridItem, OverviewGridList } from './OverviewGridComponents'
 import type { GlyphData } from '../../store'
@@ -65,7 +70,7 @@ export function OverviewContent({
             border="1px solid"
             borderColor="blackAlpha.100"
             boxShadow="sm"
-            h="calc(100vh - 172px)"
+            h="calc(100vh - 120px)"
             display="flex"
             flexDirection="column"
           >
@@ -86,6 +91,7 @@ export function OverviewContent({
                 restoreStateFrom={restoreSnapshot}
                 stateChanged={onGridStateChange}
                 rangeChanged={onRangeChange}
+                increaseViewportBy={{ top: 1000, bottom: 1000 }}
                 components={{
                   List: OverviewGridList,
                   Item: OverviewGridItem,

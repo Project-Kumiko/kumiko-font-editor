@@ -76,12 +76,17 @@ const findRangeLabel = (
     return 'Unencoded'
   }
 
-  return ranges.find((range) => codePoint >= range.from && codePoint <= range.to)?.label ?? 'Other'
+  return (
+    ranges.find((range) => codePoint >= range.from && codePoint <= range.to)
+      ?.label ?? 'Other'
+  )
 }
 
-export const getGlyphScriptLabel = (glyph: GlyphData) => findRangeLabel(getCodePoint(glyph), SCRIPT_RANGES)
+export const getGlyphScriptLabel = (glyph: GlyphData) =>
+  findRangeLabel(getCodePoint(glyph), SCRIPT_RANGES)
 
-export const getGlyphBlockLabel = (glyph: GlyphData) => findRangeLabel(getCodePoint(glyph), BLOCK_RANGES)
+export const getGlyphBlockLabel = (glyph: GlyphData) =>
+  findRangeLabel(getCodePoint(glyph), BLOCK_RANGES)
 
 export const getGlyphDisplayCharacter = (glyph: GlyphData) => {
   const codePoint = getCodePoint(glyph)
@@ -97,7 +102,9 @@ export const getGlyphOverviewSections = (
       {
         id: 'all',
         label: '全部',
-        glyphs: [...glyphs].sort((left, right) => left.id.localeCompare(right.id)),
+        glyphs: [...glyphs].sort((left, right) =>
+          left.id.localeCompare(right.id)
+        ),
       },
     ]
   }
@@ -105,7 +112,10 @@ export const getGlyphOverviewSections = (
   const sectionMap = new Map<string, GlyphData[]>()
 
   for (const glyph of glyphs) {
-    const key = groupBy === 'script' ? getGlyphScriptLabel(glyph) : getGlyphBlockLabel(glyph)
+    const key =
+      groupBy === 'script'
+        ? getGlyphScriptLabel(glyph)
+        : getGlyphBlockLabel(glyph)
     const items = sectionMap.get(key) ?? []
     items.push(glyph)
     sectionMap.set(key, items)
@@ -116,7 +126,9 @@ export const getGlyphOverviewSections = (
     .map(([label, sectionGlyphs]) => ({
       id: label,
       label,
-      glyphs: [...sectionGlyphs].sort((left, right) => left.id.localeCompare(right.id)),
+      glyphs: [...sectionGlyphs].sort((left, right) =>
+        left.id.localeCompare(right.id)
+      ),
     }))
 }
 
@@ -148,13 +160,11 @@ const buildPathSvg = (glyph: GlyphData) => {
     points: path.nodes.map((node) => ({
       x: node.x,
       y: node.y,
-      type: (
-        node.type === 'offcurve'
-          ? 'offCurveCubic'
-          : node.type === 'qcurve'
-            ? 'offCurveQuad'
-            : 'onCurve'
-      ) as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
+      type: (node.type === 'offcurve'
+        ? 'offCurveCubic'
+        : node.type === 'qcurve'
+          ? 'offCurveQuad'
+          : 'onCurve') as 'onCurve' | 'offCurveQuad' | 'offCurveCubic',
       smooth: node.type === 'smooth',
     })),
   }))
@@ -196,7 +206,12 @@ const buildGlyphPreviewShapes = (
       .filter(Boolean)
       .join(' ')
 
-    const nestedShapes = buildGlyphPreviewShapes(baseGlyph, glyphMap, nextVisited, depth + 1)
+    const nestedShapes = buildGlyphPreviewShapes(
+      baseGlyph,
+      glyphMap,
+      nextVisited,
+      depth + 1
+    )
     for (const nestedShape of nestedShapes) {
       shapes.push({
         d: nestedShape.d,
@@ -214,7 +229,7 @@ export const buildGlyphPreviewData = (
 ): GlyphPreviewData => {
   const width = Math.max(glyph.metrics.width || 0, 240)
   const shapes = buildGlyphPreviewShapes(glyph, glyphMap)
-  const viewBox = `${-PREVIEW_PADDING_X} ${PREVIEW_DESCENDER} ${width + PREVIEW_PADDING_X * 2} ${PREVIEW_ASCENDER - PREVIEW_DESCENDER}`
+  const viewBox = `${-PREVIEW_PADDING_X} ${PREVIEW_DESCENDER} ${width + PREVIEW_PADDING_X * 2} ${PREVIEW_ASCENDER - PREVIEW_DESCENDER + 100}`
 
   return {
     width,

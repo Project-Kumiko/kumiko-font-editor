@@ -1,4 +1,4 @@
-import { Box } from '@chakra-ui/react'
+import { Grid, Box } from '@chakra-ui/react'
 import { forwardRef, type HTMLAttributes } from 'react'
 
 export const OverviewGridList = forwardRef<
@@ -6,10 +6,9 @@ export const OverviewGridList = forwardRef<
   HTMLAttributes<HTMLDivElement>
 >(function OverviewGridList(props, ref) {
   return (
-    <Box
+    <Grid
       ref={ref}
-      display="grid"
-      gridTemplateColumns="repeat(auto-fill, minmax(140px, 1fr))"
+      gridTemplateColumns="repeat(auto-fill, minmax(120px, 1fr))"
       gap={3}
       {...props}
     />
