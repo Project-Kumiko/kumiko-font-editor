@@ -17,10 +17,8 @@ export function GlyphPreviewStrip({
 }: GlyphPreviewStripProps) {
   return (
     <Box
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panelMuted"
+      borderRadius="sm"
       px={3}
       py={3}
       minH="88px"
@@ -48,9 +46,12 @@ export function GlyphPreviewStrip({
                 px={1.5}
                 py={1}
                 h="auto"
-                color={isActive ? 'teal.700' : 'gray.800'}
-                bg={isActive ? 'teal.50' : 'transparent'}
-                _hover={{ bg: isActive ? 'teal.50' : 'gray.100' }}
+                color={isActive ? 'field.ink' : 'field.ink'}
+                bg={isActive ? 'field.yellow.400' : 'transparent'}
+                _hover={{
+                  bg: isActive ? 'field.yellow.400' : 'field.panelMuted',
+                  color: 'field.ink',
+                }}
                 onClick={() => onPreviewGlyphChange(glyph.id)}
                 title={glyph.id}
               >
@@ -60,7 +61,7 @@ export function GlyphPreviewStrip({
           })}
         </Box>
       ) : (
-        <Text fontSize="sm" color="gray.500">
+        <Text fontSize="sm" color="field.muted">
           目前沒有可顯示的字符。
         </Text>
       )}

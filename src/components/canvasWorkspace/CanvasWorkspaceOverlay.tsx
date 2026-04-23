@@ -29,25 +29,32 @@ export function CanvasWorkspaceOverlay({
         gap={1}
         px={3}
         py={2}
-        borderRadius="lg"
-        bg="rgba(15, 23, 42, 0.78)"
-        border="1px solid rgba(148, 163, 184, 0.22)"
+        borderRadius="sm"
+        bg="rgba(8, 11, 13, 0.86)"
+        border="1px solid"
+        borderColor="rgba(247, 235, 64, 0.78)"
         backdropFilter="blur(10px)"
+        boxShadow="none"
       >
-        <Text fontSize="xs" color="whiteAlpha.800">
+        <Text
+          fontSize="10px"
+          color="field.yellow.300"
+          fontFamily="mono"
+          fontWeight="900"
+          letterSpacing="0.12em"
+        >
           Canvas Workspace
         </Text>
-        <Text fontSize="xs" color="whiteAlpha.700">
+        <Text fontSize="xs" color="whiteAlpha.800">
           滾輪縮放，拖曳空白區平移視角
         </Text>
-        <Text fontSize="xs" color="whiteAlpha.700">
+        <Text fontSize="xs" color="whiteAlpha.700" fontFamily="mono">
           `V` 游標，`P` 鋼筆，`B` 筆刷，`T` 文字，`H` 移動畫布
         </Text>
 
         <HStack mt={2}>
           <Button
             size="xs"
-            colorScheme="teal"
             variant="solid"
             onClick={onUndo}
             isDisabled={!canUndo}
@@ -56,7 +63,6 @@ export function CanvasWorkspaceOverlay({
           </Button>
           <Button
             size="xs"
-            colorScheme="teal"
             variant="solid"
             onClick={onRedo}
             isDisabled={!canRedo}
@@ -72,15 +78,14 @@ export function CanvasWorkspaceOverlay({
               size="xs"
               px={2}
               py={1}
-              borderRadius="md"
+              borderRadius="sm"
               variant={activeToolId === tool.id ? 'solid' : 'ghost'}
-              colorScheme={activeToolId === tool.id ? 'teal' : undefined}
               bg={
                 activeToolId === tool.id
                   ? undefined
                   : tool.status === 'ready'
-                    ? 'whiteAlpha.200'
-                    : 'orange.300'
+                    ? 'whiteAlpha.100'
+                    : 'field.red.400'
               }
               color={
                 activeToolId === tool.id
@@ -106,20 +111,22 @@ export function CanvasWorkspaceOverlay({
         gap={2}
         px={3}
         py={2}
-        borderRadius="lg"
-        bg="rgba(15, 23, 42, 0.72)"
+        borderRadius="sm"
+        bg="rgba(8, 11, 13, 0.76)"
+        border="1px solid rgba(247, 235, 64, 0.32)"
         color="whiteAlpha.800"
         fontSize="xs"
+        fontFamily="mono"
       >
-        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
+        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
           Wheel
         </Box>
         <Text>Zoom</Text>
-        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
+        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
           Drag
         </Box>
         <Text>Pan / Move Node</Text>
-        <Box as="span" bg="whiteAlpha.200" px={1} borderRadius="sm">
+        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
           Space
         </Box>
         <Text>Hold Hand Tool</Text>

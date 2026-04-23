@@ -19,12 +19,19 @@ export function LeftPanelHeader({
             fontSize="xs"
             textTransform="uppercase"
             letterSpacing="0.16em"
-            color="gray.500"
+            color="field.muted"
             mb={1}
+            fontFamily="mono"
+            fontWeight="900"
           >
             Kumiko Font Editor
           </Text>
-          <Heading size="md" color="gray.800">
+          <Heading
+            color="field.ink"
+            fontSize="34px"
+            lineHeight="0.86"
+            letterSpacing="0"
+          >
             {isCjkGlyph ? '部件檢索' : '相關字形'}
           </Heading>
         </Box>
@@ -35,7 +42,7 @@ export function LeftPanelHeader({
       </HStack>
 
       {!hasSelectedGlyph ? (
-        <Text fontSize="sm" color="gray.500">
+        <Text fontSize="sm" color="field.muted">
           先選擇一個字符。
         </Text>
       ) : null}

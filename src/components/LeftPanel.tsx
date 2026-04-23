@@ -27,9 +27,9 @@ export function LeftPanel() {
       h="100%"
       display="flex"
       flexDirection="column"
-      bg="#f7faf8"
-      borderRight="1px solid"
-      borderColor="blackAlpha.200"
+      bg="field.paper"
+      backgroundSize="26px 26px"
+      backgroundRepeat="repeat"
     >
       <LeftPanelContent
         key={selectedGlyph?.id ?? 'none'}

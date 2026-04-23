@@ -158,7 +158,7 @@ export function FontOverviewScreen() {
       h="100vh"
       w="100vw"
       overflow="hidden"
-      bg="#eef2f7"
+      bg="field.paper"
     >
       <GridItem area="left" minW={0} minH={0}>
         <OverviewSidebar

@@ -38,49 +38,46 @@ export function NodeInspectorCard({
   return (
     <Box
       p={4}
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panel"
+      borderRadius="sm"
     >
-      <Heading size="sm" mb={3}>
+      <Heading size="sm" mb={3} textTransform="uppercase" color="field.ink">
         節點檢視
       </Heading>
       {!selectedNode || !nodeRef ? (
         selectedSegment ? (
           <Stack spacing={3}>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color="field.ink" fontFamily="mono">
               Segment{' '}
               <Tag size="sm" ml={2}>
                 {selectedSegment.pathId}
               </Tag>
             </Text>
-            <Text fontSize="sm" color="gray.500">
+            <Text fontSize="sm" color="field.muted">
               目前高亮的是一段
               {selectedSegment.type === 'line' ? '直線' : '曲線'}。
             </Text>
             {selectedSegment.type === 'line' ? (
               <Button
                 size="sm"
-                colorScheme="blue"
                 onClick={onConvertSelectedSegment}
               >
                 轉成曲線
               </Button>
             ) : (
-              <Text fontSize="sm" color="gray.500">
+              <Text fontSize="sm" color="field.muted">
                 這段已經是曲線，不需要再轉換。
               </Text>
             )}
           </Stack>
         ) : (
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="field.muted">
             目前沒有選取節點。點擊畫布上的節點即可在這裡微調座標與節點類型。
           </Text>
         )
       ) : (
         <Stack spacing={3}>
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color="field.ink" fontFamily="mono">
             Path{' '}
             <Tag size="sm" ml={2}>
               {nodeRef.pathId}
@@ -89,7 +86,7 @@ export function NodeInspectorCard({
 
           <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
             <GridItem>
-              <Text fontSize="xs" color="gray.500" mb={1}>
+              <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
                 X
               </Text>
               <Input
@@ -102,7 +99,7 @@ export function NodeInspectorCard({
               />
             </GridItem>
             <GridItem>
-              <Text fontSize="xs" color="gray.500" mb={1}>
+              <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
                 Y
               </Text>
               <Input
@@ -117,7 +114,7 @@ export function NodeInspectorCard({
           </Grid>
 
           {!isOnCurveNode ? (
-            <Text fontSize="sm" color="gray.500">
+            <Text fontSize="sm" color="field.muted">
               目前選到的是控制把手。把手本身沒有方形／圓形節點類型。
             </Text>
           ) : (
@@ -126,7 +123,6 @@ export function NodeInspectorCard({
                 <Button
                   size="sm"
                   variant={effectiveNodeType === 'corner' ? 'solid' : 'outline'}
-                  colorScheme="orange"
                   onClick={() => onNodeTypeChange('corner')}
                   leftIcon={<CornerNodeIcon />}
                 >
@@ -135,7 +131,6 @@ export function NodeInspectorCard({
                 <Button
                   size="sm"
                   variant={effectiveNodeType === 'smooth' ? 'solid' : 'outline'}
-                  colorScheme="blue"
                   onClick={() => onNodeTypeChange('smooth')}
                   isDisabled={isEndpointNode}
                   leftIcon={<SmoothNodeIcon />}
@@ -143,7 +138,7 @@ export function NodeInspectorCard({
                   平滑
                 </Button>
               </Grid>
-              <Text fontSize="xs" color="gray.500">
+              <Text fontSize="xs" color="field.muted">
                 {isEndpointNode
                   ? '開放路徑的起點與終點只有一根手把，所以固定為折線。'
                   : effectiveNodeType === 'smooth'

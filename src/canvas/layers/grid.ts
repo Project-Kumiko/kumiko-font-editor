@@ -27,7 +27,7 @@ registerVisualizationLayerDefinition({
   defaultOn: true,
   zIndex: 0,
   screenParameters: { dotSize: 0.2, gridStep: 1 },
-  colors: { fillColor: '#0003' },
+  colors: { fillColor: '#252B2E26' },
   colorsDarkMode: { fillColor: '#FFF3' },
   draw: (
     canvasController: CanvasController,
@@ -74,7 +74,7 @@ registerVisualizationLayerDefinition({
   defaultOn: true,
   zIndex: 1,
   screenParameters: { strokeWidth: 0.1, gridStep: 10 },
-  colors: { strokeColor: '#0002' },
+  colors: { strokeColor: '#252B2E1F' },
   colorsDarkMode: { strokeColor: '#FFF2' },
   draw: (
     canvasController: CanvasController,

@@ -26,17 +26,16 @@ export function ProjectSaveCard({
   return (
     <Box
       p={4}
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panel"
+      borderRadius="sm"
     >
       <Stack spacing={3}>
-        <Heading size="sm">專案儲存</Heading>
+        <Heading size="sm" textTransform="uppercase" color="field.ink">
+          專案儲存
+        </Heading>
         {hasUfoSource ? (
           <>
             <Button
-              colorScheme="blue"
               onClick={onSaveLocal}
               isDisabled={!canSaveLocal}
               isLoading={isSavingToLocal}
@@ -60,7 +59,6 @@ export function ProjectSaveCard({
         ) : (
           <>
             <Button
-              colorScheme="blue"
               onClick={onSaveProject}
               isDisabled={!canSaveDraft}
             >

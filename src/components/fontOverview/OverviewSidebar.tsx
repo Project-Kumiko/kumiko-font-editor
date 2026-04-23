@@ -68,9 +68,9 @@ export function OverviewSidebar({
       h="100%"
       display="flex"
       flexDirection="column"
-      bg="#f7faf8"
-      borderRight="1px solid"
-      borderColor="blackAlpha.200"
+      bg="field.paper"
+      backgroundSize="26px 26px"
+      backgroundRepeat="repeat"
     >
       <VStack align="stretch" spacing={3} mb={4}>
         <HStack justify="space-between" align="flex-start">
@@ -79,15 +79,22 @@ export function OverviewSidebar({
               fontSize="xs"
               textTransform="uppercase"
               letterSpacing="0.16em"
-              color="gray.500"
+              color="field.muted"
               mb={1}
+              fontFamily="mono"
+              fontWeight="900"
             >
               Kumiko Font Editor
             </Text>
-            <Heading size="md" color="gray.800">
+            <Heading
+              color="field.ink"
+              fontSize="38px"
+              lineHeight="0.86"
+              letterSpacing="0"
+            >
               所有字符
             </Heading>
-            <Text fontSize="sm" color="gray.500" mt={1} noOfLines={2}>
+            <Text fontSize="sm" color="field.muted" mt={2} noOfLines={2}>
               {projectTitle}
             </Text>
           </Box>
@@ -121,17 +128,9 @@ export function OverviewSidebar({
                     onCancelAddGlyphs()
                   }
                 }}
-                bg="white"
-                borderColor="blackAlpha.200"
-                focusBorderColor="teal.400"
               />
               <HStack>
-                <Button
-                  size="sm"
-                  colorScheme="teal"
-                  flex={1}
-                  onClick={onGlyphInputSubmit}
-                >
+                <Button size="sm" flex={1} onClick={onGlyphInputSubmit}>
                   新增
                 </Button>
                 <Button size="sm" variant="ghost" onClick={onCancelAddGlyphs}>
@@ -146,18 +145,14 @@ export function OverviewSidebar({
           placeholder="搜尋字符、glyph name 或 unicode"
           value={currentSearchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
-          bg="white"
-          borderColor="blackAlpha.200"
-          focusBorderColor="teal.400"
         />
 
         <Box>
-          <Text fontSize="xs" color="gray.500" mb={1}>
+          <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
             Grouping
           </Text>
           <Select
             size="sm"
-            bg="white"
             value={groupBy}
             onChange={(event) =>
               onGroupingChange(event.target.value as OverviewGroupBy)
@@ -170,10 +165,10 @@ export function OverviewSidebar({
         </Box>
 
         <HStack justify="space-between">
-          <Text fontSize="sm" color="gray.600">
+          <Text fontSize="sm" color="field.muted" fontFamily="mono">
             目前共 {overviewGlyphCount.toLocaleString()} 個字符
           </Text>
-          <Tag size="sm" colorScheme="teal" variant="subtle">
+          <Tag size="sm" variant="subtle">
             Overview
           </Tag>
         </HStack>
@@ -183,33 +178,25 @@ export function OverviewSidebar({
           onChange={(event) =>
             onShowOnlyEmptyGlyphsChange(event.target.checked)
           }
-          colorScheme="teal"
           size="sm"
+          color="field.ink"
         >
           只看空白待編輯字符
         </Checkbox>
       </VStack>
 
-      <Divider mb={4} />
+      <Divider mb={4} borderColor="field.haze" opacity={0.55} />
 
-      <Box
-        flex={1}
-        minH={0}
-        bg="white"
-        borderRadius="xl"
-        border="1px solid"
-        borderColor="blackAlpha.100"
-        overflow="auto"
-        p={2}
-      >
+      <Box flex={1} minH={0} bg="white" borderRadius="sm" overflow="auto" p={2}>
         <VStack align="stretch" spacing={1}>
           <Button
             justifyContent="space-between"
             variant={selectedSectionId === 'all' ? 'solid' : 'ghost'}
-            colorScheme={selectedSectionId === 'all' ? 'teal' : undefined}
+            color="field.ink"
+            fontWeight="900"
             onClick={() => onSectionSelect('all')}
           >
-            <Text>全部</Text>
+            <Text noOfLines={1}>全部</Text>
             <Tag size="sm">{overviewGlyphCount}</Tag>
           </Button>
 
@@ -218,9 +205,8 @@ export function OverviewSidebar({
               key={section.id}
               justifyContent="space-between"
               variant={selectedSectionId === section.id ? 'solid' : 'ghost'}
-              colorScheme={
-                selectedSectionId === section.id ? 'teal' : undefined
-              }
+              color="field.ink"
+              fontWeight="900"
               onClick={() => onSectionSelect(section.id)}
             >
               <Text noOfLines={1}>{section.label}</Text>

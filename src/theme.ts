@@ -5,22 +5,42 @@ const config: ThemeConfig = {
   useSystemColorMode: false,
 }
 
+const monoStack =
+  '"IBM Plex Mono", "SFMono-Regular", "Menlo", "Consolas", monospace'
+const sansStack =
+  '"IBM Plex Sans", "Noto Sans TC", "Segoe UI", system-ui, sans-serif'
+const plusMarkerPattern =
+  "url(\"data:image/svg+xml,%3Csvg width='26' height='26' viewBox='0 0 26 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M13 8.5V17.5M8.5 13H17.5' stroke='%23080B0D' stroke-opacity='0.18' stroke-width='1'/%3E%3C/svg%3E\")"
+
 const colors = {
-  endfield: {
+  field: {
+    ink: '#080B0D',
+    graphite: '#12171A',
+    steel: '#252B2E',
+    line: '#31383C',
+    paper: '#f8f8f8',
+    panel: '#FFFFFF',
+    panelMuted: '#E5E7E2',
+    haze: '#B8BDB3',
+    muted: '#5F675D',
     yellow: {
-      400: '#FDE047',
-      500: '#FBE335', // 核心主色
-      600: '#EAB308',
+      300: '#FFF56A',
+      400: '#F7EB40',
+      500: '#E8D619',
+      600: '#B6A600',
     },
-    bg: {
-      base: '#F3F4F6',
-      surface: '#FFFFFF',
+    cyan: {
+      300: '#6FF4FF',
+      400: '#25DAF2',
+      500: '#00AFC9',
     },
-    border: '#111827',
-    text: {
-      primary: '#111827',
-      secondary: '#6B7280',
-      inverted: '#FFFFFF',
+    red: {
+      400: '#FF604F',
+      500: '#E83A2B',
+    },
+    green: {
+      400: '#A8FF5C',
+      500: '#6DD526',
     },
   },
 }
@@ -28,113 +48,164 @@ const colors = {
 const components = {
   Button: {
     baseStyle: {
-      borderRadius: '0px', // 回歸完全直角，更硬核
-      textTransform: 'uppercase',
-      fontWeight: 'bold',
+      borderRadius: '2px',
+      fontFamily: sansStack,
+      fontWeight: 800,
+      letterSpacing: '0.02em',
+      transitionProperty: 'background, color, border-color',
+      transitionDuration: '120ms',
+      _focusVisible: {
+        boxShadow: '0 0 0 2px #25DAF2',
+      },
+      _disabled: {
+        opacity: 0.42,
+        cursor: 'not-allowed',
+        transform: 'none',
+      },
     },
     variants: {
-      // 主按鈕：黃底黑字
       solid: {
-        bg: 'endfield.yellow.500',
-        color: 'black',
+        bg: 'field.yellow.400',
+        color: 'field.ink',
+        border: '1px solid transparent',
+        boxShadow: 'none',
         _hover: {
-          bg: 'black',
-          color: 'endfield.yellow.500', // Hover時反轉為黑底黃字
-          transform: 'translateY(-1px)',
+          bg: 'field.ink',
+          color: 'field.yellow.300',
+          boxShadow: 'none',
+          transform: 'none',
+          _disabled: {
+            bg: 'field.yellow.400',
+            color: 'field.ink',
+            boxShadow: 'none',
+          },
         },
         _active: {
-          bg: 'black',
-          color: 'white',
+          bg: 'field.yellow.500',
+          color: 'field.ink',
+          transform: 'none',
+          boxShadow: 'none',
         },
       },
       outline: {
-        border: '1px solid',
-        borderColor: 'endfield.border',
-        color: 'endfield.border',
+        bg: 'field.panelMuted',
+        color: 'field.ink',
+        border: '1px solid transparent',
         _hover: {
-          bg: 'black',
-          color: 'white',
+          bg: 'field.yellow.400',
+          color: 'field.ink',
+          borderColor: 'transparent',
         },
+      },
+      ghost: {
+        color: 'field.ink',
+        _hover: {
+          bg: 'field.panelMuted',
+          color: 'field.ink',
+        },
+      },
+    },
+    sizes: {
+      xs: {
+        h: 7,
+        px: 2,
+        fontSize: '10px',
+      },
+      sm: {
+        h: 8,
+        px: 3,
+        fontSize: '12px',
       },
     },
     defaultProps: {
       variant: 'solid',
     },
   },
-
-  // 針對列表項目的樣式定義（可用於 List 或自定義組件）
-  List: {
-    parts: ['item'],
-    baseStyle: {
-      item: {
-        px: 4,
-        py: 2,
-        transition: 'all 0.2s',
-        cursor: 'pointer',
-        fontWeight: 'medium',
-        // Hover：黑色背景
-        _hover: {
-          bg: 'black',
-          color: 'white',
+  Input: {
+    variants: {
+      outline: {
+        field: {
+          bg: 'field.panel',
+          borderRadius: '2px',
+          borderColor: 'field.line',
+          fontFamily: monoStack,
+          _hover: {
+            borderColor: 'field.ink',
+          },
+          _focusVisible: {
+            borderColor: 'field.cyan.400',
+            boxShadow: '0 0 0 1px #25DAF2',
+          },
         },
-        // Selected：黃色背景（使用 data-selected 或 aria-selected 觸發）
-        _selected: {
-          bg: 'endfield.yellow.500',
-          color: 'black',
-          fontWeight: 'bold',
-        },
-        // 如果是使用 Chakra 的連結或按鈕列表
-        _active: {
-          bg: 'endfield.yellow.500',
-          color: 'black',
+      },
+    },
+    defaultProps: {
+      variant: 'outline',
+    },
+  },
+  Select: {
+    variants: {
+      outline: {
+        field: {
+          bg: 'field.panel',
+          borderRadius: '2px',
+          borderColor: 'field.line',
+          fontFamily: monoStack,
+          _focusVisible: {
+            borderColor: 'field.cyan.400',
+            boxShadow: '0 0 0 1px #25DAF2',
+          },
         },
       },
     },
   },
-
-  // 針對 Menu 組件的直接覆寫
+  Tag: {
+    baseStyle: {
+      container: {
+        borderRadius: '2px',
+        border: '1px solid transparent',
+        bg: 'field.panelMuted',
+        color: 'field.ink',
+        fontFamily: monoStack,
+        fontWeight: 800,
+      },
+    },
+  },
   Menu: {
     baseStyle: {
       list: {
-        borderRadius: '0px',
+        borderRadius: '2px',
         border: '1px solid',
-        borderColor: 'endfield.border',
-        bg: 'white',
-        p: 0,
+        borderColor: 'field.line',
+        bg: 'field.panel',
+        p: 1,
+        boxShadow: '6px 6px 0 rgba(8, 11, 13, 0.18)',
       },
       item: {
-        py: 3,
-        fontWeight: 'bold',
-        // 預設狀態
+        borderRadius: '1px',
+        fontWeight: 800,
         _hover: {
-          bg: 'black',
-          color: 'endfield.yellow.500', // 科技感極強的黑底黃字
+          bg: 'field.graphite',
+          color: 'field.yellow.300',
         },
         _focus: {
-          bg: 'black',
-          color: 'endfield.yellow.500',
-        },
-        _active: {
-          bg: 'endfield.yellow.500',
-          color: 'black',
-        },
-        _expanded: {
-          bg: 'endfield.bg.base',
+          bg: 'field.graphite',
+          color: 'field.yellow.300',
         },
       },
     },
   },
-
   Tabs: {
     variants: {
       enclosed: {
         tab: {
-          borderRadius: '0px',
-          fontWeight: 'bold',
+          borderRadius: '2px 2px 0 0',
+          borderColor: 'field.line',
+          fontWeight: 900,
           _selected: {
-            color: 'black',
-            bg: 'endfield.yellow.500',
-            borderColor: 'endfield.border',
+            color: 'field.ink',
+            bg: 'field.yellow.400',
+            borderColor: 'field.line',
           },
         },
       },
@@ -145,16 +216,35 @@ const components = {
 const theme = extendTheme({
   config,
   colors,
+  fonts: {
+    heading: sansStack,
+    body: sansStack,
+    mono: monoStack,
+  },
+  radii: {
+    none: '0',
+    sm: '2px',
+    md: '3px',
+    lg: '4px',
+    xl: '4px',
+  },
   components,
   styles: {
     global: {
+      ':root': {
+        '--field-plus-pattern': plusMarkerPattern,
+      },
       body: {
-        bg: 'endfield.bg',
-        color: 'endfield.text.main',
-        // 加上極其微弱的網格背景，提升「藍圖」感
-        backgroundImage: 'radial-gradient(#000000 1px, transparent 0)',
-        backgroundSize: '20px 20px',
-        backgroundPosition: '-19px -19px',
+        bg: 'field.paper',
+        color: 'field.ink',
+        backgroundColor: 'field.paper',
+        backgroundImage: 'var(--field-plus-pattern)',
+        backgroundSize: '26px 26px',
+        backgroundRepeat: 'repeat',
+      },
+      '::selection': {
+        bg: 'field.yellow.400',
+        color: 'field.ink',
       },
     },
   },

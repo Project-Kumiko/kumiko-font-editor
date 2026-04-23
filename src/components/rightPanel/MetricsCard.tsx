@@ -13,17 +13,15 @@ export function MetricsCard({
   return (
     <Box
       p={4}
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panel"
+      borderRadius="sm"
     >
-      <Heading size="sm" mb={3}>
+      <Heading size="sm" mb={3} textTransform="uppercase" color="field.ink">
         Metrics
       </Heading>
       <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap={3}>
         <GridItem>
-          <Text fontSize="xs" color="gray.500" mb={1}>
+          <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
             LSB
           </Text>
           <Input
@@ -34,7 +32,7 @@ export function MetricsCard({
           />
         </GridItem>
         <GridItem>
-          <Text fontSize="xs" color="gray.500" mb={1}>
+          <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
             Width
           </Text>
           <Input
@@ -45,7 +43,7 @@ export function MetricsCard({
           />
         </GridItem>
         <GridItem>
-          <Text fontSize="xs" color="gray.500" mb={1}>
+          <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
             RSB
           </Text>
           <Input

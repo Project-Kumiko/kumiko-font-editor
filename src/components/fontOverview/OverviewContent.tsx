@@ -41,44 +41,57 @@ export function OverviewContent({
   onSelectGlyph,
 }: OverviewContentProps) {
   return (
-    <Box h="100%" overflow="auto" p={5}>
+    <Box
+      h="100%"
+      overflow="auto"
+      p={5}
+      bg="field.paper"
+      backgroundImage="var(--field-plus-pattern)"
+      backgroundSize="26px 26px"
+      backgroundRepeat="repeat"
+    >
       <Stack spacing={5}>
         <Box>
-          <Heading size="md" color="gray.800">
+          <Text
+            fontSize="10px"
+            color="field.muted"
+            fontFamily="mono"
+            fontWeight="900"
+            letterSpacing="0.16em"
+          >
+            GLYPH INDEX / TOTAL FIELD
+          </Text>
+          <Heading
+            color="field.ink"
+            fontSize="52px"
+            lineHeight="0.86"
+            letterSpacing="0"
+          >
             字符總覽
           </Heading>
-          <Text fontSize="sm" color="gray.500" mt={1}>
+          <Text fontSize="sm" color="field.muted" mt={2}>
             單擊查看資訊，雙擊進入字符編輯器
           </Text>
         </Box>
 
         {visibleSections.length === 0 ? (
-          <Box
-            p={10}
-            bg="white"
-            borderRadius="2xl"
-            border="1px solid"
-            borderColor="blackAlpha.100"
-          >
-            <Text color="gray.500">目前沒有符合條件的字符。</Text>
+          <Box p={10} bg="field.panel" borderRadius="sm">
+            <Text color="field.muted">目前沒有符合條件的字符。</Text>
           </Box>
         ) : (
           <Box
             p={4}
-            bg="white"
-            borderRadius="2xl"
-            border="1px solid"
-            borderColor="blackAlpha.100"
-            boxShadow="sm"
+            bg="field.panel"
+            borderRadius="sm"
             h="calc(100vh - 120px)"
             display="flex"
             flexDirection="column"
           >
             <HStack justify="space-between" mb={4}>
-              <Heading size="sm" color="gray.800">
+              <Heading size="sm" color="field.ink" textTransform="uppercase">
                 {activeSection.label}
               </Heading>
-              <Tag size="sm" colorScheme="gray" variant="subtle">
+              <Tag size="sm" variant="subtle">
                 {activeSection.glyphs.length}
               </Tag>
             </HStack>

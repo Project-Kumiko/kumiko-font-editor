@@ -45,16 +45,21 @@ export function GlyphSummaryCard({
   return (
     <Box
       p={4}
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panel"
+      borderRadius="sm"
+      boxShadow="inset 0 6px 0 rgba(247, 235, 64, 0.9)"
     >
       <Stack spacing={2}>
-        <Text fontWeight="bold" color="gray.800">
+        <Text
+          fontWeight="900"
+          color="field.ink"
+          fontSize="3xl"
+          lineHeight="0.88"
+          pt={2}
+        >
           {glyph.name}
         </Text>
-        <Text fontSize="sm" color="gray.500">
+        <Text fontSize="xs" color="field.muted" fontFamily="mono">
           {glyph.id}
         </Text>
         {workspaceView === 'overview' && (
@@ -62,27 +67,26 @@ export function GlyphSummaryCard({
             mt={1}
             px={3}
             py={4}
-            borderRadius="lg"
-            border="1px solid"
-            borderColor="blackAlpha.100"
-            bg="gray.50"
+            borderRadius="sm"
+            bg="field.paper"
             textAlign="center"
           >
             <Text
-              fontSize={glyphDisplayCharacter ? '5xl' : 'xl'}
-              lineHeight={1}
-              color="gray.800"
+              fontSize={glyphDisplayCharacter ? '8xl' : '4xl'}
+              lineHeight={0.82}
+              color="field.ink"
+              fontWeight="900"
             >
               {glyphDisplayCharacter ?? glyph.name}
             </Text>
           </Box>
         )}
-        <Stack direction="row" spacing={2} align="center">
+        <Stack direction="row" spacing={1} align="center">
           <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
             Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
           </Tag>
           <Tag
-            alignSelf="start"
+            fontSize="xs"
             colorScheme={isDirty ? 'orange' : 'green'}
             variant="subtle"
           >
@@ -91,12 +95,11 @@ export function GlyphSummaryCard({
         </Stack>
         {availableLayers.length > 0 && (
           <Box>
-            <Text fontSize="xs" color="gray.500" mb={1}>
+            <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
               圖層 / Master
             </Text>
             <Select
               size="sm"
-              bg="white"
               value={activeLayer?.id ?? ''}
               onChange={(event) => onLayerChange(event.target.value)}
             >
@@ -112,48 +115,43 @@ export function GlyphSummaryCard({
           <>
             <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
               <GridItem>
-                <Text fontSize="xs" color="gray.500">
+                <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   Unicode
                 </Text>
-                <Text fontSize="sm" color="gray.700">
+                <Text fontSize="sm" color="field.ink" fontFamily="mono">
                   {glyph.unicode ?? '未編碼'}
                 </Text>
               </GridItem>
               <GridItem>
-                <Text fontSize="xs" color="gray.500">
+                <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   Script
                 </Text>
-                <Text fontSize="sm" color="gray.700">
+                <Text fontSize="sm" color="field.ink">
                   {getGlyphScriptLabel(glyph)}
                 </Text>
               </GridItem>
               <GridItem>
-                <Text fontSize="xs" color="gray.500">
+                <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   Block
                 </Text>
-                <Text fontSize="sm" color="gray.700">
+                <Text fontSize="sm" color="field.ink">
                   {getGlyphBlockLabel(glyph)}
                 </Text>
               </GridItem>
               <GridItem>
-                <Text fontSize="xs" color="gray.500">
+                <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   Contours / Components
                 </Text>
-                <Text fontSize="sm" color="gray.700">
+                <Text fontSize="sm" color="field.ink" fontFamily="mono">
                   {overviewStats?.contourCount ?? 0} /{' '}
                   {overviewStats?.componentCount ?? 0}
                 </Text>
               </GridItem>
             </Grid>
-            <Button size="sm" colorScheme="teal" onClick={onEnterEditor}>
+            <Button size="sm" onClick={onEnterEditor}>
               進入字符編輯器
             </Button>
-            <Button
-              size="sm"
-              colorScheme="red"
-              variant="outline"
-              onClick={onDeleteGlyph}
-            >
+            <Button size="sm" variant="outline" onClick={onDeleteGlyph}>
               刪除字符
             </Button>
           </>

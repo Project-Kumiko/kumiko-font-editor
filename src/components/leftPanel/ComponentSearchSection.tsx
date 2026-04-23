@@ -15,14 +15,14 @@ export function ComponentSearchSection({
 }: ComponentSearchSectionProps) {
   return (
     <VStack align="stretch" spacing={2}>
-      <Text fontSize="sm" color="gray.600">
+      <Text fontSize="sm" color="field.muted" fontFamily="mono">
         拆字部件
       </Text>
       <HStack spacing={2} flexWrap="wrap">
         {loading && components.length === 0 ? (
           <HStack spacing={2}>
-            <Spinner size="sm" color="teal.500" />
-            <Text fontSize="sm" color="gray.500">
+            <Spinner size="sm" color="field.yellow.400" />
+            <Text fontSize="sm" color="field.muted">
               分析中
             </Text>
           </HStack>
@@ -32,14 +32,13 @@ export function ComponentSearchSection({
               key={component}
               size="sm"
               variant={component === selectedComponent ? 'solid' : 'outline'}
-              colorScheme="teal"
               onClick={() => onSelectComponent(component)}
             >
               {component}
             </Button>
           ))
         ) : (
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="field.muted">
             找不到可用的拆字部件。
           </Text>
         )}

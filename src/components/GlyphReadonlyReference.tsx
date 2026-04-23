@@ -362,16 +362,14 @@ export function GlyphReadonlyReference({
 
   return (
     <Box
-      bg="white"
-      borderRadius="xl"
-      border="1px solid"
-      borderColor="blackAlpha.100"
+      bg="field.panel"
+      borderRadius="sm"
       overflow="hidden"
       px={2}
       py={2}
       userSelect="none"
     >
-      <Text fontSize="xs" color="gray.500" mb={2}>
+      <Text fontSize="xs" color="field.muted" mb={2} fontFamily="mono">
         滑過部件會高亮，點擊可直接複製進目前編輯字。
       </Text>
       <Box

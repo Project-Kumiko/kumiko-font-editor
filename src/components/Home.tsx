@@ -6,10 +6,12 @@ import {
   Divider,
   Heading,
   HStack,
+  Image,
   Input,
   Text,
   VStack,
 } from '@chakra-ui/react'
+import logoUrl from '../assets/logo.svg'
 import { importGitHubRepo } from '../lib/githubImport'
 import {
   deleteUfoProjectData,
@@ -237,35 +239,80 @@ export function Home() {
   return (
     <Box
       w="100vw"
-      h="100vh"
+      minH="100vh"
       display="flex"
       alignItems="center"
       justifyContent="center"
+      px={{ base: 4, md: 8 }}
+      py={{ base: 6, md: 10 }}
+      bg="field.paper"
+      backgroundImage="var(--field-plus-pattern)"
+      backgroundSize="26px 26px"
+      backgroundRepeat="repeat"
     >
       <Box
-        p={8}
-        borderRadius="lg"
+        p={{ base: 5, md: 8 }}
+        borderRadius="sm"
         boxShadow="lg"
         w="100%"
-        maxW="600px"
-        bg="white"
+        maxW="880px"
+        bg="field.panel"
+        position="relative"
+        _before={{
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          h: '7px',
+          bg: 'field.yellow.400',
+          borderBottom: '1px solid',
+          borderColor: 'field.ink',
+        }}
       >
-        <Heading size="lg" mb={6} textAlign="center">
-          Kumiko Font Editor
-        </Heading>
+        <HStack mt={4} mb={8} align="center" spacing={{ base: 4, md: 6 }}>
+          <Image
+            src={logoUrl}
+            alt="Kumiko Font Editor"
+            boxSize={{ base: '72px', md: '112px' }}
+            flexShrink={0}
+          />
+          <Box minW={0}>
+            <Text
+              fontFamily="mono"
+              fontSize="10px"
+              fontWeight="900"
+              letterSpacing="0.16em"
+              color="field.muted"
+            >
+              BORDER TOOL / TYPE SYSTEM / LOCAL DRAFT TERMINAL
+            </Text>
+            <Heading
+              mt={1}
+              fontSize={{ base: '46px', md: '76px' }}
+              lineHeight="0.82"
+              letterSpacing="0"
+              color="field.ink"
+            >
+              Kumiko
+              <br />
+              Font Editor
+            </Heading>
+          </Box>
+        </HStack>
 
         <VStack spacing={6} align="stretch">
           <Box
-            border="2px dashed"
-            borderColor="gray.300"
+            border="1px dashed"
+            borderColor="field.line"
             p={6}
-            borderRadius="md"
-            textAlign="center"
+            borderRadius="sm"
+            bg="field.paper"
           >
-            <Heading size="sm" mb={4}>
+            <Heading size="sm" mb={2} textTransform="uppercase">
               建立新專案
             </Heading>
-            <Text fontSize="sm" color="gray.500" mb={4}>
+            <Text fontSize="sm" color="field.muted" mb={4}>
               選擇包含各種字重 `.ufo` 的上層資料夾開始編輯
             </Text>
             <Input
@@ -285,7 +332,6 @@ export function Home() {
             <Button
               as="label"
               htmlFor="package-upload"
-              colorScheme="teal"
               cursor="pointer"
               isLoading={isLoadingLocal}
               loadingText="讀取與解析中..."
@@ -293,7 +339,12 @@ export function Home() {
               選擇 UFO 上層資料夾
             </Button>
             {isLoadingLocal && (
-              <Text fontSize="xs" color="red.500" mt={2}>
+              <Text
+                fontSize="xs"
+                color="field.red.500"
+                mt={3}
+                fontFamily="mono"
+              >
                 大型字庫在第一次匯入時需要一些時間，請稍候...
               </Text>
             )}
@@ -301,14 +352,15 @@ export function Home() {
 
           <Box
             border="1px solid"
-            borderColor="gray.200"
+            borderColor="field.line"
             p={6}
-            borderRadius="md"
+            borderRadius="sm"
+            bg="field.panel"
           >
-            <Heading size="sm" mb={4}>
+            <Heading size="sm" mb={2} textTransform="uppercase">
               從 GitHub 載入
             </Heading>
-            <Text fontSize="sm" color="gray.500" mb={4}>
+            <Text fontSize="sm" color="field.muted" mb={4}>
               輸入 `owner/repo` 或 GitHub URL。
             </Text>
             <VStack spacing={3} align="stretch">
@@ -349,7 +401,6 @@ export function Home() {
                 </Box>
               </Collapse>
               <Button
-                colorScheme="blue"
                 onClick={() => void handleGitHubImport()}
                 isLoading={isLoadingGitHub}
                 loadingText="下載與解析中..."
@@ -359,14 +410,14 @@ export function Home() {
             </VStack>
           </Box>
 
-          <Divider />
+          <Divider borderColor="field.line" />
 
           <Box>
-            <Heading size="sm" mb={4}>
+            <Heading size="sm" mb={4} textTransform="uppercase">
               您最近開啟的字體專案 (IndexedDB)
             </Heading>
             {projects.length === 0 ? (
-              <Text fontSize="sm" color="gray.500" textAlign="center">
+              <Text fontSize="sm" color="field.muted" textAlign="center">
                 尚無任何專案紀錄
               </Text>
             ) : (
@@ -380,26 +431,29 @@ export function Home() {
                   <HStack
                     key={proj.projectId}
                     p={3}
-                    borderWidth={1}
-                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="field.line"
+                    borderRadius="sm"
                     justify="space-between"
-                    _hover={{ bg: 'gray.50' }}
+                    bg="field.paper"
+                    _hover={{ bg: 'field.yellow.300' }}
                   >
                     <Box>
-                      <Text fontWeight="bold">{proj.title}</Text>
-                      <Text fontSize="xs" color="gray.500">
+                      <Text fontWeight="900" fontSize="lg">
+                        {proj.title}
+                      </Text>
+                      <Text fontSize="xs" color="field.muted" fontFamily="mono">
                         {proj.sourceType === 'github'
                           ? `GitHub: ${proj.githubSource?.owner}/${proj.githubSource?.repo}${proj.githubSource?.ref ? ` @ ${proj.githubSource.ref}` : ''}`
                           : `本地匯入: ${proj.sourceFolderName}`}
                       </Text>
-                      <Text fontSize="xs" color="gray.500">
+                      <Text fontSize="xs" color="field.muted" fontFamily="mono">
                         {new Date(proj.updatedAt).toLocaleString()}
                       </Text>
                     </Box>
                     <HStack>
                       <Button
                         size="sm"
-                        colorScheme="red"
                         variant="ghost"
                         onClick={(e) => handleDeleteProject(proj.projectId, e)}
                       >

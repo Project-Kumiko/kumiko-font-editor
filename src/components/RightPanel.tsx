@@ -300,13 +300,13 @@ export function RightPanel() {
       p={4}
       h="100%"
       overflowY="auto"
-      bg="#fbfcfe"
-      borderLeft="1px solid"
-      borderColor="blackAlpha.200"
+      bg="field.paper"
+      backgroundSize="26px 26px"
+      backgroundRepeat="repeat"
     >
       <Stack spacing={5}>
         {!glyph ? (
-          <Text fontSize="sm" color="gray.500">
+          <Text fontSize="sm" color="field.muted" fontFamily="mono">
             尚未選取字形。
           </Text>
         ) : (

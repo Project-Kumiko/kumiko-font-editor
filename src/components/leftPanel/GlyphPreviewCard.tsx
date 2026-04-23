@@ -22,16 +22,20 @@ export function GlyphPreviewCard({
       <VStack align="stretch" spacing={2} h="100%">
         <HStack justify="space-between" align="center">
           <Box minW={0}>
-            <Text fontSize="sm" color="gray.600">
+            <Text fontSize="sm" color="field.ink" fontWeight="900">
               部件預覽
             </Text>
-            <Text fontSize="xs" color="gray.500" noOfLines={1}>
+            <Text
+              fontSize="xs"
+              color="field.muted"
+              noOfLines={1}
+              fontFamily="mono"
+            >
               {glyph.id}
             </Text>
           </Box>
           <Button
             size="xs"
-            colorScheme="teal"
             variant="outline"
             onClick={() => onAddToEditor(glyph.id)}
           >

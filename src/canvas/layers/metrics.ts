@@ -29,7 +29,7 @@ registerVisualizationLayerDefinition({
   defaultOn: true,
   zIndex: 100,
   screenParameters: { strokeWidth: 2 },
-  colors: { strokeColor: '#000' },
+  colors: { strokeColor: '#080B0D' },
   colorsDarkMode: { strokeColor: '#FFF' },
   draw: (
     canvasController: CanvasController,
@@ -57,9 +57,9 @@ registerVisualizationLayerDefinition({
   zIndex: 100,
   screenParameters: { strokeWidth: 1 },
   colors: {
-    strokeColor: '#0004',
-    zoneColor: '#00BFFF18',
-    zoneStrokeColor: '#00608018',
+    strokeColor: '#252B2E5C',
+    zoneColor: '#25DAF214',
+    zoneStrokeColor: '#00AFC92E',
   },
   colorsDarkMode: {
     strokeColor: '#FFF6',
@@ -132,8 +132,8 @@ registerVisualizationLayerDefinition({
   zIndex: 100,
   screenParameters: { strokeWidth: 1.2, dashArray: [12, 10] },
   colors: {
-    lsbColor: '#f6ad55',
-    widthColor: '#68d391',
+    lsbColor: '#F7EB40',
+    widthColor: '#25DAF2',
   },
   draw: (
     canvasController: CanvasController,

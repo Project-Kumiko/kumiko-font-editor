@@ -38,7 +38,7 @@ registerVisualizationLayerDefinition({
   name: 'Context Path Fill',
   selectionFunc: glyphSelector('notediting'),
   zIndex: 450,
-  colors: { fillColor: '#000' },
+  colors: { fillColor: '#080B0D' },
   draw: (
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
@@ -64,7 +64,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
   screenParameters: { strokeWidth: 1 },
-  colors: { fillColor: '#0001' },
+  colors: { fillColor: '#080B0D14' },
   colorsDarkMode: { fillColor: '#FFF3' },
   draw: (
     canvasController: CanvasController,
@@ -78,7 +78,7 @@ registerVisualizationLayerDefinition({
     if (!glyph.path) return
 
     context.fillStyle = isHandTool(model)
-      ? '#000'
+      ? '#080B0D'
       : (parameters.fillColor as string)
     for (const component of glyph.components || []) {
       if (component.path2d) {
@@ -94,7 +94,7 @@ registerVisualizationLayerDefinition({
   name: 'Empty Glyph Placeholder',
   selectionFunc: glyphSelector('editing'),
   zIndex: 499,
-  colors: { fillColor: 'rgba(0, 0, 0, 0.14)' },
+  colors: { fillColor: 'rgba(102, 112, 100, 0.2)' },
   draw: (
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
@@ -132,7 +132,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
   screenParameters: { strokeWidth: 2 },
-  colors: { strokeColor: '#000' },
+  colors: { strokeColor: '#080B0D' },
   colorsDarkMode: { strokeColor: '#FFF' },
   draw: (
     canvasController: CanvasController,
@@ -172,7 +172,7 @@ registerVisualizationLayerDefinition({
     insertHandlesRadius: 3.5,
     strokeWidth: 2,
   },
-  colors: { color: '#3080FF80', closeColor: '#d9485f99' },
+  colors: { color: '#25DAF299', closeColor: '#FF604FAA' },
   colorsDarkMode: { color: '#50A0FF80', closeColor: '#fc818199' },
   draw: (
     canvasController: CanvasController,
@@ -229,7 +229,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 546,
   screenParameters: { strokeWidth: 2, lineDash: [6, 4] },
-  colors: { strokeColor: '#0f766e' },
+  colors: { strokeColor: '#00AFC9' },
   colorsDarkMode: { strokeColor: '#81e6d9' },
   draw: (
     canvasController: CanvasController,
@@ -264,7 +264,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 547,
   screenParameters: { strokeWidth: 1.25, lineDash: [5, 5] },
-  colors: { strokeColor: '#dd6b20' },
+  colors: { strokeColor: '#E8D619' },
   colorsDarkMode: { strokeColor: '#f6ad55' },
   draw: (
     canvasController: CanvasController,
@@ -304,7 +304,7 @@ registerVisualizationLayerDefinition({
   },
   zIndex: 548,
   screenParameters: { strokeWidth: 2 },
-  colors: { strokeColor: '#1E88A8' },
+  colors: { strokeColor: '#00AFC9' },
   draw: (
     canvasController: CanvasController,
     _positionedGlyph: PositionedGlyph,
@@ -338,8 +338,8 @@ registerVisualizationLayerDefinition({
   zIndex: 540,
   screenParameters: { strokeWidth: 4 },
   colors: {
-    selectedColor: '#1E88A8',
-    hoveredColor: '#90cdf4',
+    selectedColor: '#F7EB40',
+    hoveredColor: '#25DAF2',
   },
   colorsDarkMode: {
     selectedColor: '#90cdf4',
@@ -398,7 +398,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
   screenParameters: { strokeWidth: 1 },
-  colors: { color: '#BBB' },
+  colors: { color: '#BFC7BA' },
   colorsDarkMode: { color: '#777' },
   draw: (
     canvasController: CanvasController,
@@ -431,9 +431,9 @@ registerVisualizationLayerDefinition({
       context.strokeStyle = handleIndices.some((index) =>
         selectedPointIndices.has(index)
       )
-        ? '#0f766e'
+        ? '#F7EB40'
         : handleIndices.some((index) => hoveredPointIndices.has(index))
-          ? '#2b6cb0'
+          ? '#25DAF2'
           : (parameters.color as string)
       strokeLine(context, pt1.x, pt1.y, pt2.x, pt2.y)
     }
@@ -447,7 +447,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 500,
   screenParameters: { cornerSize: 8, smoothSize: 8, handleSize: 6.5 },
-  colors: { color: '#BBB' },
+  colors: { color: '#BFC7BA' },
   colorsDarkMode: { color: '#BBB' },
   draw: (
     canvasController: CanvasController,
@@ -499,9 +499,9 @@ registerVisualizationLayerDefinition({
     underlayOffset: 2,
   },
   colors: {
-    hoveredColor: '#BBB',
-    selectedColor: '#000',
-    underColor: '#FFFA',
+    hoveredColor: '#25DAF2',
+    selectedColor: '#080B0D',
+    underColor: '#F7EB40',
   },
   colorsDarkMode: {
     hoveredColor: '#BBB',
@@ -596,7 +596,7 @@ registerVisualizationLayerDefinition({
   defaultOn: false,
   zIndex: 700,
   screenParameters: { strokeWidth: 1, lineDash: [4, 4] },
-  colors: { strokeColor: '#8888' },
+  colors: { strokeColor: '#E8D619AA' },
   colorsDarkMode: { strokeColor: '#AAA8' },
   draw: (
     canvasController: CanvasController,
@@ -639,7 +639,7 @@ registerVisualizationLayerDefinition({
   selectionFunc: glyphSelector('editing'),
   zIndex: 800,
   screenParameters: { strokeWidth: 1 },
-  colors: { strokeColor: '#2b6cb0', fillColor: '#90cdf433' },
+  colors: { strokeColor: '#00AFC9', fillColor: '#25DAF22E' },
   colorsDarkMode: { strokeColor: '#90cdf4', fillColor: '#90cdf433' },
   draw: (
     canvasController: CanvasController,
