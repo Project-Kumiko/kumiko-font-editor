@@ -151,8 +151,7 @@ const fetchPublicGitHubCompareStatus = async (input: {
     sourceRepo: {
       owner: sourceOwner,
       repo: repoPayload.name ?? parsedRepo.repo,
-      fullName:
-        repoPayload.full_name ?? `${sourceOwner}/${parsedRepo.repo}`,
+      fullName: repoPayload.full_name ?? `${sourceOwner}/${parsedRepo.repo}`,
       defaultBranch: baseBranch,
       htmlUrl:
         repoPayload.html_url ??

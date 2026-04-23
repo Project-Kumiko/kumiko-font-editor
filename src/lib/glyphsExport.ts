@@ -8,7 +8,7 @@ import type {
 } from '../store'
 
 const quoteString = (value: string) => {
-  if (/^[A-Za-z0-9._\/+-]+$/.test(value)) {
+  if (/^[A-Za-z0-9._/+-]+$/.test(value)) {
     return value
   }
 

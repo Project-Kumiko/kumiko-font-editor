@@ -70,8 +70,7 @@ registerVisualizationLayerDefinition({
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
     const context = canvasController.context
     const glyph = positionedGlyph.glyph
@@ -138,8 +137,7 @@ registerVisualizationLayerDefinition({
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
     if (isHandTool(model)) {
       return
@@ -404,8 +402,7 @@ registerVisualizationLayerDefinition({
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
     if (isHandTool(model)) {
       return
@@ -453,10 +450,9 @@ registerVisualizationLayerDefinition({
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    _model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
-    if (isHandTool(_model)) {
+    if (isHandTool(model)) {
       return
     }
     const context = canvasController.context
@@ -512,8 +508,7 @@ registerVisualizationLayerDefinition({
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
     if (isHandTool(model)) {
       return

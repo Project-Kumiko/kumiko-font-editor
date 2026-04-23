@@ -34,9 +34,7 @@ registerVisualizationLayerDefinition({
   draw: (
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
-    parameters: Record<string, number | number[] | string>,
-    _model: SceneModel,
-    _controller: CanvasController
+    parameters: Record<string, number | number[] | string>
   ) => {
     const context = canvasController.context
     context.strokeStyle = parameters.strokeColor as string
@@ -68,20 +66,19 @@ registerVisualizationLayerDefinition({
   },
   draw: (
     canvasController: CanvasController,
-    _positionedGlyph: PositionedGlyph,
+    positionedGlyph: PositionedGlyph,
     parameters: Record<string, number | number[] | string>,
-    _model: SceneModel,
-    _controller: CanvasController
+    model: SceneModel
   ) => {
     const context = canvasController.context
     context.lineWidth = parameters.strokeWidth as number
 
-    const lineMetrics = _model.lineMetricsHorizontalLayout
+    const lineMetrics = model.lineMetricsHorizontalLayout
     if (!lineMetrics) {
       return
     }
 
-    const glyphWidth = _positionedGlyph.glyph.xAdvance || 0
+    const glyphWidth = positionedGlyph.glyph.xAdvance || 0
     const pathBox = new Path2D()
     if (lineMetrics.ascender && lineMetrics.descender) {
       pathBox.rect(
@@ -138,8 +135,7 @@ registerVisualizationLayerDefinition({
   draw: (
     canvasController: CanvasController,
     positionedGlyph: PositionedGlyph,
-    parameters: Record<string, number | number[] | string>,
-    _model: SceneModel
+    parameters: Record<string, number | number[] | string>
   ) => {
     const glyph = positionedGlyph.glyph
     const context = canvasController.context

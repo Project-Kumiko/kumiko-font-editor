@@ -270,7 +270,7 @@ export function registerVisualizationLayerDefinition(
 }
 
 export function glyphSelector(selectionMode: string) {
-  return (visContext: VisContext, _layer: VisualizationLayerDefinition) => {
+  return (visContext: VisContext) => {
     const glyphs = visContext.glyphsBySelectionMode[selectionMode] || []
     return glyphs
   }

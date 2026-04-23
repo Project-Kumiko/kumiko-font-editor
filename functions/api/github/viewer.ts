@@ -28,9 +28,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       {
         error: 'viewer_fetch_failed',
         message:
-          error instanceof Error
-            ? error.message
-            : '讀取 GitHub 使用者資訊失敗',
+          error instanceof Error ? error.message : '讀取 GitHub 使用者資訊失敗',
       },
       { status: 502 }
     )

@@ -125,13 +125,44 @@ npx wrangler pages deploy dist --project-name <your-pages-project-name>
 
 ## 專案結構
 
-- `src/components/Home.tsx`: 首頁與 GitHub repo 載入入口。
-- `src/lib/githubAuth.ts`: 前端 GitHub session 操作。
-- `src/lib/githubImport.ts`: 透過同源 `/api/github/*` 載入 GitHub repo archive。
-- `src/lib/githubPr.ts`: 將 dirty glyph 變更轉成 GitHub commit payload。
-- `src/lib/ufoFormat.ts`: UFO 解析、序列化與 IndexedDB 同步。
-- `functions/api/github`: GitHub OAuth、viewer、repo metadata、archive proxy、fork/commit API。
-- `src/store/index.ts`: 全域狀態與 glyph 編輯資料模型。
+### 前端 `src/`
+
+- `src/features/home/`: 首頁、專案匯入入口、最近專案列表，以及本地 UFO / GitHub 匯入流程。
+- `src/features/editor/`: editor 的整體版面組合與功能入口，例如 editor 三欄 layout。
+- `src/features/editor/canvas/`: 字形編輯主畫布、canvas lifecycle、工具快捷鍵、剪貼簿與文字輸入整合。
+- `src/features/editor/leftPanel/`: editor 左側 glyph / component 搜尋、預覽與加入編輯列的 UI。
+- `src/features/editor/tools/`: editor 專用互動工具，例如 pointer、pen、brush、hand、text 與 scene controller。
+- `src/features/fontOverview/`: 全字庫總覽、分組、搜尋、新增 glyph 與 overview grid。
+- `src/features/common/`: 跨主要 feature 共用的 feature-level UI 與 hooks。
+- `src/features/common/glyphInspector/`: editor 與 overview 共用的 glyph inspector，包括 glyph summary、node inspector、metrics、儲存與 GitHub commit flow。
+- `src/canvas/`: 底層 canvas controller、scene view 與 rendering layers，不直接承擔 React UI。
+- `src/store/`: Zustand 全域狀態、glyph 編輯資料模型與 mutation actions。
+  - `src/store/index.ts`: store 建立、actions 組合、temporal undo/redo 入口。
+  - `src/store/types.ts`: glyph、font、selection、viewport 與 global state 型別。
+  - `src/store/glyphGeometry.ts`: path/node 幾何 helper，例如 endpoint 判斷、node lookup、sidebearing recompute。
+  - `src/store/glyphLayer.ts`: active/archive glyph layer 讀取與 top-level glyph 同步。
+  - `src/store/glyphSearch.ts`: glyph overview/search filtering 與 IDS dictionary。
+  - `src/store/editorLine.ts`: editor glyph line、cursor、active glyph index 的同步 helper。
+  - `src/store/dirtyState.ts`: dirty/local dirty flags 更新 helper。
+- `src/lib/`: 可被多個 feature 共用的資料處理與整合邏輯，例如 UFO/Glyphs 格式、GitHub API、IndexedDB persistence、export worker client。
+- `src/workers/`: Web Worker entry points，用於搜尋與大量匯出等較重的背景工作。
+- `src/hooks/`: 跨 feature 可共用的 React hooks。
+- `src/icons/`: 專案內共用 icon component。
+- `src/font/`: 字形路徑資料結構與 font-specific helper。
+- `src/assets/`: 前端靜態資源。
+
+### 後端與公開資源
+
+- `functions/api/github/`: Cloudflare Pages Functions，負責 GitHub OAuth、viewer、repo metadata、archive proxy、fork/commit/merge 等 API。
+- `public/`: 不經 bundler 處理的公開靜態檔，例如 manifest、favicon、Hanseeker 資料。
+
+### 放置原則
+
+- 新增頁面或使用者流程時，優先放進對應的 `src/features/<feature>/`。
+- 只有跨多個 feature 共用且承擔資料處理、外部整合或 domain 規則的邏輯，才放進 `src/lib/`。
+- 若只是 feature 內部使用的 helper，優先留在該 feature，例如 canvas 剪貼簿格式放在 `src/features/editor/canvas/`。
+- Canvas rendering 放在 `src/canvas/`；editor 互動工具放在 `src/features/editor/tools/`；React component 不應直接塞進 `src/canvas/`。
+- 全域狀態集中在 `src/store/`；feature 內若只是整理資料給 UI，優先用 feature-local hook。
 
 ## 下一步
 

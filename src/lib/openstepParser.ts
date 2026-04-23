@@ -5,7 +5,14 @@
  * 2. .substring() 在 100MB+ 檔案中造成記憶體塞爆與凍結問題
  */
 
-export function parseOpenStep(input: string): any {
+type OpenStepValue =
+  | string
+  | number
+  | null
+  | OpenStepValue[]
+  | { [key: string]: OpenStepValue }
+
+export function parseOpenStep(input: string): OpenStepValue {
   let pos = 0
   const len = input.length
 
@@ -55,7 +62,7 @@ export function parseOpenStep(input: string): any {
     let start = pos
     let res = ''
     while (pos < len) {
-      let c = input.charCodeAt(pos)
+      const c = input.charCodeAt(pos)
       if (c === quote) {
         res += input.substring(start, pos)
         pos++
@@ -84,7 +91,7 @@ export function parseOpenStep(input: string): any {
     return res
   }
 
-  function parseValue(): any {
+  function parseValue(): OpenStepValue {
     skipSpace()
     if (pos >= len) return null
     const c = input.charCodeAt(pos)
@@ -92,7 +99,7 @@ export function parseOpenStep(input: string): any {
     if (c === 0x7b) {
       // '{'
       pos++
-      const obj: any = {}
+      const obj: Record<string, OpenStepValue> = {}
       skipSpace()
       while (pos < len && input.charCodeAt(pos) !== 0x7d) {
         const key = parseValue()
@@ -119,7 +126,7 @@ export function parseOpenStep(input: string): any {
     } else if (c === 0x28) {
       // '('
       pos++
-      const arr: any[] = []
+      const arr: OpenStepValue[] = []
       skipSpace()
       while (pos < len && input.charCodeAt(pos) !== 0x29) {
         const val = parseValue()
@@ -153,7 +160,7 @@ export function parseOpenStep(input: string): any {
         return null
       }
       const str = input.substring(start, pos)
-      if (!isNaN(str as any) && str.trim() !== '') return Number(str)
+      if (!Number.isNaN(Number(str)) && str.trim() !== '') return Number(str)
       return str
     }
   }

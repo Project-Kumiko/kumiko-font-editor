@@ -113,7 +113,8 @@ export class CanvasController {
     })
   }
 
-  private _shouldBlockScroll(_event: WheelEvent): boolean {
+  private _shouldBlockScroll(event: WheelEvent): boolean {
+    void event
     return !!(
       this._initialScrollTarget && this._initialScrollTarget !== this.canvas
     )

@@ -125,7 +125,9 @@ const fetchPublicRepoMetadata = async (
   repo: string
 ): Promise<RepoMetadataResponse | null> => {
   try {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`)
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}`
+    )
     if (!response.ok) {
       return null
     }

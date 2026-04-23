@@ -100,8 +100,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   if (!response.ok || !('access_token' in payload)) {
     return popupMode
-      ? popupResponse(payload.error ?? 'oauth-error', [clearStateCookieHeader()])
-      : redirectWithStatus(origin, payload.error ?? 'oauth-error', [clearStateCookieHeader()])
+      ? popupResponse(payload.error ?? 'oauth-error', [
+          clearStateCookieHeader(),
+        ])
+      : redirectWithStatus(origin, payload.error ?? 'oauth-error', [
+          clearStateCookieHeader(),
+        ])
   }
 
   const sessionCookie = await createSessionCookieHeader(context.env, {

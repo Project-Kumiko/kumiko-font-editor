@@ -63,7 +63,9 @@ export const ingestProjectData = (
         }
       }
 
-      const { layers: _layers, layerOrder: _layerOrder, ...hotGlyph } = glyph
+      const { layers, layerOrder, ...hotGlyph } = glyph
+      void layers
+      void layerOrder
       return [glyphId, hotGlyph]
     })
   )

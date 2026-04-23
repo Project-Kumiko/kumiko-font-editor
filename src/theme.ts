@@ -234,13 +234,29 @@ const theme = extendTheme({
       ':root': {
         '--field-plus-pattern': plusMarkerPattern,
       },
+      '*': {
+        boxSizing: 'border-box',
+      },
+      'html, body, #root': {
+        margin: 0,
+        width: '100%',
+        minHeight: '100%',
+      },
       body: {
+        minHeight: '100vh',
         bg: 'field.paper',
         color: 'field.ink',
         backgroundColor: 'field.paper',
         backgroundImage: 'var(--field-plus-pattern)',
         backgroundSize: '26px 26px',
         backgroundRepeat: 'repeat',
+        fontSynthesis: 'none',
+        textRendering: 'optimizeLegibility',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+      },
+      canvas: {
+        touchAction: 'none',
       },
       '::selection': {
         bg: 'field.yellow.400',
