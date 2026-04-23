@@ -171,6 +171,13 @@ export function RightPanel() {
     }
   }, [hasGitHubSource])
 
+  useEffect(() => {
+    setGitHubForkStatus(null)
+    setGitHubBranchName('')
+    setGitHubCommitMessage('')
+    setIsCreatingNewGitHubBranch(false)
+  }, [githubRepoFullName])
+
   const handleCoordinateChange = (axis: 'x' | 'y', value: string) => {
     if (!glyph || !nodeRef || !selectedNode) {
       return
@@ -501,9 +508,9 @@ export function RightPanel() {
       return
     }
 
-    if (githubViewer) {
-      await loadGitHubForkStatus(gitHubBranchName.trim() || undefined)
-    }
+    const forkStatus = githubViewer
+      ? await loadGitHubForkStatus(gitHubBranchName.trim() || undefined)
+      : null
 
     if (!canCommitToGitHub) {
       return
@@ -518,8 +525,8 @@ export function RightPanel() {
       })
       setGitHubCommitMessage(preparedCommit.request.commitMessage)
       if (!gitHubBranchName.trim()) {
-        if (githubForkStatus?.selectedBranch) {
-          setGitHubBranchName(githubForkStatus.selectedBranch)
+        if (forkStatus?.selectedBranch) {
+          setGitHubBranchName(forkStatus.selectedBranch)
           setIsCreatingNewGitHubBranch(false)
         } else {
           setGitHubBranchName(

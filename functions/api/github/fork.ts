@@ -69,8 +69,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       canDirectCommit: forkInfo.canDirectCommit,
       branches,
       selectedBranch:
-        branches.find((branch) => branch !== sourceRepo.defaultBranch) ||
         forkInfo.targetRepo?.defaultBranch ||
+        sourceRepo.defaultBranch ||
+        branches[0] ||
         null,
     })
   } catch (error) {

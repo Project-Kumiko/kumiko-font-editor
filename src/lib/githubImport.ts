@@ -13,6 +13,14 @@ interface RepoMetadataResponse {
   repoUrl: string
 }
 
+interface GitHubPublicRepoResponse {
+  name?: string
+  default_branch?: string
+  html_url?: string
+  visibility?: string
+  private?: boolean
+}
+
 const GITHUB_REPO_PATTERN =
   /^(?:https?:\/\/github\.com\/)?(?<owner>[A-Za-z0-9_.-]+)\/(?<repo>[A-Za-z0-9_.-]+?)(?:\.git|\/)?$/
 
@@ -112,19 +120,47 @@ const fetchJsonOrThrow = async <T>(response: Response) => {
   return payload
 }
 
+const fetchPublicRepoMetadata = async (
+  owner: string,
+  repo: string
+): Promise<RepoMetadataResponse | null> => {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`)
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as GitHubPublicRepoResponse
+    return {
+      title: payload.name ?? repo,
+      defaultBranch: payload.default_branch ?? null,
+      repoUrl: payload.html_url ?? `https://github.com/${owner}/${repo}`,
+    }
+  } catch {
+    return null
+  }
+}
+
 export const importGitHubRepo = async (input: {
   repo: string
   ref?: string
 }) => {
   const parsed = parseGitHubRepoInput(input.repo)
-  const metadataResponse = await fetch(
-    `/api/github/repo?repo=${encodeURIComponent(`${parsed.owner}/${parsed.repo}`)}`,
-    {
-      credentials: 'include',
-    }
+  const publicRepoMetadata = await fetchPublicRepoMetadata(
+    parsed.owner,
+    parsed.repo
   )
-  const repoMetadata =
-    await fetchJsonOrThrow<RepoMetadataResponse>(metadataResponse)
+  const repoMetadata = publicRepoMetadata
+    ? publicRepoMetadata
+    : await (async () => {
+        const metadataResponse = await fetch(
+          `/api/github/repo?repo=${encodeURIComponent(`${parsed.owner}/${parsed.repo}`)}`,
+          {
+            credentials: 'include',
+          }
+        )
+        return fetchJsonOrThrow<RepoMetadataResponse>(metadataResponse)
+      })()
 
   const archiveUrl = new URL('/api/github/archive', window.location.origin)
   archiveUrl.searchParams.set('repo', `${parsed.owner}/${parsed.repo}`)

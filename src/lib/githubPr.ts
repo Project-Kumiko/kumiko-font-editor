@@ -117,7 +117,7 @@ export const prepareGitHubCommit = async (input: {
     request: {
       repo: `${project.githubSource.owner}/${project.githubSource.repo}`,
       baseBranch: project.githubSource.defaultBranch,
-      commitMessage: `${titleSummary} from Kumiko Font Editor`,
+      commitMessage: titleSummary,
       files,
     },
     changedGlyphNames,

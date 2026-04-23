@@ -37,6 +37,13 @@ export interface GitHubCompareStatusResponse {
   compare: GitHubCompareStatus
 }
 
+interface GitHubPublicCompareApiResponse {
+  status?: string
+  ahead_by?: number
+  behind_by?: number
+  html_url?: string
+}
+
 const GITHUB_OAUTH_POPUP_EVENT = 'kumiko-github-oauth'
 
 const parseResponseBody = async (response: Response) => {
@@ -69,6 +76,104 @@ const readJsonOrThrow = async <T>(response: Response) => {
     throw new Error(payload.message || `HTTP ${response.status}`)
   }
   return payload
+}
+
+const parseRepoInput = (value: string) => {
+  const normalized = value.trim().replace(/^https?:\/\/github\.com\//, '')
+  const [owner, repoWithMaybeSuffix] = normalized.split('/').filter(Boolean)
+  const repo = repoWithMaybeSuffix?.replace(/\.git$/i, '') ?? null
+  if (!owner || !repo) {
+    throw new Error('repo 參數必須是 owner/repo')
+  }
+  return { owner, repo }
+}
+
+const buildCompareUrl = (input: {
+  sourceOwner: string
+  repo: string
+  baseBranch: string
+  headOwner: string
+  headBranch: string
+}) => {
+  const compareUrl = new URL(
+    `https://github.com/${input.sourceOwner}/${input.repo}/compare/${encodeURIComponent(input.baseBranch)}...${encodeURIComponent(`${input.headOwner}:${input.headBranch}`)}`
+  )
+  compareUrl.searchParams.set('expand', '1')
+  compareUrl.searchParams.set('quick_pull', '1')
+  return compareUrl.toString()
+}
+
+const fetchPublicGitHubCompareStatus = async (input: {
+  repo: string
+  headOwner: string
+  headBranch: string
+}) => {
+  const parsedRepo = parseRepoInput(input.repo)
+  const repoResponse = await fetch(
+    `https://api.github.com/repos/${parsedRepo.owner}/${parsedRepo.repo}`,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+      },
+    }
+  )
+
+  if (!repoResponse.ok) {
+    throw new Error(`HTTP ${repoResponse.status}`)
+  }
+
+  const repoPayload = (await repoResponse.json()) as {
+    owner?: { login?: string }
+    name?: string
+    full_name?: string
+    default_branch?: string
+    html_url?: string
+  }
+  const sourceOwner = repoPayload.owner?.login ?? parsedRepo.owner
+  const baseBranch = repoPayload.default_branch ?? 'main'
+  const compareResponse = await fetch(
+    `https://api.github.com/repos/${sourceOwner}/${parsedRepo.repo}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(`${input.headOwner}:${input.headBranch}`)}`,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+      },
+    }
+  )
+
+  if (!compareResponse.ok) {
+    throw new Error(`HTTP ${compareResponse.status}`)
+  }
+
+  const comparePayload =
+    (await compareResponse.json()) as GitHubPublicCompareApiResponse
+
+  return {
+    sourceRepo: {
+      owner: sourceOwner,
+      repo: repoPayload.name ?? parsedRepo.repo,
+      fullName:
+        repoPayload.full_name ?? `${sourceOwner}/${parsedRepo.repo}`,
+      defaultBranch: baseBranch,
+      htmlUrl:
+        repoPayload.html_url ??
+        `https://github.com/${sourceOwner}/${parsedRepo.repo}`,
+      canPush: false,
+    },
+    compare: {
+      status: comparePayload.status ?? 'unknown',
+      aheadBy: comparePayload.ahead_by ?? 0,
+      behindBy: comparePayload.behind_by ?? 0,
+      compareUrl:
+        comparePayload.html_url ??
+        buildCompareUrl({
+          sourceOwner,
+          repo: parsedRepo.repo,
+          baseBranch,
+          headOwner: input.headOwner,
+          headBranch: input.headBranch,
+        }),
+    },
+  } satisfies GitHubCompareStatusResponse
 }
 
 export const startGitHubOAuthLogin = () => {
@@ -162,6 +267,12 @@ export const fetchGitHubCompareStatus = async (input: {
   headOwner: string
   headBranch: string
 }) => {
+  try {
+    return await fetchPublicGitHubCompareStatus(input)
+  } catch {
+    // Fall back to the authenticated server path for private repos.
+  }
+
   const url = new URL('/api/github/compare-status', window.location.origin)
   url.searchParams.set('repo', input.repo)
   url.searchParams.set('headOwner', input.headOwner)
