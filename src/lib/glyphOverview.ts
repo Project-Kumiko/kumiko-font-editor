@@ -150,6 +150,11 @@ export interface GlyphPreviewData {
   shapes: GlyphPreviewShape[]
 }
 
+const glyphPreviewCache = new WeakMap<
+  Record<string, GlyphData>,
+  WeakMap<GlyphData, GlyphPreviewData>
+>()
+
 const PREVIEW_PADDING_X = 80
 const PREVIEW_ASCENDER = 900
 const PREVIEW_DESCENDER = -220
@@ -227,13 +232,26 @@ export const buildGlyphPreviewData = (
   glyph: GlyphData,
   glyphMap: Record<string, GlyphData>
 ): GlyphPreviewData => {
+  let glyphMapCache = glyphPreviewCache.get(glyphMap)
+  if (!glyphMapCache) {
+    glyphMapCache = new WeakMap()
+    glyphPreviewCache.set(glyphMap, glyphMapCache)
+  }
+
+  const cachedPreview = glyphMapCache.get(glyph)
+  if (cachedPreview) {
+    return cachedPreview
+  }
+
   const width = Math.max(glyph.metrics.width || 0, 240)
   const shapes = buildGlyphPreviewShapes(glyph, glyphMap)
   const viewBox = `${-PREVIEW_PADDING_X} ${PREVIEW_DESCENDER} ${width + PREVIEW_PADDING_X * 2} ${PREVIEW_ASCENDER - PREVIEW_DESCENDER + 100}`
 
-  return {
+  const preview = {
     width,
     viewBox,
     shapes,
   }
+  glyphMapCache.set(glyph, preview)
+  return preview
 }

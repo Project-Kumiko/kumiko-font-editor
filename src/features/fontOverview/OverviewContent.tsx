@@ -1,8 +1,8 @@
 import { Box, Heading, HStack, Stack, Tag, Text } from '@chakra-ui/react'
+import { useCallback, useMemo } from 'react'
 import {
   VirtuosoGrid,
   type GridStateSnapshot,
-  type ListRange,
   type VirtuosoGridHandle,
 } from 'react-virtuoso'
 import { GlyphCard } from './GlyphCard'
@@ -24,7 +24,6 @@ interface OverviewContentProps {
   visibleSections: OverviewSection[]
   onEnterEditor: (glyphId: string) => void
   onGridStateChange: (state: GridStateSnapshot) => void
-  onRangeChange: (_range: ListRange) => void
   onSelectGlyph: (glyphId: string) => void
 }
 
@@ -37,9 +36,21 @@ export function OverviewContent({
   visibleSections,
   onEnterEditor,
   onGridStateChange,
-  onRangeChange,
   onSelectGlyph,
 }: OverviewContentProps) {
+  const gridComponents = useMemo(
+    () => ({
+      List: OverviewGridList,
+      Item: OverviewGridItem,
+    }),
+    []
+  )
+
+  const getItemKey = useCallback(
+    (index: number) => activeSection.glyphs[index]?.id ?? index,
+    [activeSection.glyphs]
+  )
+
   return (
     <Box
       h="100%"
@@ -101,14 +112,11 @@ export function OverviewContent({
                 ref={gridRef}
                 style={{ height: '100%', width: '100%' }}
                 totalCount={activeSection.glyphs.length}
+                computeItemKey={getItemKey}
                 restoreStateFrom={restoreSnapshot}
                 stateChanged={onGridStateChange}
-                rangeChanged={onRangeChange}
-                increaseViewportBy={{ top: 1000, bottom: 1000 }}
-                components={{
-                  List: OverviewGridList,
-                  Item: OverviewGridItem,
-                }}
+                increaseViewportBy={{ top: 800, bottom: 1000 }}
+                components={gridComponents}
                 itemContent={(index) => {
                   const glyph = activeSection.glyphs[index]
                   return (
@@ -116,8 +124,8 @@ export function OverviewContent({
                       glyph={glyph}
                       glyphMap={glyphMap}
                       isSelected={glyph.id === selectedGlyphId}
-                      onClick={() => onSelectGlyph(glyph.id)}
-                      onDoubleClick={() => onEnterEditor(glyph.id)}
+                      onEnterEditor={onEnterEditor}
+                      onSelectGlyph={onSelectGlyph}
                     />
                   )
                 }}

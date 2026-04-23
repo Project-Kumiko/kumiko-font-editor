@@ -1,5 +1,5 @@
 import { Box, Flex, Stack, Text } from '@chakra-ui/react'
-import { memo, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import {
   buildGlyphPreviewData,
   getGlyphDisplayCharacter,
@@ -65,27 +65,40 @@ interface GlyphCardProps {
   glyph: GlyphData
   glyphMap: Record<string, GlyphData>
   isSelected: boolean
-  onClick: () => void
-  onDoubleClick: () => void
+  onEnterEditor: (glyphId: string) => void
+  onSelectGlyph: (glyphId: string) => void
 }
 
 export const GlyphCard = memo(function GlyphCard({
   glyph,
   glyphMap,
   isSelected,
-  onClick,
-  onDoubleClick,
+  onEnterEditor,
+  onSelectGlyph,
 }: GlyphCardProps) {
+  const handleClick = useCallback(() => {
+    onSelectGlyph(glyph.id)
+  }, [glyph.id, onSelectGlyph])
+
+  const handleDoubleClick = useCallback(() => {
+    onEnterEditor(glyph.id)
+  }, [glyph.id, onEnterEditor])
+
   return (
     <Box
       p={1}
       h="140px"
+      sx={{
+        contain: 'layout paint style',
+        contentVisibility: 'auto',
+        containIntrinsicSize: '140px',
+      }}
       borderRadius="sm"
       bg={isSelected ? 'field.yellow.300' : 'field.panel'}
       boxShadow="none"
-      transition="all 140ms ease"
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
+      transition="background 140ms ease"
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
     >
       <Stack spacing={1} h="100%">
         <Flex align="center" justify="center" h="104px" borderRadius="sm">

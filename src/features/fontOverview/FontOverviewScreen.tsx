@@ -1,5 +1,5 @@
 import { Grid, GridItem, useToast } from '@chakra-ui/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GridStateSnapshot, VirtuosoGridHandle } from 'react-virtuoso'
 import {
   getGlyphOverviewSections,
@@ -35,6 +35,9 @@ export function FontOverviewScreen() {
   ) as GridStateSnapshot | null
   const setOverviewGridState = useStore((state) => state.setOverviewGridState)
   const gridRef = useRef<VirtuosoGridHandle | null>(null)
+  const pendingOverviewGridStateRef = useRef<GridStateSnapshot | null>(
+    overviewGridState
+  )
 
   const overviewGlyphs = useMemo(
     () =>
@@ -86,6 +89,12 @@ export function FontOverviewScreen() {
     }
   }, [sections, selectedSectionId, setOverviewSectionId])
 
+  useEffect(() => {
+    return () => {
+      setOverviewGridState(pendingOverviewGridStateRef.current)
+    }
+  }, [setOverviewGridState])
+
   const selectedGlyph =
     overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
   const glyphMap = fontData?.glyphs ?? {}
@@ -128,6 +137,8 @@ export function FontOverviewScreen() {
   }
 
   const handleSectionSelect = (sectionId: string) => {
+    pendingOverviewGridStateRef.current = null
+    setOverviewGridState(null)
     setOverviewSectionId(sectionId)
     if (sectionId === 'all') {
       return
@@ -146,10 +157,18 @@ export function FontOverviewScreen() {
     }
   }
 
-  const handleEnterEditor = (glyphId: string) => {
-    setSelectedGlyphId(glyphId)
-    setWorkspaceView('editor')
-  }
+  const handleEnterEditor = useCallback(
+    (glyphId: string) => {
+      setOverviewGridState(pendingOverviewGridStateRef.current)
+      setSelectedGlyphId(glyphId)
+      setWorkspaceView('editor')
+    },
+    [setOverviewGridState, setSelectedGlyphId, setWorkspaceView]
+  )
+
+  const handleGridStateChange = useCallback((state: GridStateSnapshot) => {
+    pendingOverviewGridStateRef.current = state
+  }, [])
 
   return (
     <Grid
@@ -179,6 +198,8 @@ export function FontOverviewScreen() {
           onGlyphInputChange={setGlyphInputValue}
           onGlyphInputSubmit={handleAddGlyphs}
           onGroupingChange={(value) => {
+            pendingOverviewGridStateRef.current = null
+            setOverviewGridState(null)
             setOverviewGrouping(value)
             setOverviewSectionId('all')
           }}
@@ -198,12 +219,7 @@ export function FontOverviewScreen() {
           selectedGlyphId={selectedGlyphId}
           visibleSections={visibleSections}
           onEnterEditor={handleEnterEditor}
-          onGridStateChange={(state) => {
-            setOverviewGridState(state)
-          }}
-          onRangeChange={() => {
-            setOverviewGridState(null)
-          }}
+          onGridStateChange={handleGridStateChange}
           onSelectGlyph={setSelectedGlyphId}
         />
       </GridItem>
