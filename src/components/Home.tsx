@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -11,16 +11,25 @@ import {
   VStack,
 } from '@chakra-ui/react'
 import { importGitHubRepo } from '../lib/githubImport'
-import { deleteUfoProjectData, listUfoProjects } from '../lib/ufoPersistence'
+import {
+  deleteUfoProjectData,
+  listDirtyUfoGlyphs,
+  listUfoProjects,
+  loadUfoUiValue,
+} from '../lib/ufoPersistence'
 import {
   importUfoWorkspace,
   loadUfoProjectIntoFontData,
 } from '../lib/ufoFormat'
 import { useStore } from '../store'
 import type { UfoProjectRecord } from '../lib/ufoTypes'
+import { UFO_LOCAL_DELETED_GLYPHS_KEY } from '../lib/draftSave'
 
 export function Home() {
   const loadProjectState = useStore((state) => state.loadProjectState)
+  const hydratePersistedLocalChanges = useStore(
+    (state) => state.hydratePersistedLocalChanges
+  )
   const [projects, setProjects] = useState<UfoProjectRecord[]>([])
   const [isLoadingLocal, setIsLoadingLocal] = useState(false)
   const [isLoadingGitHub, setIsLoadingGitHub] = useState(false)
@@ -51,6 +60,22 @@ export function Home() {
     url.searchParams.delete('ref')
     window.history.replaceState({}, '', url.toString())
   }
+
+  const restorePersistedUfoChanges = useCallback(
+    async (projectId: string) => {
+      const dirtyGlyphs = await listDirtyUfoGlyphs(projectId)
+      const deletedGlyphIds =
+        (await loadUfoUiValue<string[]>(
+          projectId,
+          UFO_LOCAL_DELETED_GLYPHS_KEY
+        )) ?? []
+      hydratePersistedLocalChanges(
+        dirtyGlyphs.map((glyph) => glyph.glyphName),
+        deletedGlyphIds
+      )
+    },
+    [hydratePersistedLocalChanges]
+  )
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -120,6 +145,7 @@ export function Home() {
         importedProject.projectMetadata,
         importedProject.projectSourceFormat
       )
+      await restorePersistedUfoChanges(importedProject.project.projectId)
       clearGitHubUrlParams()
     } catch (error: unknown) {
       console.error(error)
@@ -168,6 +194,7 @@ export function Home() {
             importedProject.projectMetadata,
             importedProject.projectSourceFormat
           )
+          await restorePersistedUfoChanges(importedProject.project.projectId)
           clearGitHubUrlParams()
         } catch (error: unknown) {
           console.error(error)
@@ -177,7 +204,7 @@ export function Home() {
         }
       })()
     }, 0)
-  }, [isLoadingGitHub, loadProjectState])
+  }, [isLoadingGitHub, loadProjectState, restorePersistedUfoChanges])
 
   const handleOpenProject = async (project: UfoProjectRecord) => {
     const loadedProject = await loadUfoProjectIntoFontData(project.projectId)
@@ -191,6 +218,7 @@ export function Home() {
       loadedProject.projectMetadata,
       'ufo'
     )
+    await restorePersistedUfoChanges(loadedProject.project.projectId)
   }
 
   const handleDeleteProject = async (id: string, event: React.MouseEvent) => {
@@ -210,18 +238,17 @@ export function Home() {
     <Box
       w="100vw"
       h="100vh"
-      bg="gray.100"
       display="flex"
       alignItems="center"
       justifyContent="center"
     >
       <Box
-        bg="white"
         p={8}
         borderRadius="lg"
         boxShadow="lg"
         w="100%"
         maxW="600px"
+        bg="white"
       >
         <Heading size="lg" mb={6} textAlign="center">
           Kumiko Font Editor

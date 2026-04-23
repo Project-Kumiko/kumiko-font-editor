@@ -4,8 +4,10 @@ interface ProjectSaveCardProps {
   canSaveDraft: boolean
   canSaveLocal: boolean
   hasUfoSource: boolean
+  hasGitHubSource: boolean
   isSavingToLocal: boolean
   loadingText: string
+  onOpenGitHubModal: () => void
   onSaveLocal: () => void
   onSaveProject: () => void
 }
@@ -14,8 +16,10 @@ export function ProjectSaveCard({
   canSaveDraft,
   canSaveLocal,
   hasUfoSource,
+  hasGitHubSource,
   isSavingToLocal,
   loadingText,
+  onOpenGitHubModal,
   onSaveLocal,
   onSaveProject,
 }: ProjectSaveCardProps) {
@@ -47,6 +51,11 @@ export function ProjectSaveCard({
             >
               儲存草稿
             </Button>
+            {hasGitHubSource ? (
+              <Button variant="outline" onClick={onOpenGitHubModal}>
+                GitHub / Commit
+              </Button>
+            ) : null}
           </>
         ) : (
           <>

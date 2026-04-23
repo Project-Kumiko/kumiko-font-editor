@@ -264,6 +264,10 @@ export interface GlobalState {
     projectMetadata?: Record<string, unknown> | null,
     projectSourceFormat?: ProjectSourceFormat | null
   ) => void
+  hydratePersistedLocalChanges: (
+    dirtyGlyphIds: string[],
+    deletedGlyphIds: string[]
+  ) => void
   closeProjectState: () => void
   markDraftSaved: () => void
   markLocalSaved: () => void
@@ -1423,6 +1427,14 @@ export const useStore = create<GlobalState>()(
               state.selectedLayerId
             )
           }
+        }),
+
+      hydratePersistedLocalChanges: (dirtyGlyphIds, deletedGlyphIds) =>
+        set((state) => {
+          state.localDirtyGlyphIds = [...dirtyGlyphIds]
+          state.localDeletedGlyphIds = [...deletedGlyphIds]
+          state.hasLocalChanges =
+            dirtyGlyphIds.length > 0 || deletedGlyphIds.length > 0
         }),
 
       closeProjectState: () =>

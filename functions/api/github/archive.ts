@@ -1,3 +1,4 @@
+import type { PagesFunction } from '../../pages'
 import {
   buildArchiveAttempts,
   fetchRepoMetadata,

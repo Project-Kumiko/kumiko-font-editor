@@ -1,3 +1,4 @@
+import type { PagesFunction } from '../../../pages'
 import { createOAuthState, createStateCookieHeader, type Env } from '../_utils'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -9,7 +10,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   const requestUrl = new URL(context.request.url)
-  const redirectUri = `${requestUrl.origin}/api/github/oauth/callback`
+  const popupMode = requestUrl.searchParams.get('popup') === '1'
+  const redirectUri = `${requestUrl.origin}/api/github/oauth/callback${popupMode ? '?popup=1' : ''}`
   const scope =
     context.env.GITHUB_OAUTH_SCOPE?.trim() || 'public_repo read:user user:email'
   const state = createOAuthState()

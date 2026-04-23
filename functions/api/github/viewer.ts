@@ -1,4 +1,10 @@
-import { json, readGitHubAccessToken, type Env } from './_utils'
+import type { PagesFunction } from '../../pages'
+import {
+  getGitHubViewer,
+  json,
+  readGitHubAccessToken,
+  type Env,
+} from './_utils'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const token = await readGitHubAccessToken(context.request, context.env)
@@ -9,35 +15,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     )
   }
 
-  const response = await fetch('https://api.github.com/user', {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  })
-
-  if (!response.ok) {
+  try {
+    const payload = await getGitHubViewer(token)
+    return json({
+      login: payload.login ?? null,
+      avatarUrl: payload.avatar_url ?? null,
+      profileUrl: payload.html_url ?? null,
+      name: payload.name ?? null,
+    })
+  } catch (error) {
     return json(
       {
         error: 'viewer_fetch_failed',
-        message: `讀取 GitHub 使用者資訊失敗（HTTP ${response.status}）`,
+        message:
+          error instanceof Error
+            ? error.message
+            : '讀取 GitHub 使用者資訊失敗',
       },
-      { status: response.status }
+      { status: 502 }
     )
   }
-
-  const payload = (await response.json()) as {
-    login?: string
-    avatar_url?: string
-    html_url?: string
-    name?: string | null
-  }
-
-  return json({
-    login: payload.login ?? null,
-    avatarUrl: payload.avatar_url ?? null,
-    profileUrl: payload.html_url ?? null,
-    name: payload.name ?? null,
-  })
 }

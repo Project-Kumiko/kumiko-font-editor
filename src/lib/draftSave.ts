@@ -4,9 +4,15 @@ import {
   getProjectArchiveSourceFormat,
 } from './projectArchive'
 import { saveProject, loadProject } from './persistence'
-import { loadUfoProject, saveUfoProject } from './ufoPersistence'
+import {
+  loadUfoProject,
+  saveUfoProject,
+  saveUfoUiValue,
+} from './ufoPersistence'
 import { syncHotFontDataToUfoRecords } from './ufoFormat'
 import type { FontData } from '../store'
+
+export const UFO_LOCAL_DELETED_GLYPHS_KEY = 'ufo-local-deleted-glyph-ids'
 
 export const saveDraftSnapshot = async (input: {
   projectId: string
@@ -44,6 +50,11 @@ export const saveDraftSnapshot = async (input: {
         updatedAt: Date.now(),
       })
     }
+    await saveUfoUiValue(
+      input.projectId,
+      UFO_LOCAL_DELETED_GLYPHS_KEY,
+      input.deletedGlyphIds
+    )
     return
   }
 

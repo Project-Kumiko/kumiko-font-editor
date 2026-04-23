@@ -9,7 +9,7 @@
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "preview": "vite preview",
-    "cf:dev": "pnpm build && npx wrangler pages dev dist",
+    "cf:preview": "pnpm build && npx wrangler pages dev dist",
     "cf:deploy": "pnpm build && npx wrangler pages deploy dist"
   },
   "dependencies": {
