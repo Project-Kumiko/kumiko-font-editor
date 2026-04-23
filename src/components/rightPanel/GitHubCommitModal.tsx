@@ -21,7 +21,7 @@ import {
 import type { GitHubForkStatus, GitHubViewer } from '../../lib/githubAuth'
 import { GitHubRepoCard } from './GitHubRepoCard'
 
-interface GitHubCommitModalProps {
+export interface GitHubCommitModalProps {
   isOpen: boolean
   onClose: () => void
   githubViewer: GitHubViewer | null
