@@ -8,8 +8,18 @@ import {
   HStack,
   Image,
   Input,
+  Link,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Text,
   VStack,
+  Grid,
+  Flex,
 } from '@chakra-ui/react'
 import logoUrl from '../assets/logo.svg'
 import { importGitHubRepo } from '../lib/githubImport'
@@ -27,6 +37,27 @@ import { useStore } from '../store'
 import type { UfoProjectRecord } from '../lib/ufoTypes'
 import { UFO_LOCAL_DELETED_GLYPHS_KEY } from '../lib/draftSave'
 
+interface PendingGitHubImport {
+  repo: string
+  ref: string
+  repoUrl: string | null
+}
+
+const getGitHubRepoUrl = (repoInput: string) => {
+  const normalized = repoInput
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/\.git\/?$/, '')
+    .replace(/\/$/, '')
+  const [owner, repo] = normalized.split('/')
+
+  if (!owner || !repo) {
+    return null
+  }
+
+  return `https://github.com/${owner}/${repo}`
+}
+
 export function Home() {
   const loadProjectState = useStore((state) => state.loadProjectState)
   const hydratePersistedLocalChanges = useStore(
@@ -38,6 +69,8 @@ export function Home() {
   const [githubRepoInput, setGitHubRepoInput] = useState('')
   const [githubRefInput, setGitHubRefInput] = useState('')
   const [showGitHubRefInput, setShowGitHubRefInput] = useState(false)
+  const [pendingGitHubImport, setPendingGitHubImport] =
+    useState<PendingGitHubImport | null>(null)
   const packageInputRef = useRef<HTMLInputElement | null>(null)
   const hasAutoImportedFromUrlRef = useRef(false)
 
@@ -123,42 +156,76 @@ export function Home() {
     }, 100)
   }
 
+  const importGitHubProject = useCallback(
+    async (input: { repo: string; ref: string; errorLabel: string }) => {
+      if (!input.repo.trim() || isLoadingGitHub) {
+        return
+      }
+
+      setIsLoadingGitHub(true)
+      try {
+        const importedProject = await importGitHubRepo({
+          repo: input.repo,
+          ref: input.ref,
+        })
+        setProjects((current) => [
+          importedProject.project,
+          ...current.filter(
+            (project) => project.projectId !== importedProject.project.projectId
+          ),
+        ])
+        loadProjectState(
+          importedProject.project.projectId,
+          importedProject.project.title,
+          importedProject.fontData,
+          importedProject.projectMetadata,
+          importedProject.projectSourceFormat
+        )
+        await restorePersistedUfoChanges(importedProject.project.projectId)
+        clearGitHubUrlParams()
+      } catch (error: unknown) {
+        console.error(error)
+        alert(`${input.errorLabel}: ${getErrorMessage(error)}`)
+      } finally {
+        setIsLoadingGitHub(false)
+      }
+    },
+    [isLoadingGitHub, loadProjectState, restorePersistedUfoChanges]
+  )
+
   const handleGitHubImport = async () => {
-    if (!githubRepoInput.trim() || isLoadingGitHub) {
+    if (!githubRepoInput.trim()) {
       return
     }
 
-    setIsLoadingGitHub(true)
-    try {
-      const importedProject = await importGitHubRepo({
-        repo: githubRepoInput,
-        ref: githubRefInput,
-      })
-      setProjects((current) => [
-        importedProject.project,
-        ...current.filter(
-          (project) => project.projectId !== importedProject.project.projectId
-        ),
-      ])
-      loadProjectState(
-        importedProject.project.projectId,
-        importedProject.project.title,
-        importedProject.fontData,
-        importedProject.projectMetadata,
-        importedProject.projectSourceFormat
-      )
-      await restorePersistedUfoChanges(importedProject.project.projectId)
-      clearGitHubUrlParams()
-    } catch (error: unknown) {
-      console.error(error)
-      alert(`讀取 GitHub 專案失敗: ${getErrorMessage(error)}`)
-    } finally {
-      setIsLoadingGitHub(false)
+    await importGitHubProject({
+      repo: githubRepoInput,
+      ref: githubRefInput,
+      errorLabel: '讀取 GitHub 專案失敗',
+    })
+  }
+
+  const handleCancelPendingGitHubImport = () => {
+    setPendingGitHubImport(null)
+    clearGitHubUrlParams()
+  }
+
+  const handleConfirmPendingGitHubImport = async () => {
+    if (!pendingGitHubImport) {
+      return
     }
+
+    const { repo, ref } = pendingGitHubImport
+    setPendingGitHubImport(null)
+    await importGitHubProject({
+      repo,
+      ref,
+      errorLabel: '載入 GitHub 專案失敗',
+    })
   }
 
   useEffect(() => {
-    if (hasAutoImportedFromUrlRef.current || isLoadingGitHub) {
+    if (hasAutoImportedFromUrlRef.current) {
       return
     }
 
@@ -174,39 +241,12 @@ export function Home() {
     setGitHubRepoInput(repo)
     setGitHubRefInput(ref)
     setShowGitHubRefInput(Boolean(ref))
-    setTimeout(() => {
-      void (async () => {
-        setIsLoadingGitHub(true)
-        try {
-          const importedProject = await importGitHubRepo({
-            repo,
-            ref,
-          })
-          setProjects((current) => [
-            importedProject.project,
-            ...current.filter(
-              (project) =>
-                project.projectId !== importedProject.project.projectId
-            ),
-          ])
-          loadProjectState(
-            importedProject.project.projectId,
-            importedProject.project.title,
-            importedProject.fontData,
-            importedProject.projectMetadata,
-            importedProject.projectSourceFormat
-          )
-          await restorePersistedUfoChanges(importedProject.project.projectId)
-          clearGitHubUrlParams()
-        } catch (error: unknown) {
-          console.error(error)
-          alert(`自動載入 GitHub 專案失敗: ${getErrorMessage(error)}`)
-        } finally {
-          setIsLoadingGitHub(false)
-        }
-      })()
-    }, 0)
-  }, [isLoadingGitHub, loadProjectState, restorePersistedUfoChanges])
+    setPendingGitHubImport({
+      repo,
+      ref,
+      repoUrl: getGitHubRepoUrl(repo),
+    })
+  }, [])
 
   const handleOpenProject = async (project: UfoProjectRecord) => {
     const loadedProject = await loadUfoProjectIntoFontData(project.projectId)
@@ -250,6 +290,87 @@ export function Home() {
       backgroundSize="26px 26px"
       backgroundRepeat="repeat"
     >
+      <Modal
+        isOpen={Boolean(pendingGitHubImport)}
+        onClose={handleCancelPendingGitHubImport}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent borderRadius="sm">
+          <ModalHeader>載入 GitHub 專案</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              <Text fontSize="sm" color="field.muted">
+                是否要載入以下 GitHub 專案？
+              </Text>
+              <Box
+                border="1px solid"
+                borderColor="field.line"
+                borderRadius="sm"
+                bg="field.paper"
+                p={4}
+              >
+                <Text fontSize="xs" color="field.muted" fontFamily="mono">
+                  Repository
+                </Text>
+
+                {pendingGitHubImport?.repoUrl && (
+                  <Box
+                    fontSize="lg"
+                    color="black"
+                    wordBreak="break-all"
+                    textTransform="uppercase"
+                  >
+                    <Box fontWeight="800">
+                      {pendingGitHubImport?.repo.split('/')[0] ||
+                        pendingGitHubImport?.repo}
+                      /
+                    </Box>
+                    <Link
+                      display="inline-block"
+                      href={pendingGitHubImport.repoUrl}
+                      isExternal
+                      fontWeight="900"
+                      fontSize="25px"
+                    >
+                      {pendingGitHubImport?.repo.split('/')[1] ||
+                        pendingGitHubImport?.repo}
+                    </Link>
+                  </Box>
+                )}
+                <Text
+                  mt={3}
+                  fontSize="xs"
+                  color="field.muted"
+                  fontFamily="mono"
+                >
+                  Ref
+                </Text>
+                <Text fontWeight="700" wordBreak="break-all">
+                  {pendingGitHubImport?.ref || '預設 branch'}
+                </Text>
+              </Box>
+            </VStack>
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Button
+              variant="ghost"
+              onClick={handleCancelPendingGitHubImport}
+              isDisabled={isLoadingGitHub}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={() => void handleConfirmPendingGitHubImport()}
+              isLoading={isLoadingGitHub}
+              loadingText="下載與解析中..."
+            >
+              載入專案
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
       <Box
         p={{ base: 5, md: 8 }}
         borderRadius="sm"
@@ -276,6 +397,7 @@ export function Home() {
             alt="Kumiko Font Editor"
             boxSize={{ base: '72px', md: '112px' }}
             flexShrink={0}
+            mt="15px"
           />
           <Box minW={0}>
             <Text
@@ -302,118 +424,124 @@ export function Home() {
         </HStack>
 
         <VStack spacing={6} align="stretch">
-          <Box
-            border="1px dashed"
-            borderColor="field.line"
-            p={6}
-            borderRadius="sm"
-            bg="field.paper"
-          >
-            <Heading size="sm" mb={2} textTransform="uppercase">
-              建立新專案
-            </Heading>
-            <Text fontSize="sm" color="field.muted" mb={4}>
-              選擇包含各種字重 `.ufo` 的上層資料夾開始編輯
-            </Text>
-            <Input
-              type="file"
-              onChange={handleFileUpload}
-              display="none"
-              id="file-upload"
-            />
-            <input
-              ref={packageInputRef}
-              type="file"
-              multiple
-              onChange={handlePackageUpload}
-              style={{ display: 'none' }}
-              id="package-upload"
-            />
-            <Button
-              as="label"
-              htmlFor="package-upload"
-              cursor="pointer"
-              isLoading={isLoadingLocal}
-              loadingText="讀取與解析中..."
+          <Grid templateColumns="1fr 1fr" gap={6}>
+            <Flex
+              border="1px dashed"
+              borderColor="field.line"
+              p={6}
+              borderRadius="sm"
+              bg="field.paper"
+              direction="column"
+              justifyContent="center"
             >
-              選擇 UFO 上層資料夾
-            </Button>
-            {isLoadingLocal && (
-              <Text
-                fontSize="xs"
-                color="field.red.500"
-                mt={3}
-                fontFamily="mono"
-              >
-                大型字庫在第一次匯入時需要一些時間，請稍候...
+              <Heading size="sm" mb={2} textTransform="uppercase">
+                本地匯入
+              </Heading>
+              <Text fontSize="sm" color="field.muted" mb={4}>
+                請選擇包含各種字重 `.ufo` 的上層資料夾
               </Text>
-            )}
-          </Box>
-
-          <Box
-            border="1px solid"
-            borderColor="field.line"
-            p={6}
-            borderRadius="sm"
-            bg="field.panel"
-          >
-            <Heading size="sm" mb={2} textTransform="uppercase">
-              從 GitHub 載入
-            </Heading>
-            <Text fontSize="sm" color="field.muted" mb={4}>
-              輸入 `owner/repo` 或 GitHub URL。
-            </Text>
-            <VStack spacing={3} align="stretch">
               <Input
-                value={githubRepoInput}
-                onChange={(event) => setGitHubRepoInput(event.target.value)}
-                placeholder="owner/repo"
+                type="file"
+                onChange={handleFileUpload}
+                display="none"
+                id="file-upload"
+              />
+              <input
+                ref={packageInputRef}
+                type="file"
+                multiple
+                onChange={handlePackageUpload}
+                style={{ display: 'none' }}
+                id="package-upload"
               />
               <Button
-                size="sm"
-                variant="ghost"
-                alignSelf="flex-start"
-                onClick={() => setShowGitHubRefInput((current) => !current)}
-                rightIcon={
-                  <Text
-                    as="span"
-                    fontSize="sm"
-                    transform={
-                      showGitHubRefInput ? 'rotate(180deg)' : 'rotate(0deg)'
-                    }
-                    transition="transform 0.2s ease"
-                  >
-                    ▾
-                  </Text>
-                }
+                as="label"
+                htmlFor="package-upload"
+                cursor="pointer"
+                isLoading={isLoadingLocal}
+                loadingText="讀取與解析中..."
               >
-                {showGitHubRefInput
-                  ? '收合 branch / tag / commit'
-                  : '指定 branch / tag / commit'}
+                選擇 UFO 上層資料夾
               </Button>
-              <Collapse in={showGitHubRefInput} animateOpacity>
-                <Box>
-                  <Input
-                    value={githubRefInput}
-                    onChange={(event) => setGitHubRefInput(event.target.value)}
-                    placeholder="branch、tag 或 commit（可留空）"
-                  />
-                </Box>
-              </Collapse>
-              <Button
-                onClick={() => void handleGitHubImport()}
-                isLoading={isLoadingGitHub}
-                loadingText="下載與解析中..."
-              >
-                載入 GitHub 專案
-              </Button>
-            </VStack>
-          </Box>
+              {isLoadingLocal && (
+                <Text
+                  fontSize="xs"
+                  color="field.red.500"
+                  mt={3}
+                  fontFamily="mono"
+                >
+                  大型字庫在第一次匯入時需要一些時間，請稍候...
+                </Text>
+              )}
+            </Flex>
+
+            <Box
+              border="1px solid"
+              borderColor="field.line"
+              p={6}
+              borderRadius="sm"
+              bg="field.panel"
+            >
+              <Heading size="sm" mb={2} textTransform="uppercase">
+                從 GitHub 載入
+              </Heading>
+              <Text fontSize="sm" color="field.muted" mb={4}>
+                輸入 `owner/repo` 或 GitHub URL。
+              </Text>
+              <VStack spacing={3} align="stretch">
+                <Input
+                  value={githubRepoInput}
+                  onChange={(event) => setGitHubRepoInput(event.target.value)}
+                  placeholder="owner/repo"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  alignSelf="flex-start"
+                  onClick={() => setShowGitHubRefInput((current) => !current)}
+                  rightIcon={
+                    <Text
+                      as="span"
+                      fontSize="sm"
+                      transform={
+                        showGitHubRefInput ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }
+                      transition="transform 0.2s ease"
+                    >
+                      ▾
+                    </Text>
+                  }
+                >
+                  {showGitHubRefInput
+                    ? '收合 branch / tag / commit'
+                    : '指定 branch / tag / commit'}
+                </Button>
+                <Collapse in={showGitHubRefInput} animateOpacity>
+                  <Box>
+                    <Input
+                      value={githubRefInput}
+                      onChange={(event) =>
+                        setGitHubRefInput(event.target.value)
+                      }
+                      placeholder="branch、tag 或 commit（可留空）"
+                    />
+                  </Box>
+                </Collapse>
+                <Button
+                  onClick={() => void handleGitHubImport()}
+                  isLoading={isLoadingGitHub}
+                  loadingText="下載與解析中..."
+                >
+                  載入 GitHub 專案
+                </Button>
+              </VStack>
+            </Box>
+          </Grid>
 
           <Divider borderColor="field.line" />
 
           <Box>
-            <Heading size="sm" mb={4} textTransform="uppercase">
+            <Heading size="sm" mb={4}>
               您最近開啟的字體專案 (IndexedDB)
             </Heading>
             {projects.length === 0 ? (
