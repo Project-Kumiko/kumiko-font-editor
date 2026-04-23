@@ -1,17 +1,23 @@
 import { useDisclosure, useToast } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
-  createGitHubCommit,
-  createGitHubFork,
-  fetchGitHubCompareStatus,
-  fetchGitHubForkStatus,
-  fetchGitHubViewer,
-  logoutGitHubOAuth,
-  mergeGitHubUpstream,
   startGitHubOAuthLogin,
   type GitHubForkStatus,
-  type GitHubViewer,
 } from '../../lib/githubAuth'
+import {
+  applyCompareToForkStatus,
+  fetchCachedGitHubCompareStatus,
+  fetchCachedGitHubForkStatus,
+  setForkStatusQueryData,
+  useCreateGitHubCommitMutation,
+  useCreateGitHubForkMutation,
+  useGitHubForkStatusQuery,
+  useGitHubViewerQuery,
+  useLoginGitHubMutation,
+  useLogoutGitHubMutation,
+  useMergeGitHubUpstreamMutation,
+} from '../../lib/githubQueries'
 import { markGitHubCommitSynced, prepareGitHubCommit } from '../../lib/githubPr'
 import { getProjectArchiveMetadata } from '../../lib/projectArchive'
 import { syncHotFontDataToUfoRecords } from '../../lib/ufoFormat'
@@ -50,48 +56,40 @@ export const useGitHubCommitFlow = ({
 }: UseGitHubCommitFlowInput) => {
   const toast = useToast()
   const gitHubModal = useDisclosure()
-  const [isCreatingGitHubCommit, setIsCreatingGitHubCommit] = useState(false)
-  const [isLoggingOutGitHub, setIsLoggingOutGitHub] = useState(false)
   const [isPreparingGitHubCommit, setIsPreparingGitHubCommit] = useState(false)
-  const [isLoadingGitHubForkStatus, setIsLoadingGitHubForkStatus] =
-    useState(false)
-  const [isCreatingGitHubFork, setIsCreatingGitHubFork] = useState(false)
-  const [isMergingGitHubUpstream, setIsMergingGitHubUpstream] = useState(false)
-  const [githubViewer, setGitHubViewer] = useState<GitHubViewer | null>(null)
-  const [githubForkStatus, setGitHubForkStatus] =
+  const [forkStatusOverride, setForkStatusOverride] =
     useState<GitHubForkStatus | null>(null)
   const [gitHubCommitMessage, setGitHubCommitMessage] = useState('')
   const [gitHubBranchName, setGitHubBranchName] = useState('')
   const [isCreatingNewGitHubBranch, setIsCreatingNewGitHubBranch] =
     useState(false)
+  const queryClient = useQueryClient()
+  const viewerQuery = useGitHubViewerQuery(hasGitHubSource)
+  const githubViewer = viewerQuery.data ?? null
+  const forkStatusQuery = useGitHubForkStatusQuery({
+    repo: githubRepoFullName,
+    branch: null,
+    enabled:
+      gitHubModal.isOpen &&
+      Boolean(githubViewer && githubRepoFullName) &&
+      !forkStatusOverride,
+  })
+  const loginMutation = useLoginGitHubMutation()
+  const logoutMutation = useLogoutGitHubMutation()
+  const createForkMutation = useCreateGitHubForkMutation()
+  const createCommitMutation = useCreateGitHubCommitMutation()
+  const mergeUpstreamMutation = useMergeGitHubUpstreamMutation()
+  const githubForkStatus = forkStatusOverride ?? forkStatusQuery.data ?? null
 
   useEffect(() => {
     if (!hasGitHubSource) {
-      setGitHubViewer(null)
-      setGitHubForkStatus(null)
+      setForkStatusOverride(null)
       return
-    }
-
-    let isCancelled = false
-    fetchGitHubViewer()
-      .then((viewer) => {
-        if (!isCancelled) {
-          setGitHubViewer(viewer)
-        }
-      })
-      .catch(() => {
-        if (!isCancelled) {
-          setGitHubViewer(null)
-        }
-      })
-
-    return () => {
-      isCancelled = true
     }
   }, [hasGitHubSource])
 
   useEffect(() => {
-    setGitHubForkStatus(null)
+    setForkStatusOverride(null)
     setGitHubBranchName('')
     setGitHubCommitMessage('')
     setIsCreatingNewGitHubBranch(false)
@@ -103,17 +101,17 @@ export const useGitHubCommitFlow = ({
     }
 
     try {
-      setIsLoadingGitHubForkStatus(true)
-      const forkStatus = await fetchGitHubForkStatus(
-        githubRepoFullName,
-        branchName?.trim() || undefined
-      )
-      setGitHubForkStatus(forkStatus)
-      const nextBranch = branchName?.trim() || forkStatus.selectedBranch || ''
-      if (nextBranch) {
-        setGitHubBranchName(nextBranch)
+      const forkStatus = await fetchCachedGitHubForkStatus(queryClient, {
+        repo: githubRepoFullName,
+        branch: branchName,
+      })
+      setForkStatusOverride(forkStatus)
+      const resolvedBranch =
+        branchName?.trim() || forkStatus.selectedBranch || ''
+      if (resolvedBranch) {
+        setGitHubBranchName(resolvedBranch)
         setIsCreatingNewGitHubBranch(
-          !forkStatus.branches.includes(nextBranch.trim())
+          !forkStatus.branches.includes(resolvedBranch.trim())
         )
       }
       return forkStatus
@@ -124,7 +122,7 @@ export const useGitHubCommitFlow = ({
           : '目前無法讀取 GitHub fork 狀態。'
 
       if (isMissingGitHubTokenError(message)) {
-        setGitHubForkStatus(null)
+        setForkStatusOverride(null)
         return null
       }
 
@@ -136,8 +134,6 @@ export const useGitHubCommitFlow = ({
         isClosable: true,
       })
       return null
-    } finally {
-      setIsLoadingGitHubForkStatus(false)
     }
   }
 
@@ -146,34 +142,30 @@ export const useGitHubCommitFlow = ({
       return
     }
 
-    const compareStatus = await fetchGitHubCompareStatus({
+    const selectedBranch = branchName.trim()
+    const compareStatus = await fetchCachedGitHubCompareStatus(queryClient, {
       repo: githubForkStatus.sourceRepo.fullName,
       headOwner: githubForkStatus.targetRepo.owner,
-      headBranch: branchName.trim(),
+      headBranch: selectedBranch,
     })
 
-    setGitHubForkStatus((current) =>
-      current
-        ? {
-            ...current,
-            compare: compareStatus.compare,
-            selectedBranch: branchName.trim(),
-          }
-        : current
+    setForkStatusOverride(
+      setForkStatusQueryData(
+        queryClient,
+        applyCompareToForkStatus(
+          githubForkStatus,
+          compareStatus,
+          selectedBranch
+        )
+      )
     )
   }
 
   const handleLoginGitHub = async () => {
     try {
-      await startGitHubOAuthLogin()
-      const viewer = await fetchGitHubViewer()
-      setGitHubViewer(viewer)
+      const viewer = await loginMutation.mutateAsync(startGitHubOAuthLogin)
       if (githubRepoFullName) {
-        const forkStatus = await fetchGitHubForkStatus(
-          githubRepoFullName,
-          gitHubBranchName.trim() || undefined
-        )
-        setGitHubForkStatus(forkStatus)
+        await loadGitHubForkStatus(gitHubBranchName.trim() || undefined)
       }
       toast({
         title: 'GitHub 已登入',
@@ -195,15 +187,13 @@ export const useGitHubCommitFlow = ({
   }
 
   const handleLogoutGitHub = async () => {
-    if (isLoggingOutGitHub) {
+    if (logoutMutation.isPending) {
       return
     }
 
     try {
-      setIsLoggingOutGitHub(true)
-      await logoutGitHubOAuth()
-      setGitHubViewer(null)
-      setGitHubForkStatus(null)
+      await logoutMutation.mutateAsync()
+      setForkStatusOverride(null)
       toast({
         title: 'GitHub 已登出',
         description: '目前 session 已清除。',
@@ -220,8 +210,6 @@ export const useGitHubCommitFlow = ({
         duration: 3200,
         isClosable: true,
       })
-    } finally {
-      setIsLoggingOutGitHub(false)
     }
   }
 
@@ -298,14 +286,13 @@ export const useGitHubCommitFlow = ({
   }
 
   const handleCreateFork = async () => {
-    if (!githubRepoFullName || isCreatingGitHubFork) {
+    if (!githubRepoFullName || createForkMutation.isPending) {
       return
     }
 
     try {
-      setIsCreatingGitHubFork(true)
-      const result = await createGitHubFork(githubRepoFullName)
-      setGitHubForkStatus(result)
+      const result = await createForkMutation.mutateAsync(githubRepoFullName)
+      setForkStatusOverride(result)
       if (!gitHubBranchName.trim() && result.selectedBranch) {
         setGitHubBranchName(result.selectedBranch)
         setIsCreatingNewGitHubBranch(false)
@@ -326,13 +313,16 @@ export const useGitHubCommitFlow = ({
         duration: 3600,
         isClosable: true,
       })
-    } finally {
-      setIsCreatingGitHubFork(false)
     }
   }
 
   const handleCreateGitHubCommit = async () => {
-    if (!fontData || !projectId || !projectTitle || isCreatingGitHubCommit) {
+    if (
+      !fontData ||
+      !projectId ||
+      !projectTitle ||
+      createCommitMutation.isPending
+    ) {
       return
     }
 
@@ -365,8 +355,6 @@ export const useGitHubCommitFlow = ({
     }
 
     try {
-      setIsCreatingGitHubCommit(true)
-
       const syncResult = await syncHotFontDataToUfoRecords({
         projectId,
         activeUfoId,
@@ -383,7 +371,7 @@ export const useGitHubCommitFlow = ({
         deletedFilePaths: syncResult.deletedFilePaths,
       })
 
-      const result = await createGitHubCommit({
+      const result = await createCommitMutation.mutateAsync({
         ...preparedCommit.request,
         commitMessage:
           gitHubCommitMessage.trim() || preparedCommit.request.commitMessage,
@@ -391,18 +379,17 @@ export const useGitHubCommitFlow = ({
       })
       await markGitHubCommitSynced(preparedCommit.exportStateUpdates)
       markDraftSaved()
-      setGitHubForkStatus((current) =>
-        current
-          ? {
-              ...current,
-              selectedBranch: result.branchName,
-              compare: result.compare,
-              branches: current.branches.includes(result.branchName)
-                ? current.branches
-                : [result.branchName, ...current.branches],
-            }
-          : current
-      )
+      if (githubForkStatus) {
+        setForkStatusOverride(
+          setForkStatusQueryData(queryClient, githubForkStatus, {
+            selectedBranch: result.branchName,
+            compare: result.compare,
+            branches: githubForkStatus.branches.includes(result.branchName)
+              ? githubForkStatus.branches
+              : [result.branchName, ...githubForkStatus.branches],
+          })
+        )
+      }
       setGitHubBranchName(result.branchName)
       setIsCreatingNewGitHubBranch(false)
       toast({
@@ -436,8 +423,6 @@ export const useGitHubCommitFlow = ({
         isClosable: true,
       })
       console.warn('GitHub commit failed.', error)
-    } finally {
-      setIsCreatingGitHubCommit(false)
     }
   }
 
@@ -446,13 +431,12 @@ export const useGitHubCommitFlow = ({
       return
     }
 
-    if (isMergingGitHubUpstream) {
+    if (mergeUpstreamMutation.isPending) {
       return
     }
 
     try {
-      setIsMergingGitHubUpstream(true)
-      const result = await mergeGitHubUpstream({
+      const result = await mergeUpstreamMutation.mutateAsync({
         repo: githubRepoFullName,
         branchName: gitHubBranchName.trim(),
       })
@@ -473,8 +457,6 @@ export const useGitHubCommitFlow = ({
         duration: 4200,
         isClosable: true,
       })
-    } finally {
-      setIsMergingGitHubUpstream(false)
     }
   }
 
@@ -483,12 +465,12 @@ export const useGitHubCommitFlow = ({
     onClose: gitHubModal.onClose,
     githubViewer,
     githubForkStatus,
-    isLoggingOutGitHub,
-    isLoadingGitHubForkStatus,
-    isCreatingGitHubFork,
+    isLoggingOutGitHub: logoutMutation.isPending,
+    isLoadingGitHubForkStatus: forkStatusQuery.isFetching,
+    isCreatingGitHubFork: createForkMutation.isPending,
     isPreparingGitHubCommit,
-    isCreatingGitHubCommit,
-    isMergingGitHubUpstream,
+    isCreatingGitHubCommit: createCommitMutation.isPending,
+    isMergingGitHubUpstream: mergeUpstreamMutation.isPending,
     canCommitToGitHub,
     gitHubCommitMessage,
     gitHubBranchName,
