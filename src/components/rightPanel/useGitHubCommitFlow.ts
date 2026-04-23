@@ -19,9 +19,16 @@ import {
   useMergeGitHubUpstreamMutation,
 } from '../../lib/githubQueries'
 import { markGitHubCommitSynced, prepareGitHubCommit } from '../../lib/githubPr'
-import { getProjectArchiveMetadata } from '../../lib/projectArchive'
 import { syncHotFontDataToUfoRecords } from '../../lib/ufoFormat'
 import type { FontData } from '../../store'
+import {
+  buildSuggestedGitHubBranchName,
+  getActiveUfoIdFromArchive,
+  getErrorMessage,
+  isExistingGitHubBranch,
+  isMissingGitHubTokenError,
+  resolveGitHubBranchSelection,
+} from './githubCommitFlowUtils'
 import type { GitHubCommitModalProps } from './GitHubCommitModal'
 
 interface UseGitHubCommitFlowInput {
@@ -36,11 +43,6 @@ interface UseGitHubCommitFlowInput {
   localDeletedGlyphIds: string[]
   markDraftSaved: () => void
 }
-
-const isMissingGitHubTokenError = (message: string) =>
-  /登入 GitHub/.test(message) ||
-  /missing_token/.test(message) ||
-  /401/.test(message)
 
 export const useGitHubCommitFlow = ({
   projectId,
@@ -106,20 +108,19 @@ export const useGitHubCommitFlow = ({
         branch: branchName,
       })
       setForkStatusOverride(forkStatus)
-      const resolvedBranch =
-        branchName?.trim() || forkStatus.selectedBranch || ''
+      const resolvedBranch = resolveGitHubBranchSelection(
+        forkStatus,
+        branchName
+      )
       if (resolvedBranch) {
         setGitHubBranchName(resolvedBranch)
         setIsCreatingNewGitHubBranch(
-          !forkStatus.branches.includes(resolvedBranch.trim())
+          !isExistingGitHubBranch(forkStatus, resolvedBranch)
         )
       }
       return forkStatus
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : '目前無法讀取 GitHub fork 狀態。'
+      const message = getErrorMessage(error, '目前無法讀取 GitHub fork 狀態。')
 
       if (isMissingGitHubTokenError(message)) {
         setForkStatusOverride(null)
@@ -177,8 +178,7 @@ export const useGitHubCommitFlow = ({
     } catch (error) {
       toast({
         title: 'GitHub 登入失敗',
-        description:
-          error instanceof Error ? error.message : '目前無法完成 GitHub 登入。',
+        description: getErrorMessage(error, '目前無法完成 GitHub 登入。'),
         status: 'error',
         duration: 3200,
         isClosable: true,
@@ -204,8 +204,7 @@ export const useGitHubCommitFlow = ({
     } catch (error) {
       toast({
         title: 'GitHub 登出失敗',
-        description:
-          error instanceof Error ? error.message : '目前無法登出 GitHub。',
+        description: getErrorMessage(error, '目前無法登出 GitHub。'),
         status: 'error',
         duration: 3200,
         isClosable: true,
@@ -220,10 +219,7 @@ export const useGitHubCommitFlow = ({
       return
     }
 
-    const projectMetadata = getProjectArchiveMetadata() as {
-      activeUfoId?: string | null
-    } | null
-    const activeUfoId = projectMetadata?.activeUfoId
+    const activeUfoId = getActiveUfoIdFromArchive()
 
     if (!activeUfoId) {
       toast({
@@ -259,12 +255,7 @@ export const useGitHubCommitFlow = ({
         } else {
           setGitHubBranchName(
             preparedCommit.request.branchName ??
-              `kumiko/${
-                preparedCommit.changedGlyphNames
-                  .slice(0, 2)
-                  .join('-')
-                  .toLowerCase() || `patch-${Date.now()}`
-              }`
+              buildSuggestedGitHubBranchName(preparedCommit.changedGlyphNames)
           )
           setIsCreatingNewGitHubBranch(true)
         }
@@ -272,10 +263,7 @@ export const useGitHubCommitFlow = ({
     } catch (error) {
       toast({
         title: '無法準備 GitHub commit',
-        description:
-          error instanceof Error
-            ? error.message
-            : '目前沒有可提交到 GitHub 的變更。',
+        description: getErrorMessage(error, '目前沒有可提交到 GitHub 的變更。'),
         status: 'error',
         duration: 3200,
         isClosable: true,
@@ -307,8 +295,7 @@ export const useGitHubCommitFlow = ({
     } catch (error) {
       toast({
         title: '建立 fork 失敗',
-        description:
-          error instanceof Error ? error.message : '目前無法建立 GitHub fork。',
+        description: getErrorMessage(error, '目前無法建立 GitHub fork。'),
         status: 'error',
         duration: 3600,
         isClosable: true,
@@ -326,10 +313,7 @@ export const useGitHubCommitFlow = ({
       return
     }
 
-    const projectMetadata = getProjectArchiveMetadata() as {
-      activeUfoId?: string | null
-    } | null
-    const activeUfoId = projectMetadata?.activeUfoId
+    const activeUfoId = getActiveUfoIdFromArchive()
     const activeLayerId = selectedLayerId ?? 'public.default'
 
     if (!activeUfoId) {
@@ -400,8 +384,7 @@ export const useGitHubCommitFlow = ({
         isClosable: true,
       })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '目前無法建立 GitHub commit。'
+      const message = getErrorMessage(error, '目前無法建立 GitHub commit。')
 
       if (isMissingGitHubTokenError(message)) {
         toast({
@@ -451,8 +434,7 @@ export const useGitHubCommitFlow = ({
     } catch (error) {
       toast({
         title: '合併上游失敗',
-        description:
-          error instanceof Error ? error.message : '目前無法合併上游變更。',
+        description: getErrorMessage(error, '目前無法合併上游變更。'),
         status: 'error',
         duration: 4200,
         isClosable: true,
