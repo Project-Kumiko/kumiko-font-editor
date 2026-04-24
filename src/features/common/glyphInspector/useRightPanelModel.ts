@@ -7,9 +7,7 @@ import {
   getProjectArchiveSourceFormat,
 } from '../../../lib/projectArchive'
 import { syncHotFontDataToUfoRecords } from '../../../lib/ufoFormat'
-import { exportUfoWithWorker } from '../../../lib/ufoExportWorkerClient'
-import { loadUfoUiValue, saveUfoUiValue } from '../../../lib/ufoPersistence'
-import type { UfoLocalSaveManifest } from '../../../lib/ufoTypes'
+import { exportUfoAsZipDownload } from '../../../lib/ufoZipExportClient'
 import {
   getEffectiveNodeType,
   getGlyphLayer,
@@ -18,12 +16,7 @@ import {
   type NodeType,
 } from '../../../store'
 import { useGitHubCommitFlow } from './useGitHubCommitFlow'
-import {
-  parseNumberInput,
-  parseSelectedNode,
-  UFO_LOCAL_MANIFEST_KEY,
-  UFO_LOCAL_TARGET_KEY,
-} from './utils'
+import { parseNumberInput, parseSelectedNode } from './utils'
 
 export function useRightPanelModel() {
   const toast = useToast()
@@ -31,6 +24,7 @@ export function useRightPanelModel() {
   const [ufoExportProgress, setUfoExportProgress] = useState<{
     completed: number
     total: number
+    phase?: 'write' | 'zip'
   } | null>(null)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const selectedLayerId = useStore((state) => state.selectedLayerId)
@@ -196,7 +190,8 @@ export function useRightPanelModel() {
         throw new Error('找不到目前啟用的 UFO 字重')
       }
 
-      const syncResult = await syncHotFontDataToUfoRecords({
+      // Sync all dirty glyphs to IndexedDB first
+      await syncHotFontDataToUfoRecords({
         projectId,
         activeUfoId,
         activeLayerId,
@@ -205,66 +200,37 @@ export function useRightPanelModel() {
         deletedGlyphIds: localDeletedGlyphIds,
       })
 
-      let rootHandle = await loadUfoUiValue<FileSystemDirectoryHandle>(
-        projectId,
-        UFO_LOCAL_TARGET_KEY
-      )
-      if (!rootHandle) {
-        const picker = (
-          window as Window & {
-            showDirectoryPicker?: (options?: {
-              mode?: 'read' | 'readwrite'
-            }) => Promise<FileSystemDirectoryHandle>
-          }
-        ).showDirectoryPicker
-        if (!picker) {
-          throw new Error('目前瀏覽器不支援資料夾輸出，請使用 Chrome 或 Edge')
-        }
-        rootHandle = await picker({ mode: 'readwrite' })
-        await saveUfoUiValue(projectId, UFO_LOCAL_TARGET_KEY, rootHandle)
-      }
+      setUfoExportProgress({ completed: 0, total: 0, phase: 'write' })
 
-      const localManifest = await loadUfoUiValue<UfoLocalSaveManifest>(
+      const zipFileName = `${projectTitle ?? projectId}.zip`
+      const result = await exportUfoAsZipDownload({
         projectId,
-        UFO_LOCAL_MANIFEST_KEY
-      )
-      setUfoExportProgress({ completed: 0, total: localDirtyGlyphIds.length })
-      const result = await exportUfoWithWorker({
-        projectId,
-        exportAll: false,
+        fileName: zipFileName,
         markClean: true,
         fixedConcurrency: 8,
-        directoryMode: 'direct',
-        rootHandle,
-        localManifest,
-        deletedFilePaths: syncResult.deletedFilePaths,
         onProgress: (progress) => setUfoExportProgress(progress),
       })
 
-      await saveUfoUiValue(projectId, UFO_LOCAL_MANIFEST_KEY, result.manifest)
-      const deletedCount = localDeletedGlyphIds.length
       markLocalSaved()
       toast({
-        title: '已儲存至本地',
-        description: result.didFullRebuild
-          ? `偵測到本地缺檔，已全量重建並寫出 ${result.writtenGlyphs} 個 glyph${deletedCount > 0 ? `，刪除 ${deletedCount} 個 glyph 檔案` : ''}。`
-          : `已寫出 ${result.writtenGlyphs} 個 glyph，略過 ${result.skippedGlyphs} 個未變更 glyph${deletedCount > 0 ? `，刪除 ${deletedCount} 個 glyph 檔案` : ''}。`,
+        title: '已匯出 ZIP',
+        description: `已全量匯出 ${result.totalGlyphs} 個 glyph 並下載為 ${zipFileName}。`,
         status: 'success',
         duration: 2400,
         isClosable: true,
       })
     } catch (error) {
       toast({
-        title: '本地儲存失敗',
+        title: '匯出失敗',
         description:
           error instanceof Error
             ? error.message
-            : '目前無法將 UFO 寫入本地資料夾。',
+            : '目前無法將 UFO 匯出為 ZIP。',
         status: 'error',
         duration: 3200,
         isClosable: true,
       })
-      console.warn('UFO local save failed.', error)
+      console.warn('UFO zip export failed.', error)
     } finally {
       setIsSavingToLocal(false)
       setUfoExportProgress(null)

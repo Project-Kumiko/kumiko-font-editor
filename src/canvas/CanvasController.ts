@@ -355,14 +355,10 @@ export class CanvasController {
 
   localPoint(event: Point): Point {
     const x =
-      (event.x -
-        (this.canvas.parentElement?.offsetLeft ?? 0) -
-        this._originX) /
+      (event.x - (this.canvas.parentElement?.offsetLeft ?? 0) - this._originX) /
       this._viewport.zoom
     const y =
-      -(event.y -
-        (this.canvas.parentElement?.offsetTop ?? 0) -
-        this._originY) /
+      -(event.y - (this.canvas.parentElement?.offsetTop ?? 0) - this._originY) /
       this._viewport.zoom
 
     return { x, y }

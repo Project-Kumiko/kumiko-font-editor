@@ -54,8 +54,10 @@ export function RightPanel() {
               isSavingToLocal={panel.isSavingToLocal}
               loadingText={
                 panel.ufoExportProgress
-                  ? `儲存中 ${panel.ufoExportProgress.completed}/${panel.ufoExportProgress.total}`
-                  : '儲存中...'
+                  ? panel.ufoExportProgress.phase === 'zip'
+                    ? `壓縮中 ${panel.ufoExportProgress.completed}/${panel.ufoExportProgress.total}`
+                    : `匯出中 ${panel.ufoExportProgress.completed}/${panel.ufoExportProgress.total}`
+                  : '匯出中...'
               }
               onOpenGitHubModal={() =>
                 void panel.gitHubCommitFlow.openGitHubModal()

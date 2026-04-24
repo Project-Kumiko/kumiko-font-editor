@@ -37,7 +37,7 @@ export function ProjectSaveCard({
               isLoading={isSavingToLocal}
               loadingText={loadingText}
             >
-              儲存至本地
+              匯出 ZIP 下載
             </Button>
             <Button
               variant="outline"

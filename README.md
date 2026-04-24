@@ -1,6 +1,7 @@
-<img width="1088" height="362" alt="image" src="https://github.com/user-attachments/assets/725fa628-7af8-4aaf-aae8-0950599abad8" />  
+<img width="1088" height="362" alt="image" src="https://github.com/user-attachments/assets/725fa628-7af8-4aaf-aae8-0950599abad8" />
 
 # Kumiko Font Editor
+
 Kumiko Font Editor 是一個以瀏覽器為核心的字體編輯器，支援 UFO 專案匯入、IndexedDB 草稿儲存，以及透過 GitHub OAuth 與 Cloudflare Pages Functions 載入 GitHub 上的 UFO repo。
 
 ## 功能
@@ -27,8 +28,6 @@ cp .dev.vars.example .dev.vars
 # 編輯 .dev.vars，填入 GitHub OAuth App 的值
 pnpm cf:preview
 ```
-
-*請用 `http://localhost:8788` 開站。  
 
 `.dev.vars` 需要至少這些值：
 
