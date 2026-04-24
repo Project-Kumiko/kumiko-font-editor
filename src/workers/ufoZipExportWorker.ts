@@ -69,7 +69,7 @@ const writeOpfsFile = async (
   content: string
 ) => {
   const fileHandle = await dir.getFileHandle(name, { create: true })
-  const accessHandle = await (fileHandle as any).createSyncAccessHandle()
+  const accessHandle = await fileHandle.createSyncAccessHandle()
   const data = encoder.encode(content)
   accessHandle.truncate(0)
   accessHandle.write(data, { at: 0 })
@@ -101,7 +101,7 @@ const collectOpfsFiles = async (
     relativePath: string
     fileHandle: FileSystemFileHandle
   }> = []
-  for await (const [name, handle] of (dir as any).entries()) {
+  for await (const [name, handle] of dir.entries()) {
     const path = prefix ? `${prefix}/${name}` : name
     if (handle.kind === 'directory') {
       results.push(...(await collectOpfsFiles(handle, path)))
@@ -149,7 +149,6 @@ self.onmessage = async (event: MessageEvent<ZipExportRequest>) => {
 
     // First pass: count total glyphs
     for (const metadata of metadataRecords) {
-      const defaultLayer = pickDefaultLayer(metadata)
       for (const layer of metadata.layers) {
         const layerGlyphs = await listUfoGlyphsInLayer(
           projectId,
