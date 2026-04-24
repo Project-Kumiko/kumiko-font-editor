@@ -255,6 +255,7 @@ export function GlyphReadonlyReference({
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const createPath = useStore((state) => state.createPath)
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null)
+  const [forceRedraw, setForceRedraw] = useState(0)
   const width = useMemo(() => getPreviewWidth(glyph), [glyph])
   const previewParts = useMemo(
     () => [
@@ -301,7 +302,19 @@ export function GlyphReadonlyReference({
 
   useEffect(() => {
     drawPreview(hoveredPartId)
-  }, [drawPreview, hoveredPartId])
+  }, [drawPreview, hoveredPartId, forceRedraw])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const observer = new ResizeObserver(() => {
+      setForceRedraw((prev) => prev + 1)
+    })
+    observer.observe(canvas)
+
+    return () => observer.disconnect()
+  }, [])
 
   const toFontPoint = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current
