@@ -328,6 +328,12 @@ export class CanvasController {
     const canvasCenter = this.canvasPoint(rectCenter(validated))
     this.origin.x = this.canvasWidth / 2 + this.origin.x - canvasCenter.x
     this.origin.y = this.canvasHeight / 2 + this.origin.y - canvasCenter.y
+    // Reset cached offsets so a subsequent setupSize() from the ResizeObserver
+    // won't apply a stale parent-offset delta that undoes this centering.
+    this._previousOffsets = {
+      parentOffsetX: this.canvas.parentElement?.offsetLeft ?? 0,
+      parentOffsetY: this.canvas.parentElement?.offsetTop ?? 0,
+    }
     this._magnificationChangedCallback?.(this.magnification)
     this.requestUpdate()
     this._dispatchEvent('viewBoxChanged', 'set-view-box')
