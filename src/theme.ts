@@ -50,9 +50,9 @@ const colors = {
 const components = {
   Button: {
     baseStyle: {
-      borderRadius: '2px',
+      borderRadius: 'full',
       fontFamily: sansStack,
-      fontWeight: 800,
+      fontWeight: 600,
       letterSpacing: '0.02em',
       transitionProperty: 'background, color, border-color',
       transitionDuration: '120ms',
@@ -68,18 +68,20 @@ const components = {
     variants: {
       solid: {
         bg: 'field.yellow.400',
-        color: 'field.ink',
-        border: '1px solid transparent',
-        boxShadow: 'none',
+        color: 'field.steel',
+        border: '1.5px solid',
+        borderColor: 'field.line',
+        outline: '2px solid',
+        outlineColor: 'field.yellow.400',
+        width: 'fit-content',
+        boxShadow: '2px 2px 7px rgba(8, 11, 13, 0.35)',
         _hover: {
           bg: 'field.ink',
           color: 'field.yellow.300',
-          boxShadow: 'none',
           transform: 'none',
           _disabled: {
             bg: 'field.yellow.400',
             color: 'field.ink',
-            boxShadow: 'none',
           },
         },
         _active: {
@@ -116,7 +118,7 @@ const components = {
       sm: {
         h: 8,
         px: 3,
-        fontSize: '12px',
+        fontSize: '10px',
       },
     },
     defaultProps: {
