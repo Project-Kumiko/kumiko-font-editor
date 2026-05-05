@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { UFO_LOCAL_DELETED_GLYPHS_KEY } from '../../lib/draftSave'
+import { importBinaryFontFile } from '../../lib/fontBinaryFormat'
 import { importGitHubRepo } from '../../lib/githubImport'
 import {
-  importUfoWorkspace,
-  loadUfoProjectIntoFontData,
-} from '../../lib/ufoFormat'
-import { importBinaryFontFile } from '../../lib/fontBinaryFormat'
-import { deleteProject, loadProject, saveProject } from '../../lib/persistence'
+  deleteProject,
+  getAllProjects,
+  loadProject,
+  saveProject,
+  type ProjectSummary,
+} from '../../lib/persistence'
 import {
   deleteUfoProjectData,
   listDirtyUfoGlyphs,
-  listUfoProjects,
   loadUfoUiValue,
-  saveUfoProject,
 } from '../../lib/ufoPersistence'
-import type { UfoProjectRecord } from '../../lib/ufoTypes'
+import {
+  importUfoWorkspace,
+  loadUfoProjectIntoFontData,
+  type ImportedUfoWorkspace,
+} from '../../lib/ufoFormat'
 import { useStore } from '../../store'
 import { clearGitHubUrlParams, getGitHubRepoUrl } from './githubRepoUrl'
 import type { PendingGitHubImport } from './types'
@@ -22,12 +26,34 @@ import type { PendingGitHubImport } from './types'
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : '未知錯誤'
 
+const toProjectSummary = (project: {
+  id: string
+  title: string
+  lastModified: number
+  createdAt?: number
+  updatedAt?: number
+  sourceName?: string | null
+  sourceType?: ProjectSummary['sourceType']
+  githubSource?: ProjectSummary['githubSource']
+  projectSourceFormat?: ProjectSummary['projectSourceFormat']
+}): ProjectSummary => ({
+  id: project.id,
+  title: project.title,
+  lastModified: project.lastModified,
+  createdAt: project.createdAt ?? project.lastModified,
+  updatedAt: project.updatedAt ?? project.lastModified,
+  sourceName: project.sourceName ?? null,
+  sourceType: project.sourceType ?? 'local',
+  githubSource: project.githubSource ?? null,
+  projectSourceFormat: project.projectSourceFormat ?? null,
+})
+
 export function useHomeProjects() {
   const loadProjectState = useStore((state) => state.loadProjectState)
   const hydratePersistedLocalChanges = useStore(
     (state) => state.hydratePersistedLocalChanges
   )
-  const [projects, setProjects] = useState<UfoProjectRecord[]>([])
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [isDraggingLocal, setIsDraggingLocal] = useState(false)
   const [isLoadingLocal, setIsLoadingLocal] = useState(false)
   const [isLoadingGitHub, setIsLoadingGitHub] = useState(false)
@@ -42,7 +68,7 @@ export function useHomeProjects() {
   const hasAutoImportedFromUrlRef = useRef(false)
 
   useEffect(() => {
-    listUfoProjects().then(setProjects).catch(console.error)
+    getAllProjects().then(setProjects).catch(console.error)
   }, [])
 
   useEffect(() => {
@@ -52,6 +78,49 @@ export function useHomeProjects() {
     folderInputRef.current.setAttribute('webkitdirectory', '')
     folderInputRef.current.setAttribute('directory', '')
   }, [])
+
+  const upsertProjectSummary = (project: ProjectSummary) => {
+    setProjects((current) => [
+      project,
+      ...current.filter((item) => item.id !== project.id),
+    ])
+  }
+
+  const saveImportedUfoAsKumikoProject = async (
+    importedProject: ImportedUfoWorkspace
+  ) => {
+    const now = Date.now()
+    const project = importedProject.project
+    const summary = toProjectSummary({
+      id: project.projectId,
+      title: project.title,
+      lastModified: now,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      sourceName: project.sourceFolderName,
+      sourceType: project.sourceType ?? 'local',
+      githubSource: project.githubSource ?? null,
+      projectSourceFormat: importedProject.projectSourceFormat,
+    })
+
+    await saveProject({
+      id: summary.id,
+      title: summary.title,
+      lastModified: summary.lastModified,
+      createdAt: summary.createdAt,
+      updatedAt: summary.updatedAt,
+      sourceName: summary.sourceName,
+      sourceType: summary.sourceType,
+      githubSource: summary.githubSource,
+      fontData: importedProject.fontData,
+      projectMetadata: importedProject.projectMetadata,
+      projectSourceFormat: importedProject.projectSourceFormat,
+      projectGlyphsText: null,
+      projectGlyphsDocument: null,
+      projectGlyphsPackage: null,
+    })
+    upsertProjectSummary(summary)
+  }
 
   const importFromFiles = async (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) {
@@ -72,21 +141,24 @@ export function useHomeProjects() {
           throw new Error('字型檔解析失敗')
         }
         const now = Date.now()
-        const projectRecord: UfoProjectRecord = {
-          projectId: importedBinary.projectId,
-          title: importedBinary.projectTitle,
-          sourceFolderName: selectedFiles[0].name,
-          ufoIds: [],
-          selectedUfoId: null,
-          createdAt: now,
-          updatedAt: now,
-          sourceType: 'local',
-          githubSource: null,
-        }
-        await saveProject({
+        const summary = toProjectSummary({
           id: importedBinary.projectId,
           title: importedBinary.projectTitle,
           lastModified: now,
+          sourceName: selectedFiles[0].name,
+          sourceType: 'local',
+          projectSourceFormat: importedBinary.sourceFormat,
+        })
+
+        await saveProject({
+          id: summary.id,
+          title: summary.title,
+          lastModified: summary.lastModified,
+          createdAt: summary.createdAt,
+          updatedAt: summary.updatedAt,
+          sourceName: summary.sourceName,
+          sourceType: summary.sourceType,
+          githubSource: null,
           fontData: importedBinary.fontData,
           projectMetadata: { importedFrom: extension },
           projectSourceFormat: importedBinary.sourceFormat,
@@ -94,13 +166,7 @@ export function useHomeProjects() {
           projectGlyphsDocument: null,
           projectGlyphsPackage: null,
         })
-        await saveUfoProject(projectRecord)
-        setProjects((current) => [
-          projectRecord,
-          ...current.filter(
-            (project) => project.projectId !== projectRecord.projectId
-          ),
-        ])
+        upsertProjectSummary(summary)
         loadProjectState(
           importedBinary.projectId,
           importedBinary.projectTitle,
@@ -113,12 +179,7 @@ export function useHomeProjects() {
     }
 
     const importedProject = await importUfoWorkspace(selectedFiles)
-    setProjects((current) => [
-      importedProject.project,
-      ...current.filter(
-        (project) => project.projectId !== importedProject.project.projectId
-      ),
-    ])
+    await saveImportedUfoAsKumikoProject(importedProject)
     loadProjectState(
       importedProject.project.projectId,
       importedProject.project.title,
@@ -161,7 +222,7 @@ export function useHomeProjects() {
         await importFromFiles(selectedFiles)
       } catch (error: unknown) {
         console.error(error)
-        alert(`讀取 UFO 資料夾失敗: ${getErrorMessage(error)}`)
+        alert(`讀取本地專案失敗: ${getErrorMessage(error)}`)
       } finally {
         setIsLoadingLocal(false)
         event.target.value = ''
@@ -226,12 +287,7 @@ export function useHomeProjects() {
           repo: input.repo,
           ref: input.ref,
         })
-        setProjects((current) => [
-          importedProject.project,
-          ...current.filter(
-            (project) => project.projectId !== importedProject.project.projectId
-          ),
-        ])
+        await saveImportedUfoAsKumikoProject(importedProject)
         loadProjectState(
           importedProject.project.projectId,
           importedProject.project.title,
@@ -306,34 +362,33 @@ export function useHomeProjects() {
     })
   }, [])
 
-  const handleOpenProject = async (project: UfoProjectRecord) => {
-    if (project.ufoIds.length === 0) {
-      const draft = await loadProject(project.projectId)
-      if (!draft?.fontData) {
+  const handleOpenProject = async (project: ProjectSummary) => {
+    if (project.projectSourceFormat === 'ufo') {
+      const loadedProject = await loadUfoProjectIntoFontData(project.id)
+      if (loadedProject) {
+        loadProjectState(
+          loadedProject.project.projectId,
+          loadedProject.project.title,
+          loadedProject.fontData,
+          loadedProject.projectMetadata,
+          'ufo'
+        )
+        await restorePersistedUfoChanges(loadedProject.project.projectId)
         return
       }
-      loadProjectState(
-        draft.id,
-        draft.title,
-        draft.fontData,
-        draft.projectMetadata ?? null,
-        draft.projectSourceFormat ?? null
-      )
-      return
     }
 
-    const loadedProject = await loadUfoProjectIntoFontData(project.projectId)
-    if (!loadedProject) {
+    const draft = await loadProject(project.id)
+    if (!draft?.fontData) {
       return
     }
     loadProjectState(
-      loadedProject.project.projectId,
-      loadedProject.project.title,
-      loadedProject.fontData,
-      loadedProject.projectMetadata,
-      'ufo'
+      draft.id,
+      draft.title,
+      draft.fontData,
+      draft.projectMetadata ?? null,
+      draft.projectSourceFormat ?? null
     )
-    await restorePersistedUfoChanges(loadedProject.project.projectId)
   }
 
   const handleDeleteProject = async (id: string, event: React.MouseEvent) => {
@@ -342,7 +397,7 @@ export function useHomeProjects() {
       try {
         await deleteProject(id)
         await deleteUfoProjectData(id)
-        setProjects((prev) => prev.filter((p) => p.projectId !== id))
+        setProjects((prev) => prev.filter((project) => project.id !== id))
       } catch (err) {
         console.error(err)
         alert('刪除失敗')

@@ -51,7 +51,7 @@ export interface UfoWorkspaceEntry {
   text: string
 }
 
-interface ImportedUfoWorkspace {
+export interface ImportedUfoWorkspace {
   project: UfoProjectRecord
   metadataRecords: UfoMetadataRecord[]
   glyphRecords: UfoGlyphRecord[]

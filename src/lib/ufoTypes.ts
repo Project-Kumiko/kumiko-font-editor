@@ -1,3 +1,5 @@
+import type { GitHubProjectSource } from './projectTypes'
+
 export interface UfoProjectRecord {
   projectId: string
   title: string
@@ -10,16 +12,7 @@ export interface UfoProjectRecord {
   githubSource?: UfoGithubSource | null
 }
 
-export interface UfoGithubSource {
-  owner: string
-  repo: string
-  ref: string
-  defaultBranch: string
-  repoUrl: string
-  zipballUrl: string
-  archiveRoot: string
-  commitSha?: string | null
-}
+export type UfoGithubSource = GitHubProjectSource
 
 export interface UfoLayerRecord {
   layerId: string

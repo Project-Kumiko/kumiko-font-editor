@@ -43,13 +43,34 @@ export const saveDraftSnapshot = async (input: {
       deletedGlyphIds: input.deletedGlyphIds,
     })
 
+    const now = Date.now()
     const projectRecord = await loadUfoProject(input.projectId)
     if (projectRecord) {
       await saveUfoProject({
         ...projectRecord,
-        updatedAt: Date.now(),
+        updatedAt: now,
       })
     }
+    const persistedProject = await loadProject(input.projectId)
+    await saveProject({
+      id: input.projectId,
+      title: input.projectTitle,
+      lastModified: now,
+      createdAt: persistedProject?.createdAt ?? projectRecord?.createdAt ?? now,
+      updatedAt: now,
+      sourceName:
+        persistedProject?.sourceName ?? projectRecord?.sourceFolderName ?? null,
+      sourceType:
+        persistedProject?.sourceType ?? projectRecord?.sourceType ?? 'local',
+      githubSource:
+        persistedProject?.githubSource ?? projectRecord?.githubSource ?? null,
+      fontData: hydrateProjectFontData(input.fontData),
+      projectMetadata: persistedProject?.projectMetadata ?? projectMetadata,
+      projectSourceFormat,
+      projectGlyphsText: persistedProject?.projectGlyphsText ?? null,
+      projectGlyphsDocument: persistedProject?.projectGlyphsDocument ?? null,
+      projectGlyphsPackage: persistedProject?.projectGlyphsPackage ?? null,
+    })
     await saveUfoUiValue(
       input.projectId,
       UFO_LOCAL_DELETED_GLYPHS_KEY,
@@ -59,10 +80,16 @@ export const saveDraftSnapshot = async (input: {
   }
 
   const persistedProject = await loadProject(input.projectId)
+  const now = Date.now()
   await saveProject({
     id: input.projectId,
     title: input.projectTitle,
-    lastModified: Date.now(),
+    lastModified: now,
+    createdAt: persistedProject?.createdAt ?? now,
+    updatedAt: now,
+    sourceName: persistedProject?.sourceName ?? null,
+    sourceType: persistedProject?.sourceType ?? 'local',
+    githubSource: persistedProject?.githubSource ?? null,
     fontData: hydrateProjectFontData(input.fontData),
     projectMetadata: persistedProject?.projectMetadata ?? null,
     projectSourceFormat,

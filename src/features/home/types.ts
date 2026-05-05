@@ -1,4 +1,4 @@
-import type { UfoProjectRecord } from '../../lib/ufoTypes'
+import type { ProjectSummary } from '../../lib/persistence'
 
 export interface PendingGitHubImport {
   repo: string
@@ -6,4 +6,4 @@ export interface PendingGitHubImport {
   repoUrl: string | null
 }
 
-export type ProjectOpenHandler = (project: UfoProjectRecord) => Promise<void>
+export type ProjectOpenHandler = (project: ProjectSummary) => Promise<void>

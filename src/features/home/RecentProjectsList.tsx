@@ -1,9 +1,9 @@
 import { Box, Button, Heading, HStack, Text, VStack } from '@chakra-ui/react'
-import type { UfoProjectRecord } from '../../lib/ufoTypes'
+import type { ProjectSummary } from '../../lib/persistence'
 import type { ProjectOpenHandler } from './types'
 
 interface RecentProjectsListProps {
-  projects: UfoProjectRecord[]
+  projects: ProjectSummary[]
   onDeleteProject: (id: string, event: React.MouseEvent) => void
   onOpenProject: ProjectOpenHandler
 }
@@ -26,7 +26,7 @@ export function RecentProjectsList({
         <VStack align="stretch" spacing={2} maxHeight="300px" overflowY="auto">
           {projects.map((project) => (
             <HStack
-              key={project.projectId}
+              key={project.id}
               p={3}
               border="1px solid"
               borderColor="field.line"
@@ -42,7 +42,7 @@ export function RecentProjectsList({
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   {project.sourceType === 'github'
                     ? `GitHub: ${project.githubSource?.owner}/${project.githubSource?.repo}${project.githubSource?.ref ? ` @ ${project.githubSource.ref}` : ''}`
-                    : `本地匯入: ${project.sourceFolderName}`}
+                    : `本地匯入: ${project.sourceName ?? project.projectSourceFormat ?? 'Kumiko project'}`}
                 </Text>
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
                   {new Date(project.updatedAt).toLocaleString()}
@@ -52,7 +52,7 @@ export function RecentProjectsList({
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={(event) => onDeleteProject(project.projectId, event)}
+                  onClick={(event) => onDeleteProject(project.id, event)}
                 >
                   刪除
                 </Button>
