@@ -6,11 +6,13 @@ import {
   loadUfoProjectIntoFontData,
 } from '../../lib/ufoFormat'
 import { importBinaryFontFile } from '../../lib/fontBinaryFormat'
+import { deleteProject, loadProject, saveProject } from '../../lib/persistence'
 import {
   deleteUfoProjectData,
   listDirtyUfoGlyphs,
   listUfoProjects,
   loadUfoUiValue,
+  saveUfoProject,
 } from '../../lib/ufoPersistence'
 import type { UfoProjectRecord } from '../../lib/ufoTypes'
 import { useStore } from '../../store'
@@ -26,6 +28,7 @@ export function useHomeProjects() {
     (state) => state.hydratePersistedLocalChanges
   )
   const [projects, setProjects] = useState<UfoProjectRecord[]>([])
+  const [isDraggingLocal, setIsDraggingLocal] = useState(false)
   const [isLoadingLocal, setIsLoadingLocal] = useState(false)
   const [isLoadingGitHub, setIsLoadingGitHub] = useState(false)
   const [githubRepoInput, setGitHubRepoInput] = useState('')
@@ -35,6 +38,7 @@ export function useHomeProjects() {
     useState<PendingGitHubImport | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const localDragDepthRef = useRef(0)
   const hasAutoImportedFromUrlRef = useRef(false)
 
   useEffect(() => {
@@ -59,11 +63,44 @@ export function useHomeProjects() {
     )
     if (!hasFolderEntries && selectedFiles.length === 1) {
       const extension = selectedFiles[0].name.split('.').pop()?.toLowerCase()
-      if (extension && ['ttf', 'otf', 'woff', 'woff2', 'oft'].includes(extension)) {
+      if (
+        extension &&
+        ['ttf', 'otf', 'woff', 'woff2', 'oft'].includes(extension)
+      ) {
         const importedBinary = await importBinaryFontFile(selectedFiles[0])
         if (!importedBinary) {
           throw new Error('字型檔解析失敗')
         }
+        const now = Date.now()
+        const projectRecord: UfoProjectRecord = {
+          projectId: importedBinary.projectId,
+          title: importedBinary.projectTitle,
+          sourceFolderName: selectedFiles[0].name,
+          ufoIds: [],
+          selectedUfoId: null,
+          createdAt: now,
+          updatedAt: now,
+          sourceType: 'local',
+          githubSource: null,
+        }
+        await saveProject({
+          id: importedBinary.projectId,
+          title: importedBinary.projectTitle,
+          lastModified: now,
+          fontData: importedBinary.fontData,
+          projectMetadata: { importedFrom: extension },
+          projectSourceFormat: importedBinary.sourceFormat,
+          projectGlyphsText: null,
+          projectGlyphsDocument: null,
+          projectGlyphsPackage: null,
+        })
+        await saveUfoProject(projectRecord)
+        setProjects((current) => [
+          projectRecord,
+          ...current.filter(
+            (project) => project.projectId !== projectRecord.projectId
+          ),
+        ])
         loadProjectState(
           importedBinary.projectId,
           importedBinary.projectTitle,
@@ -110,7 +147,9 @@ export function useHomeProjects() {
   const handleFolderUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const selectedFiles = event.target.files ? Array.from(event.target.files) : []
+    const selectedFiles = event.target.files
+      ? Array.from(event.target.files)
+      : []
     if (selectedFiles.length === 0) {
       return
     }
@@ -130,12 +169,16 @@ export function useHomeProjects() {
     }, 100)
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     await handleFolderUpload(event)
   }
 
   const handleDropUpload = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
+    localDragDepthRef.current = 0
+    setIsDraggingLocal(false)
     const files = Array.from(event.dataTransfer.files ?? [])
     if (files.length === 0) {
       return
@@ -148,6 +191,26 @@ export function useHomeProjects() {
       alert(`拖曳匯入失敗: ${getErrorMessage(error)}`)
     } finally {
       setIsLoadingLocal(false)
+    }
+  }
+
+  const handleLocalDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    localDragDepthRef.current += 1
+    setIsDraggingLocal(true)
+  }
+
+  const handleLocalDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setIsDraggingLocal(true)
+  }
+
+  const handleLocalDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    localDragDepthRef.current = Math.max(0, localDragDepthRef.current - 1)
+    if (localDragDepthRef.current === 0) {
+      setIsDraggingLocal(false)
     }
   }
 
@@ -244,6 +307,21 @@ export function useHomeProjects() {
   }, [])
 
   const handleOpenProject = async (project: UfoProjectRecord) => {
+    if (project.ufoIds.length === 0) {
+      const draft = await loadProject(project.projectId)
+      if (!draft?.fontData) {
+        return
+      }
+      loadProjectState(
+        draft.id,
+        draft.title,
+        draft.fontData,
+        draft.projectMetadata ?? null,
+        draft.projectSourceFormat ?? null
+      )
+      return
+    }
+
     const loadedProject = await loadUfoProjectIntoFontData(project.projectId)
     if (!loadedProject) {
       return
@@ -262,6 +340,7 @@ export function useHomeProjects() {
     event.stopPropagation()
     if (window.confirm('確定要永久刪除此字體專案草稿嗎？此動作無法復原。')) {
       try {
+        await deleteProject(id)
         await deleteUfoProjectData(id)
         setProjects((prev) => prev.filter((p) => p.projectId !== id))
       } catch (err) {
@@ -274,6 +353,7 @@ export function useHomeProjects() {
   return {
     githubRefInput,
     githubRepoInput,
+    isDraggingLocal,
     isLoadingGitHub,
     isLoadingLocal,
     folderInputRef,
@@ -287,6 +367,9 @@ export function useHomeProjects() {
     handleCancelPendingGitHubImport,
     handleConfirmPendingGitHubImport,
     handleDeleteProject,
+    handleLocalDragEnter,
+    handleLocalDragLeave,
+    handleLocalDragOver,
     handleGitHubImport,
     handleOpenProject,
     handleFolderUpload,

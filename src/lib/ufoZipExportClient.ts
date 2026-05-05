@@ -8,14 +8,17 @@ interface ZipExportResult {
   totalGlyphs: number
 }
 
-export const exportUfoAsZipDownload = async (input: {
+interface ZipExportBlobResult extends ZipExportResult {
+  blob: Blob
+}
+
+export const exportUfoAsZipBlob = async (input: {
   projectId: string
-  fileName: string
   markClean?: boolean
   fixedConcurrency?: number
   onProgress?: (progress: ZipExportProgress) => void
-}): Promise<ZipExportResult> => {
-  return new Promise<ZipExportResult>((resolve, reject) => {
+}): Promise<ZipExportBlobResult> => {
+  return new Promise<ZipExportBlobResult>((resolve, reject) => {
     const worker = new Worker(
       new URL('../workers/ufoZipExportWorker.ts', import.meta.url),
       { type: 'module' }
@@ -41,8 +44,7 @@ export const exportUfoAsZipDownload = async (input: {
         worker.terminate()
         const buffer = data.payload.buffer as ArrayBuffer
         const blob = new Blob([buffer], { type: 'application/zip' })
-        triggerBlobDownload(blob, input.fileName)
-        resolve(result ?? { totalGlyphs: 0 })
+        resolve({ ...(result ?? { totalGlyphs: 0 }), blob })
         return
       }
 
@@ -66,6 +68,18 @@ export const exportUfoAsZipDownload = async (input: {
       },
     })
   })
+}
+
+export const exportUfoAsZipDownload = async (input: {
+  projectId: string
+  fileName: string
+  markClean?: boolean
+  fixedConcurrency?: number
+  onProgress?: (progress: ZipExportProgress) => void
+}): Promise<ZipExportResult> => {
+  const result = await exportUfoAsZipBlob(input)
+  triggerBlobDownload(result.blob, input.fileName)
+  return { totalGlyphs: result.totalGlyphs }
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string) {

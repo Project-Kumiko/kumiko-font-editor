@@ -4,7 +4,11 @@ import type { RefObject } from 'react'
 interface LocalImportCardProps {
   folderInputRef: RefObject<HTMLInputElement | null>
   fileInputRef: RefObject<HTMLInputElement | null>
+  isDragging: boolean
   isLoading: boolean
+  onDragEnter: (event: React.DragEvent<HTMLDivElement>) => void
+  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void
   onFolderUpload: (event: React.ChangeEvent<HTMLInputElement>) => void
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void
   onDropUpload: (event: React.DragEvent<HTMLDivElement>) => void
@@ -13,7 +17,11 @@ interface LocalImportCardProps {
 export function LocalImportCard({
   folderInputRef,
   fileInputRef,
+  isDragging,
   isLoading,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
   onFolderUpload,
   onFileUpload,
   onDropUpload,
@@ -21,13 +29,16 @@ export function LocalImportCard({
   return (
     <Flex
       border="1px dashed"
-      borderColor="field.line"
+      borderColor={isDragging ? 'field.red.500' : 'field.line'}
       p={6}
       borderRadius="sm"
-      bg="field.paper"
+      bg={isDragging ? 'field.yellow.300' : 'field.paper'}
       direction="column"
       justifyContent="center"
-      onDragOver={(event) => event.preventDefault()}
+      transition="background-color 120ms ease, border-color 120ms ease"
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
       onDrop={onDropUpload}
     >
       <Heading size="sm" mb={2} textTransform="uppercase">
@@ -65,7 +76,12 @@ export function LocalImportCard({
         >
           上傳資料夾
         </Button>
-        <Button as="label" htmlFor="package-file-upload" cursor="pointer" flex="1">
+        <Button
+          as="label"
+          htmlFor="package-file-upload"
+          cursor="pointer"
+          flex="1"
+        >
           上傳檔案
         </Button>
       </Flex>

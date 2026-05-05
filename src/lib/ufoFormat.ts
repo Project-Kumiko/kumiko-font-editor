@@ -532,7 +532,7 @@ const getPreviousHandleRun = (
   return handleIndices.map((handleIndex) => nodes[handleIndex]!)
 }
 
-const pathToUfoContour = (path: PathData): UfoGlyphContour => {
+export const pathToUfoContour = (path: PathData): UfoGlyphContour => {
   const orderedNodes = path.closed
     ? rotateContourToFirstOnCurve(path.nodes)
     : path.nodes

@@ -1,26 +1,22 @@
-import { Box, Button, Heading, Menu, MenuButton, MenuItem, MenuList, Stack } from '@chakra-ui/react'
+import { Box, Button, Heading, Stack } from '@chakra-ui/react'
 
 interface ProjectSaveCardProps {
   canSaveDraft: boolean
-  canSaveLocal: boolean
   hasUfoSource: boolean
   hasGitHubSource: boolean
   isSavingToLocal: boolean
-  loadingText: string
+  onOpenExportModal: () => void
   onOpenGitHubModal: () => void
-  onSaveLocal: (format: 'zip' | 'ttf' | 'otf' | 'woff') => void
   onSaveProject: () => void
 }
 
 export function ProjectSaveCard({
   canSaveDraft,
-  canSaveLocal,
   hasUfoSource,
   hasGitHubSource,
   isSavingToLocal,
-  loadingText,
+  onOpenExportModal,
   onOpenGitHubModal,
-  onSaveLocal,
   onSaveProject,
 }: ProjectSaveCardProps) {
   return (
@@ -29,37 +25,17 @@ export function ProjectSaveCard({
         <Heading size="sm" textTransform="uppercase" color="field.ink">
           專案儲存
         </Heading>
+        <Button onClick={onOpenExportModal} isDisabled={isSavingToLocal}>
+          匯出字型
+        </Button>
         {hasUfoSource ? (
-          <>
-            <Menu>
-              <MenuButton
-                as={Button}
-                isDisabled={!canSaveLocal}
-                isLoading={isSavingToLocal}
-                loadingText={loadingText}
-              >
-                匯出字型
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={() => onSaveLocal('zip')}>UFO (ZIP)</MenuItem>
-                <MenuItem onClick={() => onSaveLocal('ttf')}>TTF</MenuItem>
-                <MenuItem onClick={() => onSaveLocal('otf')}>OTF</MenuItem>
-                <MenuItem onClick={() => onSaveLocal('woff')}>WOFF</MenuItem>
-              </MenuList>
-            </Menu>
-            <Button
-              variant="outline"
-              onClick={onSaveProject}
-              isDisabled={!canSaveDraft || isSavingToLocal}
-            >
-              儲存草稿
-            </Button>
-            {hasGitHubSource ? (
-              <Button variant="outline" onClick={onOpenGitHubModal}>
-                GitHub / Commit
-              </Button>
-            ) : null}
-          </>
+          <Button
+            variant="outline"
+            onClick={onSaveProject}
+            isDisabled={!canSaveDraft || isSavingToLocal}
+          >
+            儲存草稿
+          </Button>
         ) : (
           <>
             <Button onClick={onSaveProject} isDisabled={!canSaveDraft}>
@@ -74,6 +50,11 @@ export function ProjectSaveCard({
             </Button>
           </>
         )}
+        {hasGitHubSource ? (
+          <Button variant="outline" onClick={onOpenGitHubModal}>
+            GitHub / Commit
+          </Button>
+        ) : null}
       </Stack>
     </Box>
   )

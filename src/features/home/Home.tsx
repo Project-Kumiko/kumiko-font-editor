@@ -12,6 +12,7 @@ export function Home() {
     githubRepoInput,
     isLoadingGitHub,
     isLoadingLocal,
+    isDraggingLocal,
     folderInputRef,
     fileInputRef,
     pendingGitHubImport,
@@ -23,6 +24,9 @@ export function Home() {
     handleCancelPendingGitHubImport,
     handleConfirmPendingGitHubImport,
     handleDeleteProject,
+    handleLocalDragEnter,
+    handleLocalDragLeave,
+    handleLocalDragOver,
     handleGitHubImport,
     handleOpenProject,
     handleFolderUpload,
@@ -78,7 +82,11 @@ export function Home() {
             <LocalImportCard
               folderInputRef={folderInputRef}
               fileInputRef={fileInputRef}
+              isDragging={isDraggingLocal}
               isLoading={isLoadingLocal}
+              onDragEnter={handleLocalDragEnter}
+              onDragLeave={handleLocalDragLeave}
+              onDragOver={handleLocalDragOver}
               onFolderUpload={handleFolderUpload}
               onFileUpload={handleFileUpload}
               onDropUpload={handleDropUpload}
