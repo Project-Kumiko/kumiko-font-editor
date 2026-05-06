@@ -11,7 +11,7 @@ import {
   Text,
   Tooltip,
 } from '@chakra-ui/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { GlyphData } from '../../../store'
 import {
   buildAlignUpdates,
@@ -45,29 +45,16 @@ export function TransformCard({
     [selectedNodes]
   )
   const [focusedField, setFocusedField] = useState<TransformField | null>(null)
-  const [draftValues, setDraftValues] = useState({
-    x: '0',
-    y: '0',
-    width: '0',
-    height: '0',
-  })
-
-  useEffect(() => {
-    const nextValues = {
+  const [draftValue, setDraftValue] = useState('')
+  const boundsValues = useMemo(
+    () => ({
       x: formatTransformNumber(bounds?.xMin),
       y: formatTransformNumber(bounds?.yMin),
       width: formatTransformNumber(bounds?.width),
       height: formatTransformNumber(bounds?.height),
-    }
-
-    setDraftValues((currentValues) => ({
-      x: focusedField === 'x' ? currentValues.x : nextValues.x,
-      y: focusedField === 'y' ? currentValues.y : nextValues.y,
-      width: focusedField === 'width' ? currentValues.width : nextValues.width,
-      height:
-        focusedField === 'height' ? currentValues.height : nextValues.height,
-    }))
-  }, [bounds, focusedField])
+    }),
+    [bounds]
+  )
 
   const commitField = (field: TransformField, value: string) => {
     if (!bounds || selectedNodes.length === 0 || value.trim() === '') {
@@ -81,15 +68,14 @@ export function TransformCard({
   }
 
   const handleFieldChange = (field: TransformField, value: string) => {
-    setDraftValues((currentValues) => ({
-      ...currentValues,
-      [field]: value,
-    }))
+    void field
+    setDraftValue(value)
   }
 
   const handleFieldBlur = (field: TransformField) => {
     setFocusedField(null)
-    commitField(field, draftValues[field])
+    commitField(field, draftValue)
+    setDraftValue('')
   }
 
   const applyMirror = (axis: 'x' | 'y') => {
@@ -142,9 +128,14 @@ export function TransformCard({
               <Input
                 size="sm"
                 type="number"
-                value={draftValues[field]}
+                value={
+                  focusedField === field ? draftValue : boundsValues[field]
+                }
                 isDisabled={isDisabled}
-                onFocus={() => setFocusedField(field)}
+                onFocus={() => {
+                  setFocusedField(field)
+                  setDraftValue(boundsValues[field])
+                }}
                 onChange={(event) =>
                   handleFieldChange(field, event.target.value)
                 }
