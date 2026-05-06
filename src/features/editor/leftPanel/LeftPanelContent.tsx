@@ -59,9 +59,6 @@ export function LeftPanelContent({
             {isCjkGlyph ? '含此部件的字符' : '相關字符'}{' '}
             {resultGlyphs.length.toLocaleString()}
           </Text>
-          <Tag size="sm" variant="subtle">
-            {isCjkGlyph ? 'Worker' : 'Related'}
-          </Tag>
         </HStack>
       </VStack>
 
