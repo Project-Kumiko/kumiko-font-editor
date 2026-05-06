@@ -1,4 +1,14 @@
-import { Box, Stack, Text, useDisclosure } from '@chakra-ui/react'
+import {
+  Box,
+  Stack,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  useDisclosure,
+} from '@chakra-ui/react'
 import { ExportFontModal } from '../fontExport/ExportFontModal'
 import { useFontExport } from '../fontExport/useFontExport'
 import { GitHubCommitModal } from './GitHubCommitModal'
@@ -6,6 +16,7 @@ import { GlyphSummaryCard } from './GlyphSummaryCard'
 import { MetricsCard } from './MetricsCard'
 import { NodeInspectorCard } from './NodeInspectorCard'
 import { ProjectSaveCard } from './ProjectSaveCard'
+import { TransformCard } from './TransformCard'
 import { useRightPanelModel } from './useRightPanelModel'
 
 export function RightPanel() {
@@ -28,53 +39,74 @@ export function RightPanel() {
             尚未選取字形。
           </Text>
         ) : (
-          <Stack spacing={4}>
-            <GlyphSummaryCard
-              activeLayer={panel.activeLayer ?? null}
-              availableLayers={panel.availableLayers}
-              glyph={panel.glyph}
-              isDirty={panel.isDirty}
-              selectedLayerId={panel.selectedLayerId}
-              workspaceView={panel.workspaceView}
-              onDeleteGlyph={panel.handleDeleteGlyph}
-              onEnterEditor={() => panel.setWorkspaceView('editor')}
-              onLayerChange={panel.setSelectedLayerId}
-            />
+          <Tabs variant="enclosed" size="sm" isLazy>
+            <TabList>
+              <Tab>Inspect</Tab>
+              <Tab>Transform</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel px={0} pb={0}>
+                <Stack spacing={4}>
+                  <GlyphSummaryCard
+                    activeLayer={panel.activeLayer ?? null}
+                    availableLayers={panel.availableLayers}
+                    glyph={panel.glyph}
+                    isDirty={panel.isDirty}
+                    selectedLayerId={panel.selectedLayerId}
+                    workspaceView={panel.workspaceView}
+                    onDeleteGlyph={panel.handleDeleteGlyph}
+                    onEnterEditor={() => panel.setWorkspaceView('editor')}
+                    onLayerChange={panel.setSelectedLayerId}
+                  />
 
-            <ProjectSaveCard
-              canSaveDraft={Boolean(
-                panel.fontData &&
-                panel.projectId &&
-                panel.projectTitle &&
-                panel.isDirty
-              )}
-              hasUfoSource={panel.hasUfoSource}
-              hasGitHubSource={panel.hasGitHubSource}
-              isSavingToLocal={fontExport.isExporting}
-              onOpenExportModal={exportModal.onOpen}
-              onOpenGitHubModal={() =>
-                void panel.gitHubCommitFlow.openGitHubModal()
-              }
-              onSaveProject={panel.handleSaveProject}
-            />
+                  <NodeInspectorCard
+                    effectiveNodeType={panel.effectiveNodeType}
+                    isEndpointNode={panel.isEndpointNode}
+                    isOnCurveNode={panel.isOnCurveNode}
+                    nodeRef={panel.nodeRef}
+                    selectedNode={panel.selectedNode ?? null}
+                    selectedSegment={panel.selectedSegment}
+                    onCoordinateChange={panel.handleCoordinateChange}
+                    onConvertSelectedSegment={
+                      panel.handleConvertSelectedSegment
+                    }
+                    onNodeTypeChange={panel.handleNodeTypeChange}
+                  />
 
-            <NodeInspectorCard
-              effectiveNodeType={panel.effectiveNodeType}
-              isEndpointNode={panel.isEndpointNode}
-              isOnCurveNode={panel.isOnCurveNode}
-              nodeRef={panel.nodeRef}
-              selectedNode={panel.selectedNode ?? null}
-              selectedSegment={panel.selectedSegment}
-              onCoordinateChange={panel.handleCoordinateChange}
-              onConvertSelectedSegment={panel.handleConvertSelectedSegment}
-              onNodeTypeChange={panel.handleNodeTypeChange}
-            />
+                  <MetricsCard
+                    displayedMetrics={panel.displayedMetrics}
+                    onMetricsChange={panel.handleMetricsChange}
+                  />
+                </Stack>
+              </TabPanel>
+              <TabPanel px={0} pb={0}>
+                <Stack spacing={4}>
+                  <TransformCard
+                    glyph={panel.glyph}
+                    selectedNodeIds={panel.selectedNodeIds}
+                    onMoveSelection={panel.handleMoveSelection}
+                  />
 
-            <MetricsCard
-              displayedMetrics={panel.displayedMetrics}
-              onMetricsChange={panel.handleMetricsChange}
-            />
-          </Stack>
+                  <ProjectSaveCard
+                    canSaveDraft={Boolean(
+                      panel.fontData &&
+                      panel.projectId &&
+                      panel.projectTitle &&
+                      panel.isDirty
+                    )}
+                    hasUfoSource={panel.hasUfoSource}
+                    hasGitHubSource={panel.hasGitHubSource}
+                    isSavingToLocal={fontExport.isExporting}
+                    onOpenExportModal={exportModal.onOpen}
+                    onOpenGitHubModal={() =>
+                      void panel.gitHubCommitFlow.openGitHubModal()
+                    }
+                    onSaveProject={panel.handleSaveProject}
+                  />
+                </Stack>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         )}
       </Stack>
 

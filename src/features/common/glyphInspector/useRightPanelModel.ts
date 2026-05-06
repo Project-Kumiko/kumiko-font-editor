@@ -33,6 +33,7 @@ export function useRightPanelModel() {
   const localDeletedGlyphIds = useStore((state) => state.localDeletedGlyphIds)
   const previewGlyphMetrics = useStore((state) => state.previewGlyphMetrics)
   const updateNodePosition = useStore((state) => state.updateNodePosition)
+  const updateNodePositions = useStore((state) => state.updateNodePositions)
   const updateNodeType = useStore((state) => state.updateNodeType)
   const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics)
   const convertLineSegmentToCurve = useStore(
@@ -149,6 +150,20 @@ export function useRightPanelModel() {
     )
   }
 
+  const handleMoveSelection = (
+    updates: Array<{
+      pathId: string
+      nodeId: string
+      newPos: { x: number; y: number }
+    }>
+  ) => {
+    if (!glyph || updates.length === 0) {
+      return
+    }
+
+    updateNodePositions(glyph.id, updates)
+  }
+
   const handleDeleteGlyph = () => {
     if (!glyph) {
       return
@@ -214,6 +229,7 @@ export function useRightPanelModel() {
     projectId,
     projectTitle,
     selectedLayerId,
+    selectedNodeIds,
     selectedNode,
     selectedSegment,
     workspaceView,
@@ -222,6 +238,7 @@ export function useRightPanelModel() {
     handleCoordinateChange,
     handleDeleteGlyph,
     handleMetricsChange,
+    handleMoveSelection,
     handleNodeTypeChange,
     handleSaveProject,
     setSelectedLayerId,

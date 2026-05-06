@@ -25,6 +25,7 @@
     "fflate": "^0.8.2",
     "fonteditor-core": "2.6.3",
     "framer-motion": "12.38.0",
+    "iconoir-react": "7.11.0",
     "immer": "11.1.4",
     "opentype.js": "^1.3.5",
     "paper": "0.12.18",
@@ -49,6 +50,7 @@
     "prettier": "^3.8.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vite-plugin-svgr": "5.2.0"
   }
 }

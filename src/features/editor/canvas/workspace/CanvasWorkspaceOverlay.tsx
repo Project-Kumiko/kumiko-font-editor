@@ -1,6 +1,8 @@
-import { Box, Button, Flex, HStack, Text } from '@chakra-ui/react'
+import { Box, Flex, HStack, Text, VStack } from '@chakra-ui/react'
 import type { ToolId } from './types'
 import { AVAILABLE_TOOLS } from './types'
+import { HistoryButton } from './HistoryButton'
+import { ToolButton } from './ToolButton'
 
 interface CanvasWorkspaceOverlayProps {
   activeToolId: ToolId
@@ -23,92 +25,48 @@ export function CanvasWorkspaceOverlay({
     <>
       <Flex
         position="absolute"
-        top={4}
-        left={4}
-        direction="column"
-        gap={1}
-        px={3}
+        left="50%"
+        bottom={4}
+        transform="translateX(-50%)"
+        align="center"
+        gap={2}
+        px={2}
         py={2}
         borderRadius="sm"
-        bg="rgba(8, 11, 13, 0.86)"
+        bg="rgba(8, 11, 13, 0.9)"
         border="1px solid"
-        borderColor="rgba(247, 235, 64, 0.78)"
+        borderColor="rgba(247, 235, 64, 0.58)"
         backdropFilter="blur(10px)"
         boxShadow="none"
       >
-        <Text
-          fontSize="10px"
-          color="field.yellow.300"
-          fontFamily="mono"
-          fontWeight="900"
-          letterSpacing="0.12em"
-        >
-          Canvas Workspace
-        </Text>
-        <Text fontSize="xs" color="whiteAlpha.800">
-          滾輪縮放，拖曳空白區平移視角
-        </Text>
-        <Text fontSize="xs" color="whiteAlpha.700" fontFamily="mono">
-          `V` 游標，`P` 鋼筆，`B` 筆刷，`T` 文字，`H` 移動畫布
-        </Text>
-
-        <HStack mt={2}>
-          <Button
-            size="xs"
-            variant="solid"
-            onClick={onUndo}
-            isDisabled={!canUndo}
-          >
-            ↩ Undo (⌘Z)
-          </Button>
-          <Button
-            size="xs"
-            variant="solid"
-            onClick={onRedo}
-            isDisabled={!canRedo}
-          >
-            ↪ Redo (⇧⌘Z)
-          </Button>
+        <HStack spacing={1}>
+          <HistoryButton action="undo" isDisabled={!canUndo} onClick={onUndo} />
+          <HistoryButton action="redo" isDisabled={!canRedo} onClick={onRedo} />
         </HStack>
 
-        <HStack mt={2} spacing={2} align="center">
+        <Box h={6} w="1px" bg="whiteAlpha.300" />
+
+        <HStack spacing={1} align="center">
           {AVAILABLE_TOOLS.map((tool) => (
-            <Button
+            <ToolButton
               key={tool.id}
-              size="xs"
-              px={2}
-              py={1}
-              borderRadius="sm"
-              variant={activeToolId === tool.id ? 'solid' : 'ghost'}
-              bg={
-                activeToolId === tool.id
-                  ? undefined
-                  : tool.status === 'ready'
-                    ? 'whiteAlpha.100'
-                    : 'field.red.400'
-              }
-              color={
-                activeToolId === tool.id
-                  ? undefined
-                  : tool.status === 'ready'
-                    ? 'whiteAlpha.900'
-                    : 'black'
-              }
-              fontSize="xs"
-              onClick={() => onSelectTool(tool.id)}
-            >
-              {tool.label}
-            </Button>
+              isActive={activeToolId === tool.id}
+              label={tool.label}
+              shortcut={tool.shortcut}
+              status={tool.status}
+              toolId={tool.id}
+              onSelect={onSelectTool}
+            />
           ))}
         </HStack>
       </Flex>
 
-      <Flex
+      <VStack
         position="absolute"
         right={4}
         bottom={4}
-        align="center"
-        gap={2}
+        align="stretch"
+        spacing={1}
         px={3}
         py={2}
         borderRadius="sm"
@@ -118,19 +76,19 @@ export function CanvasWorkspaceOverlay({
         fontSize="xs"
         fontFamily="mono"
       >
-        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
-          Wheel
-        </Box>
-        <Text>Zoom</Text>
-        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
-          Drag
-        </Box>
-        <Text>Pan / Move Node</Text>
-        <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
-          Space
-        </Box>
-        <Text>Hold Hand Tool</Text>
-      </Flex>
+        <HStack spacing={2}>
+          <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
+            Wheel
+          </Box>
+          <Text>Zoom</Text>
+        </HStack>
+        <HStack spacing={2}>
+          <Box as="span" bg="field.yellow.400" color="field.ink" px={1}>
+            Space
+          </Box>
+          <Text>Hand</Text>
+        </HStack>
+      </VStack>
     </>
   )
 }
