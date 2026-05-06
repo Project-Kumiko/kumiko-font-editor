@@ -373,8 +373,8 @@ registerVisualizationLayerDefinition({
   name: 'Selection Transform Handles',
   selectionFunc: glyphSelector('editing'),
   zIndex: 549,
-  screenParameters: { strokeWidth: 1.25, handleSize: 8 },
-  colors: { strokeColor: '#00AFC9', handleFill: '#F8F8F8' },
+  screenParameters: { strokeWidth: 1, handleSize: 8, lineDash: [6, 4] },
+  colors: { strokeColor: '#9CA3AF', handleFill: '#F8F8F8' },
   draw: (
     canvasController: CanvasController,
     _positionedGlyph: PositionedGlyph,
@@ -398,8 +398,11 @@ registerVisualizationLayerDefinition({
       canvasController,
       parameters.strokeWidth as number
     )
-    context.setLineDash([])
+    context.setLineDash(
+      screenArray(canvasController, parameters.lineDash as number[])
+    )
     context.strokeRect(xMin, yMin, xMax - xMin, yMax - yMin)
+    context.setLineDash([])
 
     for (const handle of handles) {
       context.fillRect(

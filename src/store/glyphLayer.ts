@@ -14,7 +14,10 @@ export const getGlyphLayer = (
   }
 
   const requestedLayerId = layerId ?? glyph.activeLayerId ?? null
-  if (glyph.activeLayerId && glyph.activeLayerId === requestedLayerId) {
+  if (
+    glyph.activeLayerId &&
+    (glyph.activeLayerId === requestedLayerId || requestedLayerId === null)
+  ) {
     return getHotGlyphLayerSnapshot(glyph, glyph.activeLayerId)
   }
 

@@ -510,7 +510,9 @@ export function CanvasWorkspace() {
 
       event.preventDefault()
       event.stopPropagation()
-      setEditorActiveGlyphIndex(hit.glyphIndex)
+      if (hit.glyphId !== activeEditorGlyphId) {
+        setEditorActiveGlyphIndex(hit.glyphIndex)
+      }
       if (activeToolId === 'text') {
         handleToolSelect('pointer')
       }
