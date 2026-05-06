@@ -1,4 +1,6 @@
-import { Box, Stack, Text } from '@chakra-ui/react'
+import { Box, Stack, Text, useDisclosure } from '@chakra-ui/react'
+import { ExportFontModal } from '../fontExport/ExportFontModal'
+import { useFontExport } from '../fontExport/useFontExport'
 import { GitHubCommitModal } from './GitHubCommitModal'
 import { GlyphSummaryCard } from './GlyphSummaryCard'
 import { MetricsCard } from './MetricsCard'
@@ -8,6 +10,8 @@ import { useRightPanelModel } from './useRightPanelModel'
 
 export function RightPanel() {
   const panel = useRightPanelModel()
+  const exportModal = useDisclosure()
+  const fontExport = useFontExport()
 
   return (
     <Box
@@ -44,25 +48,13 @@ export function RightPanel() {
                 panel.projectTitle &&
                 panel.isDirty
               )}
-              canSaveLocal={Boolean(
-                panel.fontData &&
-                panel.hasLocalChanges &&
-                !panel.isSavingToLocal
-              )}
               hasUfoSource={panel.hasUfoSource}
               hasGitHubSource={panel.hasGitHubSource}
-              isSavingToLocal={panel.isSavingToLocal}
-              loadingText={
-                panel.ufoExportProgress
-                  ? panel.ufoExportProgress.phase === 'zip'
-                    ? `壓縮中 ${panel.ufoExportProgress.completed}/${panel.ufoExportProgress.total}`
-                    : `匯出中 ${panel.ufoExportProgress.completed}/${panel.ufoExportProgress.total}`
-                  : '匯出中...'
-              }
+              isSavingToLocal={fontExport.isExporting}
+              onOpenExportModal={exportModal.onOpen}
               onOpenGitHubModal={() =>
                 void panel.gitHubCommitFlow.openGitHubModal()
               }
-              onSaveLocal={panel.handleSaveUfoToLocal}
               onSaveProject={panel.handleSaveProject}
             />
 
@@ -86,6 +78,14 @@ export function RightPanel() {
         )}
       </Stack>
 
+      <ExportFontModal
+        isOpen={exportModal.isOpen}
+        canExport={fontExport.canExport}
+        isExporting={fontExport.isExporting}
+        loadingText={fontExport.loadingText}
+        onClose={exportModal.onClose}
+        onExport={(format) => void fontExport.exportFont(format)}
+      />
       <GitHubCommitModal {...panel.gitHubCommitFlow.modalProps} />
     </Box>
   )

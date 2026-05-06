@@ -9,7 +9,7 @@ import {
   pickDefaultLayer,
   serializeGlifRecord,
   serializeXmlPlist,
-} from './ufoFormat'
+} from './fontAdapters/ufo'
 
 export interface GitHubCommitFileInput {
   path: string

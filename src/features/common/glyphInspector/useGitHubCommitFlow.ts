@@ -1,5 +1,5 @@
 import { useDisclosure, useToast } from '@chakra-ui/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   startGitHubOAuthLogin,
@@ -22,7 +22,7 @@ import {
   markGitHubCommitSynced,
   prepareGitHubCommit,
 } from '../../../lib/githubPr'
-import { syncHotFontDataToUfoRecords } from '../../../lib/ufoFormat'
+import { syncHotFontDataToUfoRecords } from '../../../lib/fontAdapters/ufo'
 import type { FontData } from '../../../store'
 import {
   buildSuggestedGitHubBranchName,
@@ -47,6 +47,27 @@ interface UseGitHubCommitFlowInput {
   markDraftSaved: () => void
 }
 
+interface ScopedForkStatusOverride {
+  repoFullName: string | null
+  forkStatus: GitHubForkStatus | null
+}
+
+interface ScopedGitHubCommitDraft {
+  repoFullName: string | null
+  commitMessage: string
+  branchName: string
+  isCreatingNewBranch: boolean
+}
+
+const createEmptyCommitDraft = (
+  repoFullName: string | null
+): ScopedGitHubCommitDraft => ({
+  repoFullName,
+  commitMessage: '',
+  branchName: '',
+  isCreatingNewBranch: false,
+})
+
 export const useGitHubCommitFlow = ({
   projectId,
   projectTitle,
@@ -62,12 +83,41 @@ export const useGitHubCommitFlow = ({
   const toast = useToast()
   const gitHubModal = useDisclosure()
   const [isPreparingGitHubCommit, setIsPreparingGitHubCommit] = useState(false)
-  const [forkStatusOverride, setForkStatusOverride] =
-    useState<GitHubForkStatus | null>(null)
-  const [gitHubCommitMessage, setGitHubCommitMessage] = useState('')
-  const [gitHubBranchName, setGitHubBranchName] = useState('')
-  const [isCreatingNewGitHubBranch, setIsCreatingNewGitHubBranch] =
-    useState(false)
+  const [forkStatusOverrideState, setForkStatusOverrideState] =
+    useState<ScopedForkStatusOverride>({
+      repoFullName: null,
+      forkStatus: null,
+    })
+  const [gitHubCommitDraft, setGitHubCommitDraft] =
+    useState<ScopedGitHubCommitDraft>(() => createEmptyCommitDraft(null))
+  const activeCommitDraft =
+    gitHubCommitDraft.repoFullName === githubRepoFullName
+      ? gitHubCommitDraft
+      : createEmptyCommitDraft(githubRepoFullName)
+  const gitHubCommitMessage = activeCommitDraft.commitMessage
+  const gitHubBranchName = activeCommitDraft.branchName
+  const isCreatingNewGitHubBranch = activeCommitDraft.isCreatingNewBranch
+  const updateGitHubCommitDraft = (
+    update: Partial<Omit<ScopedGitHubCommitDraft, 'repoFullName'>>
+  ) => {
+    setGitHubCommitDraft((current) => ({
+      ...(current.repoFullName === githubRepoFullName
+        ? current
+        : createEmptyCommitDraft(githubRepoFullName)),
+      ...update,
+    }))
+  }
+  const forkStatusOverride =
+    hasGitHubSource &&
+    forkStatusOverrideState.repoFullName === githubRepoFullName
+      ? forkStatusOverrideState.forkStatus
+      : null
+  const setForkStatusOverride = (forkStatus: GitHubForkStatus | null) => {
+    setForkStatusOverrideState({
+      repoFullName: githubRepoFullName,
+      forkStatus,
+    })
+  }
   const queryClient = useQueryClient()
   const viewerQuery = useGitHubViewerQuery(hasGitHubSource)
   const githubViewer = viewerQuery.data ?? null
@@ -86,20 +136,6 @@ export const useGitHubCommitFlow = ({
   const mergeUpstreamMutation = useMergeGitHubUpstreamMutation()
   const githubForkStatus = forkStatusOverride ?? forkStatusQuery.data ?? null
 
-  useEffect(() => {
-    if (!hasGitHubSource) {
-      setForkStatusOverride(null)
-      return
-    }
-  }, [hasGitHubSource])
-
-  useEffect(() => {
-    setForkStatusOverride(null)
-    setGitHubBranchName('')
-    setGitHubCommitMessage('')
-    setIsCreatingNewGitHubBranch(false)
-  }, [githubRepoFullName])
-
   const loadGitHubForkStatus = async (branchName?: string) => {
     if (!githubRepoFullName) {
       return null
@@ -116,10 +152,13 @@ export const useGitHubCommitFlow = ({
         branchName
       )
       if (resolvedBranch) {
-        setGitHubBranchName(resolvedBranch)
-        setIsCreatingNewGitHubBranch(
-          !isExistingGitHubBranch(forkStatus, resolvedBranch)
-        )
+        updateGitHubCommitDraft({
+          branchName: resolvedBranch,
+          isCreatingNewBranch: !isExistingGitHubBranch(
+            forkStatus,
+            resolvedBranch
+          ),
+        })
       }
       return forkStatus
     } catch (error) {
@@ -250,19 +289,22 @@ export const useGitHubCommitFlow = ({
         projectTitle,
         activeUfoId,
       })
-      setGitHubCommitMessage(preparedCommit.request.commitMessage)
+      const nextDraft: Partial<Omit<ScopedGitHubCommitDraft, 'repoFullName'>> =
+        {
+          commitMessage: preparedCommit.request.commitMessage,
+        }
       if (!gitHubBranchName.trim()) {
         if (forkStatus?.selectedBranch) {
-          setGitHubBranchName(forkStatus.selectedBranch)
-          setIsCreatingNewGitHubBranch(false)
+          nextDraft.branchName = forkStatus.selectedBranch
+          nextDraft.isCreatingNewBranch = false
         } else {
-          setGitHubBranchName(
+          nextDraft.branchName =
             preparedCommit.request.branchName ??
-              buildSuggestedGitHubBranchName(preparedCommit.changedGlyphNames)
-          )
-          setIsCreatingNewGitHubBranch(true)
+            buildSuggestedGitHubBranchName(preparedCommit.changedGlyphNames)
+          nextDraft.isCreatingNewBranch = true
         }
       }
+      updateGitHubCommitDraft(nextDraft)
     } catch (error) {
       toast({
         title: '無法準備 GitHub commit',
@@ -285,8 +327,10 @@ export const useGitHubCommitFlow = ({
       const result = await createForkMutation.mutateAsync(githubRepoFullName)
       setForkStatusOverride(result)
       if (!gitHubBranchName.trim() && result.selectedBranch) {
-        setGitHubBranchName(result.selectedBranch)
-        setIsCreatingNewGitHubBranch(false)
+        updateGitHubCommitDraft({
+          branchName: result.selectedBranch,
+          isCreatingNewBranch: false,
+        })
       }
       toast({
         title: 'GitHub fork 已建立',
@@ -377,8 +421,10 @@ export const useGitHubCommitFlow = ({
           })
         )
       }
-      setGitHubBranchName(result.branchName)
-      setIsCreatingNewGitHubBranch(false)
+      updateGitHubCommitDraft({
+        branchName: result.branchName,
+        isCreatingNewBranch: false,
+      })
       toast({
         title: 'GitHub commit 已推送',
         description: `已更新 ${result.headOwner}:${result.branchName}`,
@@ -464,18 +510,25 @@ export const useGitHubCommitFlow = ({
     onLogoutGitHub: () => void handleLogoutGitHub(),
     onCreateFork: () => void handleCreateFork(),
     onBranchSelect: (branch) => {
-      setGitHubBranchName(branch)
-      setIsCreatingNewGitHubBranch(false)
+      updateGitHubCommitDraft({
+        branchName: branch,
+        isCreatingNewBranch: false,
+      })
       void refreshGitHubCompareStatus(branch)
     },
-    onCommitMessageChange: setGitHubCommitMessage,
+    onCommitMessageChange: (commitMessage) =>
+      updateGitHubCommitDraft({ commitMessage }),
     onBranchNameChange: (value) => {
-      setGitHubBranchName(value)
-      setIsCreatingNewGitHubBranch(true)
+      updateGitHubCommitDraft({
+        branchName: value,
+        isCreatingNewBranch: true,
+      })
     },
     onStartNewBranch: () => {
-      setIsCreatingNewGitHubBranch(true)
-      setGitHubBranchName(`kumiko/patch-${Date.now()}`)
+      updateGitHubCommitDraft({
+        branchName: `kumiko/patch-${Date.now()}`,
+        isCreatingNewBranch: true,
+      })
     },
     onOpenCompare: () => {
       if (githubForkStatus?.compare?.compareUrl) {

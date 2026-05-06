@@ -5,7 +5,7 @@ import {
   serializeGlifRecord,
   serializeXmlPlist,
   pickDefaultLayer,
-} from '../lib/ufoFormat'
+} from '../lib/fontAdapters/ufo'
 import {
   listUfoGlyphsInLayer,
   listUfoMetadataForProject,

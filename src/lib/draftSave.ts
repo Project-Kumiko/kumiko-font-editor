@@ -1,15 +1,16 @@
 import {
   hydrateProjectFontData,
   getProjectArchiveMetadata,
+  getProjectArchiveRoundTripFormat,
   getProjectArchiveSourceFormat,
 } from './projectArchive'
-import { saveProject, loadProject } from './persistence'
+import { loadProjectDraft, saveProjectDraft } from './projectRepository'
 import {
   loadUfoProject,
   saveUfoProject,
   saveUfoUiValue,
 } from './ufoPersistence'
-import { syncHotFontDataToUfoRecords } from './ufoFormat'
+import { syncHotFontDataToUfoRecords } from './fontAdapters/ufo'
 import type { FontData } from '../store'
 
 export const UFO_LOCAL_DELETED_GLYPHS_KEY = 'ufo-local-deleted-glyph-ids'
@@ -23,8 +24,9 @@ export const saveDraftSnapshot = async (input: {
   selectedLayerId: string | null
 }) => {
   const projectSourceFormat = getProjectArchiveSourceFormat()
+  const projectRoundTripFormat = getProjectArchiveRoundTripFormat()
 
-  if (projectSourceFormat === 'ufo') {
+  if (projectRoundTripFormat === 'ufo') {
     const projectMetadata = getProjectArchiveMetadata() as {
       activeUfoId?: string | null
     } | null
@@ -43,13 +45,35 @@ export const saveDraftSnapshot = async (input: {
       deletedGlyphIds: input.deletedGlyphIds,
     })
 
+    const now = Date.now()
     const projectRecord = await loadUfoProject(input.projectId)
     if (projectRecord) {
       await saveUfoProject({
         ...projectRecord,
-        updatedAt: Date.now(),
+        updatedAt: now,
       })
     }
+    const persistedProject = await loadProjectDraft(input.projectId)
+    await saveProjectDraft({
+      id: input.projectId,
+      title: input.projectTitle,
+      lastModified: now,
+      createdAt: persistedProject?.createdAt ?? projectRecord?.createdAt ?? now,
+      updatedAt: now,
+      sourceName:
+        persistedProject?.sourceName ?? projectRecord?.sourceFolderName ?? null,
+      sourceType:
+        persistedProject?.sourceType ?? projectRecord?.sourceType ?? 'local',
+      githubSource:
+        persistedProject?.githubSource ?? projectRecord?.githubSource ?? null,
+      fontData: hydrateProjectFontData(input.fontData),
+      projectMetadata: persistedProject?.projectMetadata ?? projectMetadata,
+      projectSourceFormat,
+      projectRoundTripFormat,
+      projectGlyphsText: persistedProject?.projectGlyphsText ?? null,
+      projectGlyphsDocument: persistedProject?.projectGlyphsDocument ?? null,
+      projectGlyphsPackage: persistedProject?.projectGlyphsPackage ?? null,
+    })
     await saveUfoUiValue(
       input.projectId,
       UFO_LOCAL_DELETED_GLYPHS_KEY,
@@ -58,14 +82,21 @@ export const saveDraftSnapshot = async (input: {
     return
   }
 
-  const persistedProject = await loadProject(input.projectId)
-  await saveProject({
+  const persistedProject = await loadProjectDraft(input.projectId)
+  const now = Date.now()
+  await saveProjectDraft({
     id: input.projectId,
     title: input.projectTitle,
-    lastModified: Date.now(),
+    lastModified: now,
+    createdAt: persistedProject?.createdAt ?? now,
+    updatedAt: now,
+    sourceName: persistedProject?.sourceName ?? null,
+    sourceType: persistedProject?.sourceType ?? 'local',
+    githubSource: persistedProject?.githubSource ?? null,
     fontData: hydrateProjectFontData(input.fontData),
     projectMetadata: persistedProject?.projectMetadata ?? null,
     projectSourceFormat,
+    projectRoundTripFormat,
     projectGlyphsText: persistedProject?.projectGlyphsText ?? null,
     projectGlyphsDocument: persistedProject?.projectGlyphsDocument ?? null,
     projectGlyphsPackage: persistedProject?.projectGlyphsPackage ?? null,

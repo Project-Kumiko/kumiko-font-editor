@@ -28,6 +28,7 @@ export function MetricsCard({
 
   useEffect(() => {
     const nextMetrics = formatMetrics(displayedMetrics)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraftMetrics((currentMetrics) => ({
       lsb: focusedField === 'lsb' ? currentMetrics.lsb : nextMetrics.lsb,
       width:

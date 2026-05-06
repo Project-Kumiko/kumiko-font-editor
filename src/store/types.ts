@@ -1,4 +1,7 @@
-import type { ProjectSourceFormat } from '../lib/projectFormats'
+import type {
+  ProjectRoundTripFormat,
+  ProjectSourceFormat,
+} from '../lib/projectFormats'
 
 export type NodeType = 'corner' | 'smooth' | 'offcurve' | 'qcurve'
 
@@ -224,7 +227,8 @@ export interface GlobalState {
     title: string,
     fontData: FontData,
     projectMetadata?: Record<string, unknown> | null,
-    projectSourceFormat?: ProjectSourceFormat | null
+    projectSourceFormat?: ProjectSourceFormat | null,
+    projectRoundTripFormat?: ProjectRoundTripFormat | null
   ) => void
   hydratePersistedLocalChanges: (
     dirtyGlyphIds: string[],

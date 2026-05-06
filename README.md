@@ -14,11 +14,37 @@ Kumiko Font Editor 是一個以瀏覽器為核心的字體編輯器，支援 UFO
 
 ## 本地開發
 
+這個專案使用 pnpm 10。`package.json` 的 `packageManager` 欄位提供 Corepack 的預設版本；`.npmrc` 會要求使用 pnpm，但允許 pnpm 10.x，避免不同 major 版本重寫 `pnpm-lock.yaml`。
+
+第一次開發前：
+
+```bash
+corepack enable
+corepack prepare pnpm@10.33.3 --activate
+```
+
+如果你的系統上有 Homebrew 或其他方式安裝的舊版 pnpm，可能會蓋過 Corepack shim。這時請優先使用 `corepack pnpm ...`，或移除/升級舊的全域 pnpm。
+
 只測前端 UI：
 
 ```bash
 pnpm install
 pnpm dev
+```
+
+若 `pnpm-lock.yaml` 因本機舊版 pnpm 產生大幅格式變更，請先確認：
+
+```bash
+corepack pnpm --version
+```
+
+版本應為 `10.x`。請不要用 pnpm 8/9 或其他舊版 pnpm 更新依賴。
+
+提交前建議執行：
+
+```bash
+pnpm lint
+pnpm build
 ```
 
 如果要測 GitHub 登入、GitHub 載入或任何 `/functions` 路由，請用 Cloudflare Pages Functions 本地模式：

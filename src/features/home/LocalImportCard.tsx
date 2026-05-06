@@ -2,50 +2,89 @@ import { Button, Flex, Heading, Input, Text } from '@chakra-ui/react'
 import type { RefObject } from 'react'
 
 interface LocalImportCardProps {
-  inputRef: RefObject<HTMLInputElement | null>
+  folderInputRef: RefObject<HTMLInputElement | null>
+  fileInputRef: RefObject<HTMLInputElement | null>
+  isDragging: boolean
   isLoading: boolean
-  onPackageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onDragEnter: (event: React.DragEvent<HTMLDivElement>) => void
+  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void
+  onFolderUpload: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void
+  onDropUpload: (event: React.DragEvent<HTMLDivElement>) => void
 }
 
 export function LocalImportCard({
-  inputRef,
+  folderInputRef,
+  fileInputRef,
+  isDragging,
   isLoading,
-  onPackageUpload,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
+  onFolderUpload,
+  onFileUpload,
+  onDropUpload,
 }: LocalImportCardProps) {
   return (
     <Flex
       border="1px dashed"
-      borderColor="field.line"
+      borderColor={isDragging ? 'field.red.500' : 'field.line'}
       p={6}
       borderRadius="sm"
-      bg="field.paper"
+      bg={isDragging ? 'field.yellow.300' : 'field.paper'}
       direction="column"
       justifyContent="center"
+      transition="background-color 120ms ease, border-color 120ms ease"
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDropUpload}
     >
       <Heading size="sm" mb={2} textTransform="uppercase">
         本地匯入
       </Heading>
       <Text fontSize="sm" color="field.muted" mb={4}>
-        請選擇包含各種字重 `.ufo` 的上層資料夾
+        支援拖曳上傳（自動辨識資料夾/檔案），或手動選擇資料夾、字型檔案（.ufo/.ttf/.otf/.woff/.woff2）
       </Text>
-      <Input type="file" onChange={onPackageUpload} display="none" />
+      <Input type="file" onChange={onFileUpload} display="none" />
       <input
-        ref={inputRef}
+        ref={folderInputRef}
         type="file"
         multiple
-        onChange={onPackageUpload}
+        onChange={onFolderUpload}
         style={{ display: 'none' }}
-        id="package-upload"
+        id="package-folder-upload"
       />
-      <Button
-        as="label"
-        htmlFor="package-upload"
-        cursor="pointer"
-        isLoading={isLoading}
-        loadingText="讀取與解析中..."
-      >
-        選擇 UFO 上層資料夾
-      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".ufo,.ttf,.otf,.woff,.woff2"
+        onChange={onFileUpload}
+        style={{ display: 'none' }}
+        id="package-file-upload"
+      />
+      <Flex gap={2}>
+        <Button
+          as="label"
+          htmlFor="package-folder-upload"
+          cursor="pointer"
+          isLoading={isLoading}
+          loadingText="讀取與解析中..."
+          flex="1"
+        >
+          上傳資料夾
+        </Button>
+        <Button
+          as="label"
+          htmlFor="package-file-upload"
+          cursor="pointer"
+          flex="1"
+        >
+          上傳檔案
+        </Button>
+      </Flex>
       {isLoading && (
         <Text fontSize="xs" color="field.red.500" mt={3} fontFamily="mono">
           大型字庫在第一次匯入時需要一些時間，請稍候...

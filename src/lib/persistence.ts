@@ -1,7 +1,4 @@
-import type { GlyphsDocument } from './glyphsDocument'
-import type { GlyphsPackageData } from './glyphsPackage'
-import type { ProjectSourceFormat } from './projectFormats'
-import type { FontData } from '../store'
+import type { KumikoProjectDraft, KumikoProjectSummary } from './projectTypes'
 
 const DB_NAME = 'kumiko-font-editor'
 const STORE_NAME = 'projects'
@@ -10,23 +7,8 @@ export const UFO_METADATA_STORE = 'ufo_metadata'
 export const UFO_GLYPHS_STORE = 'ufo_glyphs'
 export const UFO_UI_STATE_STORE = 'ufo_ui_state'
 
-export interface ProjectDraft {
-  id: string
-  title: string
-  lastModified: number
-  fontData?: FontData
-  projectMetadata?: Record<string, unknown> | null
-  projectSourceFormat?: ProjectSourceFormat | null
-  projectGlyphsText?: string | null
-  projectGlyphsDocument?: GlyphsDocument | null
-  projectGlyphsPackage?: GlyphsPackageData | null
-}
-
-export interface ProjectSummary {
-  id: string
-  title: string
-  lastModified: number
-}
+export type ProjectDraft = KumikoProjectDraft
+export type ProjectSummary = KumikoProjectSummary
 
 export const openDatabase = async () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -126,11 +108,20 @@ export const getAllProjects = async () => {
 
     request.onsuccess = () =>
       resolve(
-        (request.result as ProjectDraft[]).map((project) => ({
-          id: project.id,
-          title: project.title,
-          lastModified: project.lastModified,
-        }))
+        (request.result as ProjectDraft[])
+          .map((project) => ({
+            id: project.id,
+            title: project.title,
+            lastModified: project.lastModified,
+            createdAt: project.createdAt ?? project.lastModified,
+            updatedAt: project.updatedAt ?? project.lastModified,
+            sourceName: project.sourceName ?? null,
+            sourceType: project.sourceType ?? 'local',
+            githubSource: project.githubSource ?? null,
+            projectSourceFormat: project.projectSourceFormat ?? null,
+            projectRoundTripFormat: project.projectRoundTripFormat ?? null,
+          }))
+          .sort((a, b) => b.updatedAt - a.updatedAt)
       )
     request.onerror = () => reject(request.error)
   })
