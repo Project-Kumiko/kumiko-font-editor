@@ -83,6 +83,7 @@ export interface GlyphData {
 
 export interface FontData {
   glyphs: Record<string, GlyphData>
+  unitsPerEm?: number
   lineMetricsHorizontalLayout?: Record<
     string,
     {

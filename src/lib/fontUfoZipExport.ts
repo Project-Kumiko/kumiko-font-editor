@@ -157,15 +157,29 @@ export const exportFontDataAsUfoZip = (input: {
     serializeXmlPlist({
       familyName: input.projectTitle || input.projectId,
       styleName: 'Regular',
-      unitsPerEm: 1000,
-      ascender:
-        input.fontData.lineMetricsHorizontalLayout?.ascender?.value ?? 800,
-      descender:
-        input.fontData.lineMetricsHorizontalLayout?.descender?.value ?? -200,
-      xHeight:
-        input.fontData.lineMetricsHorizontalLayout?.xHeight?.value ?? 500,
-      capHeight:
-        input.fontData.lineMetricsHorizontalLayout?.capHeight?.value ?? 700,
+      unitsPerEm: input.fontData.unitsPerEm ?? 1000,
+      ...(input.fontData.lineMetricsHorizontalLayout?.ascender
+        ? {
+            ascender: input.fontData.lineMetricsHorizontalLayout.ascender.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.descender
+        ? {
+            descender:
+              input.fontData.lineMetricsHorizontalLayout.descender.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.xHeight
+        ? {
+            xHeight: input.fontData.lineMetricsHorizontalLayout.xHeight.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.capHeight
+        ? {
+            capHeight:
+              input.fontData.lineMetricsHorizontalLayout.capHeight.value,
+          }
+        : {}),
     })
   )
   files[`${ufoDir}/lib.plist`] = strToU8(serializeXmlPlist({}))

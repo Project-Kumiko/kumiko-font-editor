@@ -54,6 +54,50 @@ const toGlyphId = (glyph: opentype.Glyph, idx: number) => {
   return `glyph-${idx}`
 }
 
+const toLineMetric = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) ? { value } : undefined
+
+const getOpenTypeOs2Table = (font: opentype.Font) =>
+  (font as unknown as { tables?: { os2?: Record<string, unknown> } }).tables
+    ?.os2
+
+const buildLineMetricsFromOpenTypeFont = (font: opentype.Font) => {
+  const os2 = getOpenTypeOs2Table(font)
+  const lineMetricsHorizontalLayout = {
+    ascender: toLineMetric(os2?.sTypoAscender ?? font.ascender),
+    descender: toLineMetric(os2?.sTypoDescender ?? font.descender),
+    xHeight: toLineMetric(os2?.sxHeight),
+    capHeight: toLineMetric(os2?.sCapHeight),
+  }
+  const presentMetrics = Object.fromEntries(
+    Object.entries(lineMetricsHorizontalLayout).filter(([, metric]) =>
+      Boolean(metric)
+    )
+  ) as NonNullable<FontData['lineMetricsHorizontalLayout']>
+
+  return Object.keys(presentMetrics).length > 0 ? presentMetrics : undefined
+}
+
+const getGlyphXBounds = (glyph: opentype.Glyph) => {
+  const bounds = glyph.getBoundingBox()
+  if (bounds.isEmpty()) {
+    return null
+  }
+
+  return {
+    xMin: bounds.x1,
+    xMax: bounds.x2,
+  }
+}
+
+const buildGlyphMetrics = (glyph: opentype.Glyph, width: number) => {
+  const bounds = getGlyphXBounds(glyph)
+  const lsb = Math.round(glyph.leftSideBearing ?? bounds?.xMin ?? 0)
+  const rsb = Math.round(bounds ? width - bounds.xMax : width - lsb)
+
+  return { lsb, rsb, width }
+}
+
 const contourToPath = (
   commands: opentype.PathCommand[],
   contourIndex: number
@@ -160,12 +204,13 @@ export const importBinaryFontFile = async (file: File) => {
       .filter((path): path is PathData => Boolean(path))
 
     const width = glyph.advanceWidth ?? font.unitsPerEm
+    const metrics = buildGlyphMetrics(glyph, width)
     const glyphId = toGlyphId(glyph, idx)
     glyphs[glyphId] = {
       id: glyphId,
       name: glyph.name ?? glyphId,
       unicode: toUnicodeString(glyph.unicode),
-      metrics: { lsb: glyph.leftSideBearing ?? 0, rsb: 0, width },
+      metrics,
       paths,
       components: [],
       componentRefs: [],
@@ -178,7 +223,7 @@ export const importBinaryFontFile = async (file: File) => {
           componentRefs: [],
           anchors: [],
           guidelines: [],
-          metrics: { lsb: glyph.leftSideBearing ?? 0, rsb: 0, width },
+          metrics,
         },
       },
       layerOrder: [DEFAULT_LAYER_ID],
@@ -199,7 +244,11 @@ export const importBinaryFontFile = async (file: File) => {
   return {
     projectId: `font-${Date.now()}`,
     projectTitle: file.name.replace(/\.[^.]+$/, ''),
-    fontData: { glyphs } as FontData,
+    fontData: {
+      glyphs,
+      unitsPerEm: font.unitsPerEm,
+      lineMetricsHorizontalLayout: buildLineMetricsFromOpenTypeFont(font),
+    } as FontData,
     sourceFormat,
   }
 }
@@ -265,9 +314,9 @@ export const exportFontAsBinary = (
   const font = new opentype.Font({
     familyName: 'KumikoExport',
     styleName: 'Regular',
-    unitsPerEm: 1000,
-    ascender: 800,
-    descender: -200,
+    unitsPerEm: fontData.unitsPerEm ?? 1000,
+    ascender: fontData.lineMetricsHorizontalLayout?.ascender?.value ?? 800,
+    descender: fontData.lineMetricsHorizontalLayout?.descender?.value ?? -200,
     glyphs,
   })
   const sfntBuffer = font.toArrayBuffer()

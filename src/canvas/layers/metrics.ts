@@ -7,20 +7,7 @@ import {
 import type { PositionedGlyph, SceneModel } from '../SceneView'
 import type { CanvasController } from '../CanvasController'
 
-type LineMetric = {
-  value: number
-  zone?: number
-}
-
-type LineMetrics = Record<string, LineMetric>
-
-const DEFAULT_LINE_METRICS: LineMetrics = {
-  ascender: { value: 800, zone: 16 },
-  capHeight: { value: 700, zone: 16 },
-  xHeight: { value: 500, zone: 16 },
-  baseline: { value: 0, zone: -16 },
-  descender: { value: -200, zone: -16 },
-}
+type LineMetrics = NonNullable<SceneModel['lineMetricsHorizontalLayout']>
 
 const LINE_METRIC_LABELS: Record<string, string> = {
   ascender: 'Asc',
@@ -45,13 +32,6 @@ function strokeLine(
 
 function screenLength(canvasController: CanvasController, value: number) {
   return value / canvasController.magnification
-}
-
-function getLineMetrics(model: SceneModel): LineMetrics {
-  return {
-    ...DEFAULT_LINE_METRICS,
-    ...(model.lineMetricsHorizontalLayout ?? {}),
-  }
 }
 
 function getSortedMetricLabels(lineMetrics: LineMetrics) {
@@ -186,7 +166,11 @@ registerVisualizationLayerDefinition({
       parameters.strokeWidth as number
     )
 
-    const lineMetrics = getLineMetrics(model)
+    const lineMetrics = model.lineMetricsHorizontalLayout
+    if (!lineMetrics) {
+      return
+    }
+
     const glyphWidth = positionedGlyph.glyph.xAdvance || 0
     const pathBox = new Path2D()
     if (lineMetrics.ascender && lineMetrics.descender && glyphWidth > 0) {

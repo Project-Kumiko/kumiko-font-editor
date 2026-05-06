@@ -461,6 +461,12 @@ const buildLineMetrics = (
   return Object.keys(result).length > 0 ? result : undefined
 }
 
+const getUnitsPerEm = (fontinfo: Record<string, unknown> | null | undefined) =>
+  typeof fontinfo?.unitsPerEm === 'number' &&
+  Number.isFinite(fontinfo.unitsPerEm)
+    ? fontinfo.unitsPerEm
+    : undefined
+
 const buildPathNodesFromContour = (contour: UfoGlyphContour): PathNode[] =>
   contour.points.map((point, index) => ({
     id: `n${index}`,
@@ -684,10 +690,11 @@ const buildFontDataFromUfoGlyphs = (
         const name = getUnicodeDisplayName(record.unicodes, record.glyphName)
         const bounds = resolveBounds(record.glyphName)
         const width = record.advance.width ?? 0
+        const lsb = Math.round(bounds?.xMin ?? 0)
         const metrics: GlyphMetrics = {
           width,
-          lsb: Math.round(bounds?.xMin ?? 0),
-          rsb: Math.round(width - (bounds?.xMax ?? width)),
+          lsb,
+          rsb: Math.round(bounds ? width - bounds.xMax : width - lsb),
         }
         const paths: PathData[] = record.contours.map((contour, index) => ({
           id: `p${index}`,
@@ -736,6 +743,7 @@ const buildFontDataFromUfoGlyphs = (
         ]
       })
     ),
+    unitsPerEm: getUnitsPerEm(metadata.fontinfo),
     lineMetricsHorizontalLayout: buildLineMetrics(metadata.fontinfo),
   }
 }

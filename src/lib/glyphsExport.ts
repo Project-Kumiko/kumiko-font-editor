@@ -209,7 +209,7 @@ const createBaseGlyphsDocument = (
   unitsPerEm:
     typeof projectMetadata?.unitsPerEm === 'number'
       ? projectMetadata.unitsPerEm
-      : 1000,
+      : (fontData.unitsPerEm ?? 1000),
   versionMajor:
     typeof projectMetadata?.versionMajor === 'number'
       ? projectMetadata.versionMajor
