@@ -48,14 +48,6 @@ export const loadUfoProject = async (projectId: string) => {
   ) as Promise<UfoProjectRecord | undefined>
 }
 
-export const listUfoProjects = async () => {
-  const database = await openDatabase()
-  const transaction = database.transaction(UFO_PROJECTS_STORE, 'readonly')
-  return requestToPromise(
-    transaction.objectStore(UFO_PROJECTS_STORE).getAll()
-  ) as Promise<UfoProjectRecord[]>
-}
-
 export const saveUfoMetadata = async (record: UfoMetadataRecord) => {
   const database = await openDatabase()
   const transaction = database.transaction(UFO_METADATA_STORE, 'readwrite')

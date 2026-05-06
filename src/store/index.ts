@@ -742,13 +742,15 @@ export const useStore = create<GlobalState>()(
         title,
         fontData,
         projectMetadata = null,
-        projectSourceFormat = null
+        projectSourceFormat = null,
+        projectRoundTripFormat = null
       ) =>
         set((state) => {
           const hotFontData = ingestProjectData(
             fontData,
             projectMetadata,
-            projectSourceFormat
+            projectSourceFormat,
+            projectRoundTripFormat
           )
           state.projectId = id
           state.projectTitle = title

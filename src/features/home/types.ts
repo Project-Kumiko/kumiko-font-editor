@@ -1,4 +1,4 @@
-import type { ProjectSummary } from '../../lib/persistence'
+import type { KumikoProjectSummary } from '../../lib/projectTypes'
 
 export interface PendingGitHubImport {
   repo: string
@@ -6,4 +6,6 @@ export interface PendingGitHubImport {
   repoUrl: string | null
 }
 
-export type ProjectOpenHandler = (project: ProjectSummary) => Promise<void>
+export type ProjectOpenHandler = (
+  project: KumikoProjectSummary
+) => Promise<void>

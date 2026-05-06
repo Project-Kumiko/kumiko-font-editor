@@ -4,14 +4,30 @@ import {
   pathToUfoContour,
   serializeGlifRecord,
   serializeXmlPlist,
-} from './ufoFormat'
+} from './fontAdapters/ufo'
 import type { UfoGlyphRecord } from './ufoTypes'
 
 const DEFAULT_LAYER_ID = 'public.default'
 const DEFAULT_GLYPH_DIR = 'glyphs'
 
+const RESERVED_FILE_NAME_CHARS = new Set([
+  '<',
+  '>',
+  ':',
+  '"',
+  '/',
+  '\\',
+  '|',
+  '?',
+  '*',
+])
+
 const sanitizeFilePart = (value: string) =>
-  (value.trim() || 'glyph').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+  Array.from(value.trim() || 'glyph', (character) =>
+    character.charCodeAt(0) < 32 || RESERVED_FILE_NAME_CHARS.has(character)
+      ? '_'
+      : character
+  ).join('')
 
 const getExportLayer = (
   glyph: GlyphData,

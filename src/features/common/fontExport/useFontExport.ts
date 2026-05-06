@@ -1,10 +1,10 @@
 import { useToast } from '@chakra-ui/react'
 import { zipSync } from 'fflate'
 import { useState } from 'react'
-import { exportFontAsBinary } from '../../../lib/fontBinaryFormat'
+import { exportFontAsBinary } from '../../../lib/fontAdapters/binary'
 import { exportFontDataAsUfoZip } from '../../../lib/fontUfoZipExport'
 import { getProjectArchiveMetadata } from '../../../lib/projectArchive'
-import { syncHotFontDataToUfoRecords } from '../../../lib/ufoFormat'
+import { syncHotFontDataToUfoRecords } from '../../../lib/fontAdapters/ufo'
 import { exportUfoAsZipBlob } from '../../../lib/ufoZipExportClient'
 import { useStore } from '../../../store'
 import type { FontExportFormat } from './ExportFontModal'
@@ -83,7 +83,7 @@ export function useFontExport() {
       ): Promise<ExportAsset> => {
         if (format !== 'zip') {
           return {
-            blob: exportFontAsBinary(fontData, format),
+            blob: await exportFontAsBinary(fontData, format),
             fileName: `${baseFileName}.${format}`,
             label: format.toUpperCase(),
             totalGlyphs: null,

@@ -1,9 +1,9 @@
 import { Box, Button, Heading, HStack, Text, VStack } from '@chakra-ui/react'
-import type { ProjectSummary } from '../../lib/persistence'
+import type { KumikoProjectSummary } from '../../lib/projectTypes'
 import type { ProjectOpenHandler } from './types'
 
 interface RecentProjectsListProps {
-  projects: ProjectSummary[]
+  projects: KumikoProjectSummary[]
   onDeleteProject: (id: string, event: React.MouseEvent) => void
   onOpenProject: ProjectOpenHandler
 }

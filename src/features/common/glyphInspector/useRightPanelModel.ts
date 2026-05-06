@@ -3,7 +3,7 @@ import { saveDraftSnapshot } from '../../../lib/draftSave'
 import {
   getArchivedGlyphLayerEntries,
   getProjectArchiveMetadata,
-  getProjectArchiveSourceFormat,
+  getProjectArchiveRoundTripFormat,
 } from '../../../lib/projectArchive'
 import {
   getEffectiveNodeType,
@@ -226,6 +226,6 @@ export function useRightPanelModel() {
     handleSaveProject,
     setSelectedLayerId,
     setWorkspaceView,
-    hasUfoSource: getProjectArchiveSourceFormat() === 'ufo',
+    hasUfoSource: getProjectArchiveRoundTripFormat() === 'ufo',
   }
 }

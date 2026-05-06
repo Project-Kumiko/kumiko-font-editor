@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { exportGlyphsByPatchingText } from '../lib/glyphsPatchExport'
-import { loadProject } from '../lib/persistence'
+import { loadProjectDraft } from '../lib/projectRepository'
 import type { GlyphData } from '../store'
 
 interface ExportRequestMessage {
@@ -34,7 +34,9 @@ self.onmessage = async (event: MessageEvent<ExportRequestMessage>) => {
   }
 
   try {
-    const persistedProject = await loadProject(event.data.payload.projectId)
+    const persistedProject = await loadProjectDraft(
+      event.data.payload.projectId
+    )
     if (!persistedProject?.projectGlyphsText) {
       throw new Error('Project text source not found for export')
     }

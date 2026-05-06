@@ -14,7 +14,7 @@ import {
 } from '@chakra-ui/react'
 import { useState } from 'react'
 
-export type FontExportFormat = 'zip' | 'ttf' | 'otf' | 'woff'
+export type FontExportFormat = 'zip' | 'ttf' | 'otf' | 'woff' | 'woff2'
 
 interface ExportFontModalProps {
   isOpen: boolean
@@ -49,6 +49,11 @@ const exportOptions: Array<{
     format: 'woff',
     label: 'WOFF',
     description: '網頁字型格式。',
+  },
+  {
+    format: 'woff2',
+    label: 'WOFF2',
+    description: '壓縮率較高的網頁字型格式。',
   },
 ]
 

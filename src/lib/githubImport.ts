@@ -1,5 +1,8 @@
 import { unzipSync } from 'fflate'
-import { importUfoWorkspaceEntries, type UfoWorkspaceEntry } from './ufoFormat'
+import {
+  importUfoWorkspaceEntries,
+  type UfoWorkspaceEntry,
+} from './fontAdapters/ufo'
 import type { UfoGithubSource } from './ufoTypes'
 
 interface ParsedGitHubInput {
@@ -143,7 +146,7 @@ const fetchPublicRepoMetadata = async (
   }
 }
 
-export const importGitHubRepo = async (input: {
+export const importGitHubUfoRepo = async (input: {
   repo: string
   ref?: string
 }) => {

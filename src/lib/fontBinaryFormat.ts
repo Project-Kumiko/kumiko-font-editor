@@ -3,13 +3,44 @@ import type { FontData, GlyphData, PathData, PathNode } from '../store'
 import type { ProjectSourceFormat } from './projectFormats'
 
 const DEFAULT_LAYER_ID = 'public.default'
+const WOFF2_WASM_URL = new URL(
+  '../../node_modules/fonteditor-core/woff2/woff2.wasm',
+  import.meta.url
+).href
+
+export type BinaryFontExportFormat = 'ttf' | 'otf' | 'woff' | 'woff2'
+
+const loadFontEditorCore = async () => (await import('fonteditor-core')).default
+
+const toExactArrayBuffer = (buffer: ArrayBuffer | Uint8Array) => {
+  if (buffer instanceof ArrayBuffer) {
+    return buffer
+  }
+  return buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer
+}
+
+const ensureWoff2Ready = async () => {
+  const fonteditorCore = await loadFontEditorCore()
+  if (!fonteditorCore.woff2.isInited()) {
+    await fonteditorCore.woff2.init(WOFF2_WASM_URL)
+  }
+  return fonteditorCore
+}
 
 const toUnicodeString = (unicode: number | undefined) => {
   if (unicode === undefined) return null
   return unicode.toString(16).toUpperCase().padStart(4, '0')
 }
 
-const createNode = (x: number, y: number, type: PathNode['type'], idx: number): PathNode => ({
+const createNode = (
+  x: number,
+  y: number,
+  type: PathNode['type'],
+  idx: number
+): PathNode => ({
   id: `node-${idx}-${Math.random().toString(36).slice(2, 8)}`,
   x,
   y,
@@ -18,11 +49,15 @@ const createNode = (x: number, y: number, type: PathNode['type'], idx: number): 
 
 const toGlyphId = (glyph: opentype.Glyph, idx: number) => {
   if (glyph.name) return glyph.name
-  if (glyph.unicode !== undefined) return `uni${glyph.unicode.toString(16).toUpperCase().padStart(4, '0')}`
+  if (glyph.unicode !== undefined)
+    return `uni${glyph.unicode.toString(16).toUpperCase().padStart(4, '0')}`
   return `glyph-${idx}`
 }
 
-const contourToPath = (commands: opentype.PathCommand[], contourIndex: number): PathData | null => {
+const contourToPath = (
+  commands: opentype.PathCommand[],
+  contourIndex: number
+): PathData | null => {
   const nodes: PathNode[] = []
   let closed = false
   commands.forEach((cmd, index) => {
@@ -31,18 +66,60 @@ const contourToPath = (commands: opentype.PathCommand[], contourIndex: number): 
       return
     }
     if (cmd.type === 'M' || cmd.type === 'L') {
-      nodes.push(createNode(cmd.x ?? 0, cmd.y ?? 0, 'corner', contourIndex * 10000 + index))
+      nodes.push(
+        createNode(
+          cmd.x ?? 0,
+          cmd.y ?? 0,
+          'corner',
+          contourIndex * 10000 + index
+        )
+      )
       return
     }
     if (cmd.type === 'Q') {
-      nodes.push(createNode(cmd.x1 ?? 0, cmd.y1 ?? 0, 'offcurve', contourIndex * 10000 + index * 2))
-      nodes.push(createNode(cmd.x ?? 0, cmd.y ?? 0, 'qcurve', contourIndex * 10000 + index * 2 + 1))
+      nodes.push(
+        createNode(
+          cmd.x1 ?? 0,
+          cmd.y1 ?? 0,
+          'offcurve',
+          contourIndex * 10000 + index * 2
+        )
+      )
+      nodes.push(
+        createNode(
+          cmd.x ?? 0,
+          cmd.y ?? 0,
+          'qcurve',
+          contourIndex * 10000 + index * 2 + 1
+        )
+      )
       return
     }
     if (cmd.type === 'C') {
-      nodes.push(createNode(cmd.x1 ?? 0, cmd.y1 ?? 0, 'offcurve', contourIndex * 10000 + index * 3))
-      nodes.push(createNode(cmd.x2 ?? 0, cmd.y2 ?? 0, 'offcurve', contourIndex * 10000 + index * 3 + 1))
-      nodes.push(createNode(cmd.x ?? 0, cmd.y ?? 0, 'corner', contourIndex * 10000 + index * 3 + 2))
+      nodes.push(
+        createNode(
+          cmd.x1 ?? 0,
+          cmd.y1 ?? 0,
+          'offcurve',
+          contourIndex * 10000 + index * 3
+        )
+      )
+      nodes.push(
+        createNode(
+          cmd.x2 ?? 0,
+          cmd.y2 ?? 0,
+          'offcurve',
+          contourIndex * 10000 + index * 3 + 1
+        )
+      )
+      nodes.push(
+        createNode(
+          cmd.x ?? 0,
+          cmd.y ?? 0,
+          'corner',
+          contourIndex * 10000 + index * 3 + 2
+        )
+      )
     }
   })
 
@@ -51,7 +128,15 @@ const contourToPath = (commands: opentype.PathCommand[], contourIndex: number): 
 }
 
 export const importBinaryFontFile = async (file: File) => {
-  const buffer = await file.arrayBuffer()
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  const rawBuffer = await file.arrayBuffer()
+  const buffer =
+    ext === 'woff2'
+      ? await (async () => {
+          const fonteditorCore = await ensureWoff2Ready()
+          return toExactArrayBuffer(fonteditorCore.woff2tottf(rawBuffer))
+        })()
+      : rawBuffer
   const font = opentype.parse(buffer)
   const glyphs: Record<string, GlyphData> = {}
 
@@ -102,9 +187,14 @@ export const importBinaryFontFile = async (file: File) => {
     if (idx > 5000) break
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase()
   const sourceFormat: ProjectSourceFormat =
-    ext === 'ttf' ? 'ttf' : ext === 'otf' || ext === 'oft' ? 'otf' : 'woff'
+    ext === 'ttf'
+      ? 'ttf'
+      : ext === 'otf'
+        ? 'otf'
+        : ext === 'woff2'
+          ? 'woff2'
+          : 'woff'
 
   return {
     projectId: `font-${Date.now()}`,
@@ -113,7 +203,6 @@ export const importBinaryFontFile = async (file: File) => {
     sourceFormat,
   }
 }
-
 
 const appendShapeToPath = (path: opentype.Path, shape: PathData) => {
   if (shape.nodes.length === 0) return
@@ -155,7 +244,10 @@ const appendShapeToPath = (path: opentype.Path, shape: PathData) => {
   if (shape.closed) path.close()
 }
 
-export const exportFontAsBinary = (fontData: FontData, format: 'ttf' | 'otf' | 'woff') => {
+export const exportFontAsBinary = (
+  fontData: FontData,
+  format: BinaryFontExportFormat
+) => {
   const glyphList = Object.values(fontData.glyphs)
   const glyphs = glyphList.map((glyph) => {
     const path = new opentype.Path()
@@ -178,7 +270,25 @@ export const exportFontAsBinary = (fontData: FontData, format: 'ttf' | 'otf' | '
     descender: -200,
     glyphs,
   })
-  const arr = font.toArrayBuffer()
-  const mime = format === 'woff' ? 'font/woff' : format === 'otf' ? 'font/otf' : 'font/ttf'
-  return new Blob([arr], { type: mime })
+  const sfntBuffer = font.toArrayBuffer()
+  const getOutputBuffer = async () => {
+    if (format === 'woff') {
+      const fonteditorCore = await loadFontEditorCore()
+      return fonteditorCore.ttf2woff(sfntBuffer)
+    }
+    if (format === 'woff2') {
+      const fonteditorCore = await ensureWoff2Ready()
+      return toExactArrayBuffer(fonteditorCore.ttftowoff2(sfntBuffer))
+    }
+    return sfntBuffer
+  }
+  const mime =
+    format === 'woff2'
+      ? 'font/woff2'
+      : format === 'woff'
+        ? 'font/woff'
+        : format === 'otf'
+          ? 'font/otf'
+          : 'font/ttf'
+  return getOutputBuffer().then((buffer) => new Blob([buffer], { type: mime }))
 }

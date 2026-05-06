@@ -1,5 +1,8 @@
 import type { FontData, GlyphData, GlyphLayerData } from '../store'
-import type { ProjectSourceFormat } from './projectFormats'
+import type {
+  ProjectRoundTripFormat,
+  ProjectSourceFormat,
+} from './projectFormats'
 
 interface GlyphLayerArchiveEntry {
   layerOrder: string[]
@@ -10,12 +13,14 @@ interface ProjectArchiveState {
   glyphLayers: Record<string, GlyphLayerArchiveEntry>
   projectMetadata: Record<string, unknown> | null
   projectSourceFormat: ProjectSourceFormat | null
+  projectRoundTripFormat: ProjectRoundTripFormat | null
 }
 
 const archiveState: ProjectArchiveState = {
   glyphLayers: {},
   projectMetadata: null,
   projectSourceFormat: null,
+  projectRoundTripFormat: null,
 }
 
 const getGlyphTopLevelLayer = (
@@ -43,16 +48,19 @@ export const clearProjectArchive = () => {
   archiveState.glyphLayers = {}
   archiveState.projectMetadata = null
   archiveState.projectSourceFormat = null
+  archiveState.projectRoundTripFormat = null
 }
 
 export const ingestProjectData = (
   fontData: FontData,
   projectMetadata: Record<string, unknown> | null = null,
-  projectSourceFormat: ProjectSourceFormat | null = null
+  projectSourceFormat: ProjectSourceFormat | null = null,
+  projectRoundTripFormat: ProjectRoundTripFormat | null = null
 ): FontData => {
   archiveState.glyphLayers = {}
   archiveState.projectMetadata = projectMetadata
   archiveState.projectSourceFormat = projectSourceFormat
+  archiveState.projectRoundTripFormat = projectRoundTripFormat
 
   const hotGlyphs = Object.fromEntries(
     Object.entries(fontData.glyphs).map(([glyphId, glyph]) => {
@@ -113,6 +121,9 @@ export const getProjectArchiveMetadata = () => archiveState.projectMetadata
 
 export const getProjectArchiveSourceFormat = () =>
   archiveState.projectSourceFormat
+
+export const getProjectArchiveRoundTripFormat = () =>
+  archiveState.projectRoundTripFormat
 
 export const getProjectArchiveFirstMasterId = (): string | null => {
   const fontMasters = archiveState.projectMetadata?.fontMasters

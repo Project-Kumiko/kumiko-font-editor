@@ -1,8 +1,4 @@
-import type { GlyphsDocument } from './glyphsDocument'
-import type { GlyphsPackageData } from './glyphsPackage'
-import type { ProjectSourceFormat } from './projectFormats'
-import type { GitHubProjectSource, ProjectSourceType } from './projectTypes'
-import type { FontData } from '../store'
+import type { KumikoProjectDraft, KumikoProjectSummary } from './projectTypes'
 
 const DB_NAME = 'kumiko-font-editor'
 const STORE_NAME = 'projects'
@@ -11,34 +7,8 @@ export const UFO_METADATA_STORE = 'ufo_metadata'
 export const UFO_GLYPHS_STORE = 'ufo_glyphs'
 export const UFO_UI_STATE_STORE = 'ufo_ui_state'
 
-export interface ProjectDraft {
-  id: string
-  title: string
-  lastModified: number
-  createdAt?: number
-  updatedAt?: number
-  sourceName?: string | null
-  sourceType?: ProjectSourceType
-  githubSource?: GitHubProjectSource | null
-  fontData?: FontData
-  projectMetadata?: Record<string, unknown> | null
-  projectSourceFormat?: ProjectSourceFormat | null
-  projectGlyphsText?: string | null
-  projectGlyphsDocument?: GlyphsDocument | null
-  projectGlyphsPackage?: GlyphsPackageData | null
-}
-
-export interface ProjectSummary {
-  id: string
-  title: string
-  lastModified: number
-  createdAt: number
-  updatedAt: number
-  sourceName: string | null
-  sourceType: ProjectSourceType
-  githubSource: GitHubProjectSource | null
-  projectSourceFormat: ProjectSourceFormat | null
-}
+export type ProjectDraft = KumikoProjectDraft
+export type ProjectSummary = KumikoProjectSummary
 
 export const openDatabase = async () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
@@ -132,62 +102,28 @@ export const saveProject = async (draft: ProjectDraft) => {
 export const getAllProjects = async () => {
   const database = await openDatabase()
   return new Promise<ProjectSummary[]>((resolve, reject) => {
-    const transaction = database.transaction(
-      [STORE_NAME, UFO_PROJECTS_STORE],
-      'readonly'
-    )
-    const projectRequest = transaction.objectStore(STORE_NAME).getAll()
-    const legacyUfoRequest = transaction
-      .objectStore(UFO_PROJECTS_STORE)
-      .getAll()
+    const transaction = database.transaction(STORE_NAME, 'readonly')
+    const store = transaction.objectStore(STORE_NAME)
+    const request = store.getAll()
 
-    transaction.oncomplete = () => {
-      const projects = (projectRequest.result as ProjectDraft[]).map(
-        (project) => ({
-          id: project.id,
-          title: project.title,
-          lastModified: project.lastModified,
-          createdAt: project.createdAt ?? project.lastModified,
-          updatedAt: project.updatedAt ?? project.lastModified,
-          sourceName: project.sourceName ?? null,
-          sourceType: project.sourceType ?? 'local',
-          githubSource: project.githubSource ?? null,
-          projectSourceFormat: project.projectSourceFormat ?? null,
-        })
-      )
-      const projectIds = new Set(projects.map((project) => project.id))
-      const legacyUfoProjects = (
-        legacyUfoRequest.result as Array<{
-          projectId: string
-          title: string
-          sourceFolderName?: string
-          sourceType?: ProjectSourceType
-          githubSource?: GitHubProjectSource | null
-          createdAt?: number
-          updatedAt?: number
-        }>
-      )
-        .filter((project) => !projectIds.has(project.projectId))
-        .map((project) => ({
-          id: project.projectId,
-          title: project.title,
-          lastModified: project.updatedAt ?? project.createdAt ?? Date.now(),
-          createdAt: project.createdAt ?? project.updatedAt ?? Date.now(),
-          updatedAt: project.updatedAt ?? project.createdAt ?? Date.now(),
-          sourceName: project.sourceFolderName ?? null,
-          sourceType: project.sourceType ?? 'local',
-          githubSource: project.githubSource ?? null,
-          projectSourceFormat: 'ufo' as const,
-        }))
-
+    request.onsuccess = () =>
       resolve(
-        [...projects, ...legacyUfoProjects].sort(
-          (a, b) => b.updatedAt - a.updatedAt
-        )
+        (request.result as ProjectDraft[])
+          .map((project) => ({
+            id: project.id,
+            title: project.title,
+            lastModified: project.lastModified,
+            createdAt: project.createdAt ?? project.lastModified,
+            updatedAt: project.updatedAt ?? project.lastModified,
+            sourceName: project.sourceName ?? null,
+            sourceType: project.sourceType ?? 'local',
+            githubSource: project.githubSource ?? null,
+            projectSourceFormat: project.projectSourceFormat ?? null,
+            projectRoundTripFormat: project.projectRoundTripFormat ?? null,
+          }))
+          .sort((a, b) => b.updatedAt - a.updatedAt)
       )
-    }
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error)
+    request.onerror = () => reject(request.error)
   })
 }
 
