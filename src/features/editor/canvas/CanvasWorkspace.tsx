@@ -640,7 +640,9 @@ export function CanvasWorkspace() {
           borderRadius="6px"
           boxShadow="0 10px 30px rgba(15, 23, 42, 0.18)"
           overflow="hidden"
-          onClick={(event) => event.stopPropagation()}
+          onClick={(event: React.MouseEvent<HTMLDivElement>) =>
+            event.stopPropagation()
+          }
         >
           <Box
             as="button"

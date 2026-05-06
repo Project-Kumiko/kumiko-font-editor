@@ -28,8 +28,8 @@ registerVisualizationLayerDefinition({
   userSwitchable: true,
   defaultOn: true,
   zIndex: 100,
-  screenParameters: { strokeWidth: 2 },
-  colors: { strokeColor: '#080B0D' },
+  screenParameters: { strokeWidth: 1 },
+  colors: { strokeColor: '#d1a986' },
   colorsDarkMode: { strokeColor: '#FFF' },
   draw: (
     canvasController: CanvasController,
