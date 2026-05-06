@@ -1,5 +1,5 @@
 import { Box, Heading, HStack, Stack, Tag, Text } from '@chakra-ui/react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type MouseEvent } from 'react'
 import {
   VirtuosoGrid,
   type GridStateSnapshot,
@@ -21,13 +21,13 @@ interface OverviewContentProps {
   glyphMap: Record<string, GlyphData>
   gridRef: React.RefObject<VirtuosoGridHandle | null>
   restoreSnapshot: GridStateSnapshot | null
-  selectedGlyphId: string | null
+  selectedGlyphIds: Set<string>
   topGlyphId: string | null
   visibleSections: OverviewSection[]
   onEnterEditor: (glyphId: string) => void
   onGridStateChange: (state: GridStateSnapshot) => void
   onRangeChange: (range: ListRange) => void
-  onSelectGlyph: (glyphId: string) => void
+  onSelectGlyph: (glyphId: string, event: MouseEvent) => void
 }
 
 export function OverviewContent({
@@ -35,7 +35,7 @@ export function OverviewContent({
   glyphMap,
   gridRef,
   restoreSnapshot,
-  selectedGlyphId,
+  selectedGlyphIds,
   topGlyphId,
   visibleSections,
   onEnterEditor,
@@ -156,7 +156,7 @@ export function OverviewContent({
                     <GlyphCard
                       glyph={glyph}
                       glyphMap={glyphMap}
-                      isSelected={glyph.id === selectedGlyphId}
+                      isSelected={selectedGlyphIds.has(glyph.id)}
                       onEnterEditor={onEnterEditor}
                       onSelectGlyph={onSelectGlyph}
                     />

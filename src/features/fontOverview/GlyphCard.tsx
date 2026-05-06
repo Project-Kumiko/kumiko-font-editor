@@ -1,5 +1,5 @@
 import { Box, Flex, Stack, Text } from '@chakra-ui/react'
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, type MouseEvent } from 'react'
 import {
   buildGlyphPreviewData,
   getGlyphDisplayCharacter,
@@ -66,7 +66,7 @@ interface GlyphCardProps {
   glyphMap: Record<string, GlyphData>
   isSelected: boolean
   onEnterEditor: (glyphId: string) => void
-  onSelectGlyph: (glyphId: string) => void
+  onSelectGlyph: (glyphId: string, event: MouseEvent) => void
 }
 
 export const GlyphCard = memo(function GlyphCard({
@@ -76,13 +76,26 @@ export const GlyphCard = memo(function GlyphCard({
   onEnterEditor,
   onSelectGlyph,
 }: GlyphCardProps) {
-  const handleClick = useCallback(() => {
-    onSelectGlyph(glyph.id)
-  }, [glyph.id, onSelectGlyph])
+  const handleClick = useCallback(
+    (event: MouseEvent) => {
+      onSelectGlyph(glyph.id, event)
+    },
+    [glyph.id, onSelectGlyph]
+  )
 
-  const handleDoubleClick = useCallback(() => {
-    onEnterEditor(glyph.id)
-  }, [glyph.id, onEnterEditor])
+  const handleMouseDown = useCallback((event: MouseEvent) => {
+    if (event.shiftKey || event.metaKey || event.ctrlKey) {
+      event.preventDefault()
+    }
+  }, [])
+
+  const handleDoubleClick = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault()
+      onEnterEditor(glyph.id)
+    },
+    [glyph.id, onEnterEditor]
+  )
 
   return (
     <Box
@@ -96,9 +109,11 @@ export const GlyphCard = memo(function GlyphCard({
       borderRadius="sm"
       bg={isSelected ? 'field.yellow.300' : 'field.panel'}
       boxShadow="none"
-      transition="background 140ms ease"
+      transition="background 60ms ease"
+      userSelect="none"
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onMouseDown={handleMouseDown}
     >
       <Stack spacing={1} h="100%">
         <Flex align="center" justify="center" h="104px" borderRadius="sm">

@@ -96,16 +96,6 @@ export const useStore = create<GlobalState>()(
           state.selectedGlyphId = id
           state.selectedNodeIds = []
           state.selectedSegment = null
-          if (id && !state.editorGlyphIds.includes(id)) {
-            state.editorGlyphIds.push(id)
-          }
-          if (id) {
-            const glyphIndex = state.editorGlyphIds.indexOf(id)
-            if (glyphIndex >= 0) {
-              state.editorActiveGlyphIndex = glyphIndex
-              state.editorTextCursorIndex = glyphIndex + 1
-            }
-          }
           if (id) {
             syncGlyphTopLevelFromLayer(
               state.fontData?.glyphs[id],
@@ -122,12 +112,17 @@ export const useStore = create<GlobalState>()(
           if (!state.editorGlyphIds.includes(id)) {
             state.editorGlyphIds.push(id)
           }
+          const glyphIndex = state.editorGlyphIds.indexOf(id)
           syncEditorTextFromGlyphIds(state)
-          state.editorActiveGlyphIndex = Math.max(
-            0,
-            state.editorGlyphIds.length - 1
+          state.editorActiveGlyphIndex = Math.max(0, glyphIndex)
+          state.editorTextCursorIndex = glyphIndex + 1
+          state.selectedGlyphId = id
+          state.selectedNodeIds = []
+          state.selectedSegment = null
+          syncGlyphTopLevelFromLayer(
+            state.fontData?.glyphs[id],
+            state.selectedLayerId
           )
-          state.editorTextCursorIndex = state.editorGlyphIds.length
         }),
 
       insertGlyphIntoEditor: (id, afterGlyphId = null) =>

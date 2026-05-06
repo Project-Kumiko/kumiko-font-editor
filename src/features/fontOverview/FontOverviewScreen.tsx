@@ -1,5 +1,12 @@
 import { Grid, GridItem, useToast } from '@chakra-ui/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react'
 import type {
   GridStateSnapshot,
   ListRange,
@@ -26,6 +33,7 @@ export function FontOverviewScreen() {
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const setSelectedGlyphId = useStore((state) => state.setSelectedGlyphId)
   const addGlyphs = useStore((state) => state.addGlyphs)
+  const setEditorTextState = useStore((state) => state.setEditorTextState)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const closeProjectState = useStore((state) => state.closeProjectState)
   const projectTitle = useStore((state) => state.projectTitle)
@@ -41,6 +49,10 @@ export function FontOverviewScreen() {
   const overviewTopGlyphId = useStore((state) => state.overviewTopGlyphId)
   const setOverviewTopGlyphId = useStore((state) => state.setOverviewTopGlyphId)
   const gridRef = useRef<VirtuosoGridHandle | null>(null)
+  const selectionAnchorGlyphIdRef = useRef<string | null>(selectedGlyphId)
+  const [overviewSelectedGlyphIds, setOverviewSelectedGlyphIds] = useState<
+    string[]
+  >(() => (selectedGlyphId ? [selectedGlyphId] : []))
   const pendingOverviewGridStateRef = useRef<GridStateSnapshot | null>(
     overviewGridState
   )
@@ -103,7 +115,40 @@ export function FontOverviewScreen() {
 
   const selectedGlyph =
     overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
-  const glyphMap = fontData?.glyphs ?? {}
+  const glyphMap = useMemo(() => fontData?.glyphs ?? {}, [fontData?.glyphs])
+  const overviewSelectedGlyphIdSet = useMemo(() => {
+    const selectedGlyphIds = new Set(overviewSelectedGlyphIds)
+    if (selectedGlyphId) {
+      selectedGlyphIds.add(selectedGlyphId)
+    }
+    return selectedGlyphIds
+  }, [overviewSelectedGlyphIds, selectedGlyphId])
+
+  const selectOverviewGlyphs = useCallback(
+    (glyphIds: string[], primaryGlyphId: string | null) => {
+      setOverviewSelectedGlyphIds(glyphIds)
+      setSelectedGlyphId(primaryGlyphId)
+    },
+    [setSelectedGlyphId]
+  )
+
+  const getEditorTextForGlyphIds = useCallback(
+    (glyphIds: string[]) =>
+      glyphIds
+        .map((glyphId) => {
+          const unicode = glyphMap[glyphId]?.unicode
+          if (!unicode) {
+            return ''
+          }
+
+          const codePoint = Number.parseInt(unicode, 16)
+          return Number.isFinite(codePoint)
+            ? String.fromCodePoint(codePoint)
+            : ''
+        })
+        .join(''),
+    [glyphMap]
+  )
 
   const handleAddGlyphs = () => {
     const candidates = parseGlyphAdditionInput(glyphInputValue)
@@ -124,7 +169,12 @@ export function FontOverviewScreen() {
     )
     const addedGlyphIds = addGlyphs(missingCandidates)
     if (addedGlyphIds.length > 0) {
-      setSelectedGlyphId(addedGlyphIds[0] ?? null)
+      const primaryGlyphId = addedGlyphIds[0] ?? null
+      selectionAnchorGlyphIdRef.current = primaryGlyphId
+      selectOverviewGlyphs(
+        primaryGlyphId ? [primaryGlyphId] : [],
+        primaryGlyphId
+      )
       setGlyphInputValue('')
       setIsAddingGlyphs(false)
     }
@@ -159,17 +209,121 @@ export function FontOverviewScreen() {
       !selectedGlyph ||
       !targetSection.glyphs.some((glyph) => glyph.id === selectedGlyph.id)
     ) {
-      setSelectedGlyphId(targetSection.glyphs[0]?.id ?? null)
+      const primaryGlyphId = targetSection.glyphs[0]?.id ?? null
+      selectionAnchorGlyphIdRef.current = primaryGlyphId
+      selectOverviewGlyphs(
+        primaryGlyphId ? [primaryGlyphId] : [],
+        primaryGlyphId
+      )
     }
   }
+
+  const handleOverviewGlyphSelect = useCallback(
+    (glyphId: string, event: MouseEvent) => {
+      if (event.shiftKey || event.metaKey || event.ctrlKey) {
+        event.preventDefault()
+      }
+
+      const activeGlyphIds = activeSection.glyphs.map((glyph) => glyph.id)
+      const currentSelection = overviewSelectedGlyphIds.filter((selectedId) =>
+        activeGlyphIds.includes(selectedId)
+      )
+      const currentSelectionSet = new Set(currentSelection)
+      const isToggleSelection = event.metaKey || event.ctrlKey
+
+      if (
+        !event.shiftKey &&
+        !isToggleSelection &&
+        currentSelectionSet.has(glyphId)
+      ) {
+        setSelectedGlyphId(glyphId)
+        return
+      }
+
+      const anchorGlyphId =
+        selectionAnchorGlyphIdRef.current &&
+        activeGlyphIds.includes(selectionAnchorGlyphIdRef.current)
+          ? selectionAnchorGlyphIdRef.current
+          : (currentSelection.at(-1) ?? selectedGlyphId ?? glyphId)
+
+      if (event.shiftKey) {
+        const anchorIndex = activeGlyphIds.indexOf(anchorGlyphId)
+        const targetIndex = activeGlyphIds.indexOf(glyphId)
+        if (anchorIndex < 0 || targetIndex < 0) {
+          selectOverviewGlyphs([glyphId], glyphId)
+          selectionAnchorGlyphIdRef.current = glyphId
+          return
+        }
+
+        const [startIndex, endIndex] =
+          anchorIndex < targetIndex
+            ? [anchorIndex, targetIndex]
+            : [targetIndex, anchorIndex]
+        const rangeGlyphIds = activeGlyphIds.slice(startIndex, endIndex + 1)
+        const nextSelection = isToggleSelection
+          ? Array.from(new Set([...currentSelection, ...rangeGlyphIds]))
+          : rangeGlyphIds
+        selectOverviewGlyphs(nextSelection, glyphId)
+        return
+      }
+
+      selectionAnchorGlyphIdRef.current = glyphId
+
+      if (isToggleSelection) {
+        const nextSelection = currentSelectionSet.has(glyphId)
+          ? currentSelection.filter((selectedId) => selectedId !== glyphId)
+          : [...currentSelection, glyphId]
+        const primaryGlyphId = currentSelectionSet.has(glyphId)
+          ? (nextSelection.at(-1) ?? null)
+          : glyphId
+        selectOverviewGlyphs(nextSelection, primaryGlyphId)
+        return
+      }
+
+      selectOverviewGlyphs([glyphId], glyphId)
+    },
+    [
+      activeSection.glyphs,
+      overviewSelectedGlyphIds,
+      selectOverviewGlyphs,
+      selectedGlyphId,
+      setSelectedGlyphId,
+    ]
+  )
 
   const handleEnterEditor = useCallback(
     (glyphId: string) => {
       setOverviewGridState(pendingOverviewGridStateRef.current)
-      setSelectedGlyphId(glyphId)
+      const selectedGlyphIds = new Set(overviewSelectedGlyphIds)
+      if (selectedGlyphId) {
+        selectedGlyphIds.add(selectedGlyphId)
+      }
+
+      const selectedEditorGlyphIds = activeSection.glyphs
+        .map((glyph) => glyph.id)
+        .filter((selectedGlyphId) => selectedGlyphIds.has(selectedGlyphId))
+      const nextEditorGlyphIds = selectedGlyphIds.has(glyphId)
+        ? selectedEditorGlyphIds
+        : [glyphId]
+      const activeGlyphIndex = Math.max(0, nextEditorGlyphIds.indexOf(glyphId))
+
+      setEditorTextState(
+        getEditorTextForGlyphIds(nextEditorGlyphIds),
+        nextEditorGlyphIds,
+        activeGlyphIndex + 1,
+        activeGlyphIndex
+      )
       setWorkspaceView('editor')
     },
-    [setOverviewGridState, setSelectedGlyphId, setWorkspaceView]
+    [
+      activeSection.glyphs,
+      getEditorTextForGlyphIds,
+      overviewSelectedGlyphIds,
+      selectedGlyphId,
+      setEditorTextState,
+      setOverviewGridState,
+      setWorkspaceView,
+    ]
   )
 
   const handleGridStateChange = useCallback((state: GridStateSnapshot) => {
@@ -229,13 +383,13 @@ export function FontOverviewScreen() {
           glyphMap={glyphMap}
           gridRef={gridRef}
           restoreSnapshot={overviewGridState}
-          selectedGlyphId={selectedGlyphId}
+          selectedGlyphIds={overviewSelectedGlyphIdSet}
           topGlyphId={overviewTopGlyphId}
           visibleSections={visibleSections}
           onEnterEditor={handleEnterEditor}
           onGridStateChange={handleGridStateChange}
           onRangeChange={handleGridRangeChange}
-          onSelectGlyph={setSelectedGlyphId}
+          onSelectGlyph={handleOverviewGlyphSelect}
         />
       </GridItem>
 
