@@ -1,4 +1,4 @@
-import { Divider, HStack, Stack, Tag, Text, VStack } from '@chakra-ui/react'
+import { Divider, HStack, Stack, Text, VStack } from '@chakra-ui/react'
 import type { GlyphData } from '../../../store'
 import { ComponentSearchSection } from './ComponentSearchSection'
 import { GlyphPreviewCard } from './GlyphPreviewCard'
