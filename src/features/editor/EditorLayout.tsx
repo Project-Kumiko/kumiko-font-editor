@@ -1,7 +1,7 @@
 import { Grid, GridItem, useBreakpointValue } from '@chakra-ui/react'
 import { CanvasWorkspace } from './canvas/CanvasWorkspace'
 import { LeftPanel } from './leftPanel/LeftPanel'
-import { RightPanel } from '../common/glyphInspector/RightPanel'
+import { EditorRightPanel } from './rightPanel/EditorRightPanel'
 
 export function EditorLayout() {
   const isDesktop = useBreakpointValue({ base: false, lg: true })
@@ -31,7 +31,7 @@ export function EditorLayout() {
         <CanvasWorkspace />
       </GridItem>
       <GridItem area="right" minW={0} minH={0}>
-        <RightPanel />
+        <EditorRightPanel />
       </GridItem>
     </Grid>
   )

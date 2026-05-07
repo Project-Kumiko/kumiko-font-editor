@@ -25,19 +25,21 @@ import {
   Intersect,
   Mirror,
   RotateCameraRight,
-  ScaleFrameEnlarge,
   Substract,
 } from 'iconoir-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import type { GlyphData } from '../../../store'
 import {
   buildAlignUpdates,
   buildFieldCommitUpdates,
   buildMirrorUpdates,
   buildRotatedUpdates,
+  buildScaledUpdates,
+  buildSkewedUpdates,
   formatTransformNumber,
   getSelectedNodes,
   getSelectionBounds,
+  parseTransformNumber,
   type AlignTarget,
   type NodePositionUpdate,
   type TransformField,
@@ -48,6 +50,19 @@ interface TransformCardProps {
   glyph: GlyphData | null
   selectedNodeIds: string[]
   onMoveSelection: (updates: NodePositionUpdate[]) => void
+}
+
+type TransformActionField = 'rotate' | 'scaleX' | 'scaleY' | 'skewX' | 'skewY'
+
+interface SteppedNumberInputProps {
+  value: string
+  placeholder?: string
+  isDisabled?: boolean
+  step?: number
+  onChange: (value: string) => void
+  onFocus?: () => void
+  onBlur?: () => void
+  onStep: (delta: number) => void
 }
 
 export function TransformCard({
@@ -69,7 +84,15 @@ export function TransformCard({
     x: 'center',
     y: 'middle',
   })
-  const [rotationDraft, setRotationDraft] = useState('')
+  const [actionDrafts, setActionDrafts] = useState<
+    Record<TransformActionField, string>
+  >({
+    rotate: '',
+    scaleX: '100',
+    scaleY: '100',
+    skewX: '',
+    skewY: '',
+  })
   const boundsValues = useMemo(
     () => ({
       x: formatTransformNumber(bounds?.xMin),
@@ -108,6 +131,16 @@ export function TransformCard({
     setDraftValue('')
   }
 
+  const stepField = (field: TransformField, delta: number) => {
+    const currentValue =
+      focusedField === field ? draftValue : boundsValues[field]
+    const nextValue = String(parseTransformNumber(currentValue) + delta)
+    if (focusedField === field) {
+      setDraftValue(nextValue)
+    }
+    commitField(field, nextValue)
+  }
+
   const applyMirror = (axis: 'x' | 'y') => {
     if (!bounds || selectedNodes.length === 0) {
       return
@@ -124,18 +157,64 @@ export function TransformCard({
     onMoveSelection(buildAlignUpdates(selectedNodes, bounds, target))
   }
 
-  const applyRotation = (value: string) => {
+  const resetActionDraft = (field: TransformActionField) => {
+    setActionDrafts((current) => ({
+      ...current,
+      [field]: field === 'scaleX' || field === 'scaleY' ? '100' : '',
+    }))
+  }
+
+  const applyAction = (field: TransformActionField, value: string) => {
     if (!bounds || selectedNodes.length === 0 || value.trim() === '') {
       return
     }
 
-    const degrees = Number.parseFloat(value)
-    if (!Number.isFinite(degrees) || degrees === 0) {
+    const amount = Number.parseFloat(value)
+    if (!Number.isFinite(amount)) {
       return
     }
 
-    onMoveSelection(buildRotatedUpdates(selectedNodes, bounds, degrees, origin))
-    setRotationDraft('')
+    let updates: NodePositionUpdate[] = []
+    if (field === 'rotate' && amount !== 0) {
+      updates = buildRotatedUpdates(selectedNodes, bounds, amount, origin)
+    } else if (field === 'scaleX' && amount > 0 && amount !== 100) {
+      updates = buildScaledUpdates(
+        selectedNodes,
+        bounds,
+        amount / 100,
+        1,
+        origin
+      )
+    } else if (field === 'scaleY' && amount > 0 && amount !== 100) {
+      updates = buildScaledUpdates(
+        selectedNodes,
+        bounds,
+        1,
+        amount / 100,
+        origin
+      )
+    } else if (field === 'skewX' && amount !== 0) {
+      updates = buildSkewedUpdates(selectedNodes, bounds, amount, 0, origin)
+    } else if (field === 'skewY' && amount !== 0) {
+      updates = buildSkewedUpdates(selectedNodes, bounds, 0, amount, origin)
+    }
+
+    if (updates.length > 0) {
+      onMoveSelection(updates)
+    }
+    resetActionDraft(field)
+  }
+
+  const setActionDraft = (field: TransformActionField, value: string) => {
+    setActionDrafts((current) => ({ ...current, [field]: value }))
+  }
+
+  const stepAction = (field: TransformActionField, delta: number) => {
+    const fallbackValue = field === 'scaleX' || field === 'scaleY' ? '100' : '0'
+    const currentValue = actionDrafts[field] || fallbackValue
+    const nextValue = String(parseTransformNumber(currentValue) + delta)
+    setActionDraft(field, nextValue)
+    applyAction(field, nextValue)
   }
 
   const isDisabled = selectedNodes.length === 0
@@ -245,9 +324,7 @@ export function TransformCard({
                 >
                   {label}
                 </Text>
-                <Input
-                  size="sm"
-                  type="number"
+                <SteppedNumberInput
                   value={
                     focusedField === field ? draftValue : boundsValues[field]
                   }
@@ -256,15 +333,9 @@ export function TransformCard({
                     setFocusedField(field)
                     setDraftValue(boundsValues[field])
                   }}
-                  onChange={(event) =>
-                    handleFieldChange(field, event.target.value)
-                  }
+                  onChange={(event) => handleFieldChange(field, event)}
                   onBlur={() => handleFieldBlur(field)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.currentTarget.blur()
-                    }
-                  }}
+                  onStep={(delta) => stepField(field, delta)}
                 />
               </GridItem>
             ))}
@@ -274,50 +345,44 @@ export function TransformCard({
         <Divider borderColor="field.panelMuted" />
 
         <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
-          <GridItem>
-            <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              Rotate
-            </Text>
-            <HStack spacing={1}>
-              <Input
-                size="sm"
-                type="number"
-                placeholder="deg"
-                value={rotationDraft}
+          {(
+            [
+              ['rotate', 'Rotate', 'deg', 1],
+              ['scaleX', 'Scale X', '%', 1],
+              ['scaleY', 'Scale Y', '%', 1],
+              ['skewX', 'Skew X', 'deg', 1],
+              ['skewY', 'Skew Y', 'deg', 1],
+            ] as const
+          ).map(([field, label, placeholder, step]) => (
+            <GridItem key={field}>
+              <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
+                {label}
+              </Text>
+              <SteppedNumberInput
+                value={actionDrafts[field]}
+                placeholder={placeholder}
+                step={step}
                 isDisabled={isDisabled}
-                onChange={(event) => setRotationDraft(event.target.value)}
-                onBlur={() => applyRotation(rotationDraft)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.currentTarget.blur()
-                  }
-                }}
+                onChange={(value) => setActionDraft(field, value)}
+                onBlur={() => applyAction(field, actionDrafts[field])}
+                onStep={(delta) => stepAction(field, delta)}
               />
-              <Tooltip label="Rotate selection">
-                <IconButton
-                  aria-label="Rotate selection"
-                  icon={<RotateCameraRight width={16} height={16} />}
-                  size="sm"
-                  minW={8}
-                  isDisabled={isDisabled}
-                  onClick={() => applyRotation(rotationDraft || '90')}
-                />
-              </Tooltip>
-            </HStack>
-          </GridItem>
+            </GridItem>
+          ))}
           <GridItem>
             <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              Scale
+              Quick
             </Text>
-            <Button
-              size="sm"
-              variant="outline"
-              leftIcon={<ScaleFrameEnlarge width={16} height={16} />}
-              isDisabled
-              w="100%"
-            >
-              Percent
-            </Button>
+            <Tooltip label="Rotate 90 degrees">
+              <IconButton
+                aria-label="Rotate 90 degrees"
+                icon={<RotateCameraRight width={16} height={16} />}
+                size="sm"
+                w="100%"
+                isDisabled={isDisabled}
+                onClick={() => applyAction('rotate', '90')}
+              />
+            </Tooltip>
           </GridItem>
         </Grid>
 
@@ -399,6 +464,89 @@ export function TransformCard({
           </Grid>
         </Stack>
       </Stack>
+    </Box>
+  )
+}
+
+function SteppedNumberInput({
+  value,
+  placeholder,
+  isDisabled,
+  step = 1,
+  onChange,
+  onFocus,
+  onBlur,
+  onStep,
+}: SteppedNumberInputProps) {
+  const handleStep = (direction: 1 | -1) => {
+    onStep(step * direction)
+  }
+
+  return (
+    <Box position="relative">
+      <Input
+        size="sm"
+        type="number"
+        pr="24px"
+        step={step}
+        value={value}
+        placeholder={placeholder}
+        isDisabled={isDisabled}
+        onFocus={onFocus}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur()
+          }
+        }}
+      />
+      <Box
+        position="absolute"
+        top="1px"
+        right="1px"
+        bottom="1px"
+        w="20px"
+        display="grid"
+        gridTemplateRows="1fr 1fr"
+        borderLeft="1px solid"
+        borderColor="field.panelMuted"
+        pointerEvents={isDisabled ? 'none' : 'auto'}
+        opacity={isDisabled ? 0.35 : 1}
+      >
+        <Box
+          as="button"
+          type="button"
+          aria-label="Increment value"
+          fontSize="8px"
+          lineHeight="1"
+          color="field.muted"
+          borderTopRightRadius="3px"
+          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
+          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
+            event.preventDefault()
+          }
+          onClick={() => handleStep(1)}
+        >
+          ▲
+        </Box>
+        <Box
+          as="button"
+          type="button"
+          aria-label="Decrement value"
+          fontSize="8px"
+          lineHeight="1"
+          color="field.muted"
+          borderBottomRightRadius="3px"
+          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
+          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
+            event.preventDefault()
+          }
+          onClick={() => handleStep(-1)}
+        >
+          ▼
+        </Box>
+      </Box>
     </Box>
   )
 }

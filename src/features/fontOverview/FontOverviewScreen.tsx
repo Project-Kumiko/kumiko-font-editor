@@ -17,8 +17,8 @@ import {
   type OverviewGroupBy,
 } from '../../lib/glyphOverview'
 import { useStore } from '../../store'
-import { RightPanel } from '../common/glyphInspector/RightPanel'
 import { OverviewContent } from './OverviewContent'
+import { OverviewRightPanel } from './OverviewRightPanel'
 import { OverviewSidebar } from './OverviewSidebar'
 import { parseGlyphAdditionInput } from './glyphInput'
 
@@ -394,7 +394,7 @@ export function FontOverviewScreen() {
       </GridItem>
 
       <GridItem area="right" minW={0} minH={0}>
-        <RightPanel />
+        <OverviewRightPanel />
       </GridItem>
     </Grid>
   )

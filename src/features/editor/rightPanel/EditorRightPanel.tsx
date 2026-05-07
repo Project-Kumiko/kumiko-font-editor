@@ -9,17 +9,17 @@ import {
   Text,
   useDisclosure,
 } from '@chakra-ui/react'
-import { ExportFontModal } from '../fontExport/ExportFontModal'
-import { useFontExport } from '../fontExport/useFontExport'
-import { GitHubCommitModal } from './GitHubCommitModal'
-import { GlyphSummaryCard } from './GlyphSummaryCard'
+import { ExportFontModal } from '../../common/fontExport/ExportFontModal'
+import { useFontExport } from '../../common/fontExport/useFontExport'
+import { GitHubCommitModal } from '../../common/glyphInspector/GitHubCommitModal'
+import { GlyphSummaryCard } from '../../common/glyphInspector/GlyphSummaryCard'
+import { ProjectSaveCard } from '../../common/glyphInspector/ProjectSaveCard'
+import { useRightPanelModel } from '../../common/glyphInspector/useRightPanelModel'
 import { MetricsCard } from './MetricsCard'
 import { NodeInspectorCard } from './NodeInspectorCard'
-import { ProjectSaveCard } from './ProjectSaveCard'
 import { TransformCard } from './TransformCard'
-import { useRightPanelModel } from './useRightPanelModel'
 
-export function RightPanel() {
+export function EditorRightPanel() {
   const panel = useRightPanelModel()
   const exportModal = useDisclosure()
   const fontExport = useFontExport()

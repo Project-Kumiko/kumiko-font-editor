@@ -172,6 +172,32 @@ export const buildRotatedUpdates = (
   })
 }
 
+export const buildSkewedUpdates = (
+  nodes: SelectionNode[],
+  bounds: SelectionBounds,
+  skewXDegrees: number,
+  skewYDegrees: number,
+  origin: TransformOrigin = { x: 'center', y: 'middle' }
+): NodePositionUpdate[] => {
+  const skewX = Math.tan((skewXDegrees * Math.PI) / 180)
+  const skewY = Math.tan((skewYDegrees * Math.PI) / 180)
+  const { x: originX, y: originY } = getOriginPoint(bounds, origin)
+
+  return nodes.map((node) => {
+    const dx = node.x - originX
+    const dy = node.y - originY
+
+    return {
+      pathId: node.pathId,
+      nodeId: node.nodeId,
+      newPos: {
+        x: originX + dx + skewX * dy,
+        y: originY + dy + skewY * dx,
+      },
+    }
+  })
+}
+
 export const buildAlignUpdates = (
   nodes: SelectionNode[],
   bounds: SelectionBounds,
