@@ -19,16 +19,19 @@ import {
   AlignRightBox,
   AlignTopBox,
   AlignVerticalCenters,
-  ArrowUnion,
-  Divide,
   Flip,
   Intersect,
-  Mirror,
-  RotateCameraRight,
+  Cut,
+  Lock,
+  Refresh,
+  ScaleFrameEnlarge,
+  ScaleFrameReduce,
   Substract,
+  Union,
 } from 'iconoir-react'
-import { useMemo, useState, type MouseEvent } from 'react'
+import { useMemo, useState, type MouseEvent, type ReactElement } from 'react'
 import type { GlyphData } from '../../../store'
+import type { PathBooleanOperation } from '../../../lib/pathBooleanOperations'
 import {
   buildAlignUpdates,
   buildFieldCommitUpdates,
@@ -50,9 +53,12 @@ interface TransformCardProps {
   glyph: GlyphData | null
   selectedNodeIds: string[]
   onMoveSelection: (updates: NodePositionUpdate[]) => void
+  onPathOperation: (operation: PathBooleanOperation, pathIds: string[]) => void
 }
 
 type TransformActionField = 'rotate' | 'scaleX' | 'scaleY' | 'skewX' | 'skewY'
+type ScaleAxis = 'x' | 'y'
+type SkewAxis = 'x' | 'y'
 
 interface SteppedNumberInputProps {
   value: string
@@ -65,10 +71,54 @@ interface SteppedNumberInputProps {
   onStep: (delta: number) => void
 }
 
+interface ActionRowProps {
+  label: string
+  value: string
+  unit: string
+  isDisabled: boolean
+  leftLabel: string
+  rightLabel: string
+  leftIcon: ReactElement
+  rightIcon: ReactElement
+  onChange: (value: string) => void
+  onStep: (delta: number) => void
+  onLeft: () => void
+  onRight: () => void
+}
+
+interface ScaleActionGroupProps {
+  scaleX: string
+  scaleY: string
+  isDisabled: boolean
+  isScaleLocked: boolean
+  onScaleXChange: (value: string) => void
+  onScaleYChange: (value: string) => void
+  onScaleXStep: (delta: number) => void
+  onScaleYStep: (delta: number) => void
+  onScaleXDown: () => void
+  onScaleXUp: () => void
+  onScaleYDown: () => void
+  onScaleYUp: () => void
+  onToggleLock: () => void
+}
+
+interface ScaleActionLineProps {
+  label: string
+  value: string
+  isDisabled: boolean
+  leftLabel: string
+  rightLabel: string
+  onChange: (value: string) => void
+  onStep: (delta: number) => void
+  onLeft: () => void
+  onRight: () => void
+}
+
 export function TransformCard({
   glyph,
   selectedNodeIds,
   onMoveSelection,
+  onPathOperation,
 }: TransformCardProps) {
   const selectedNodes = useMemo(
     () => getSelectedNodes(glyph?.paths ?? [], selectedNodeIds),
@@ -78,20 +128,32 @@ export function TransformCard({
     () => getSelectionBounds(selectedNodes),
     [selectedNodes]
   )
+  const selectedClosedPathIds = useMemo(() => {
+    const selectedPathIds = new Set(
+      selectedNodeIds.flatMap((selectionKey) => {
+        const [pathId] = selectionKey.split(':')
+        return pathId ? [pathId] : []
+      })
+    )
+    return (glyph?.paths ?? [])
+      .filter((path) => selectedPathIds.has(path.id) && path.closed)
+      .map((path) => path.id)
+  }, [glyph?.paths, selectedNodeIds])
   const [focusedField, setFocusedField] = useState<TransformField | null>(null)
   const [draftValue, setDraftValue] = useState('')
   const [origin, setOrigin] = useState<TransformOrigin>({
     x: 'center',
     y: 'middle',
   })
+  const [isScaleLocked, setIsScaleLocked] = useState(true)
   const [actionDrafts, setActionDrafts] = useState<
     Record<TransformActionField, string>
   >({
-    rotate: '',
-    scaleX: '100',
-    scaleY: '100',
-    skewX: '',
-    skewY: '',
+    rotate: '15',
+    scaleX: '110',
+    scaleY: '110',
+    skewX: '10',
+    skewY: '10',
   })
   const boundsValues = useMemo(
     () => ({
@@ -157,64 +219,84 @@ export function TransformCard({
     onMoveSelection(buildAlignUpdates(selectedNodes, bounds, target))
   }
 
-  const resetActionDraft = (field: TransformActionField) => {
-    setActionDrafts((current) => ({
-      ...current,
-      [field]: field === 'scaleX' || field === 'scaleY' ? '100' : '',
-    }))
+  const applyRotationStep = (direction: 1 | -1) => {
+    if (!bounds || selectedNodes.length === 0) {
+      return
+    }
+
+    const amount = Number.parseFloat(actionDrafts.rotate)
+    if (!Number.isFinite(amount) || amount === 0) {
+      return
+    }
+
+    onMoveSelection(
+      buildRotatedUpdates(selectedNodes, bounds, amount * direction, origin)
+    )
   }
 
-  const applyAction = (field: TransformActionField, value: string) => {
-    if (!bounds || selectedNodes.length === 0 || value.trim() === '') {
+  const applyScaleStep = (axis: ScaleAxis, direction: 1 | -1) => {
+    if (!bounds || selectedNodes.length === 0) {
       return
     }
 
-    const amount = Number.parseFloat(value)
-    if (!Number.isFinite(amount)) {
+    const field = axis === 'x' ? 'scaleX' : 'scaleY'
+    const amount = Number.parseFloat(actionDrafts[field])
+    if (!Number.isFinite(amount) || amount <= 0 || amount === 100) {
       return
     }
 
-    let updates: NodePositionUpdate[] = []
-    if (field === 'rotate' && amount !== 0) {
-      updates = buildRotatedUpdates(selectedNodes, bounds, amount, origin)
-    } else if (field === 'scaleX' && amount > 0 && amount !== 100) {
-      updates = buildScaledUpdates(
-        selectedNodes,
-        bounds,
-        amount / 100,
-        1,
-        origin
-      )
-    } else if (field === 'scaleY' && amount > 0 && amount !== 100) {
-      updates = buildScaledUpdates(
-        selectedNodes,
-        bounds,
-        1,
-        amount / 100,
-        origin
-      )
-    } else if (field === 'skewX' && amount !== 0) {
-      updates = buildSkewedUpdates(selectedNodes, bounds, amount, 0, origin)
-    } else if (field === 'skewY' && amount !== 0) {
-      updates = buildSkewedUpdates(selectedNodes, bounds, 0, amount, origin)
+    const factor = direction === 1 ? amount / 100 : 100 / amount
+    const scaleX = isScaleLocked || axis === 'x' ? factor : 1
+    const scaleY = isScaleLocked || axis === 'y' ? factor : 1
+    onMoveSelection(
+      buildScaledUpdates(selectedNodes, bounds, scaleX, scaleY, origin)
+    )
+  }
+
+  const applySkewStep = (axis: SkewAxis, direction: 1 | -1) => {
+    if (!bounds || selectedNodes.length === 0) {
+      return
     }
 
-    if (updates.length > 0) {
-      onMoveSelection(updates)
+    const field = axis === 'x' ? 'skewX' : 'skewY'
+    const amount = Number.parseFloat(actionDrafts[field])
+    if (!Number.isFinite(amount) || amount === 0) {
+      return
     }
-    resetActionDraft(field)
+
+    onMoveSelection(
+      buildSkewedUpdates(
+        selectedNodes,
+        bounds,
+        axis === 'x' ? amount * direction : 0,
+        axis === 'y' ? amount * direction : 0,
+        origin
+      )
+    )
   }
 
   const setActionDraft = (field: TransformActionField, value: string) => {
     setActionDrafts((current) => ({ ...current, [field]: value }))
   }
 
-  const stepAction = (field: TransformActionField, delta: number) => {
-    const fallbackValue = field === 'scaleX' || field === 'scaleY' ? '100' : '0'
-    const currentValue = actionDrafts[field] || fallbackValue
-    const nextValue = String(parseTransformNumber(currentValue) + delta)
-    setActionDraft(field, nextValue)
-    applyAction(field, nextValue)
+  const stepActionDraft = (field: TransformActionField, delta: number) => {
+    setActionDrafts((current) => {
+      const fallback = field === 'scaleX' || field === 'scaleY' ? '100' : '0'
+      const nextValue = String(
+        parseTransformNumber(current[field] || fallback) + delta
+      )
+      if (isScaleLocked && (field === 'scaleX' || field === 'scaleY')) {
+        return {
+          ...current,
+          scaleX: nextValue,
+          scaleY: nextValue,
+        }
+      }
+      return {
+        ...current,
+        [field]: nextValue,
+      }
+    })
   }
 
   const isDisabled = selectedNodes.length === 0
@@ -238,11 +320,16 @@ export function TransformCard({
     },
     { icon: AlignBottomBox, label: 'Align bottom', target: 'bottom' },
   ]
-  const pathActions = [
-    { icon: ArrowUnion, label: 'Union' },
-    { icon: Substract, label: 'Subtract' },
-    { icon: Intersect, label: 'Intersect' },
-    { icon: Divide, label: 'Divide' },
+  const canApplyPathOps = selectedClosedPathIds.length >= 2
+  const pathActions: Array<{
+    icon: typeof Union
+    label: string
+    operation: PathBooleanOperation
+  }> = [
+    { icon: Union, label: 'Union', operation: 'union' },
+    { icon: Substract, label: 'Subtract', operation: 'subtract' },
+    { icon: Intersect, label: 'Intersect', operation: 'intersect' },
+    { icon: Cut, label: 'Divide', operation: 'divide' },
   ]
 
   return (
@@ -344,47 +431,77 @@ export function TransformCard({
 
         <Divider borderColor="field.panelMuted" />
 
-        <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3}>
-          {(
-            [
-              ['rotate', 'Rotate', 'deg', 1],
-              ['scaleX', 'Scale X', '%', 1],
-              ['scaleY', 'Scale Y', '%', 1],
-              ['skewX', 'Skew X', 'deg', 1],
-              ['skewY', 'Skew Y', 'deg', 1],
-            ] as const
-          ).map(([field, label, placeholder, step]) => (
-            <GridItem key={field}>
-              <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-                {label}
-              </Text>
-              <SteppedNumberInput
-                value={actionDrafts[field]}
-                placeholder={placeholder}
-                step={step}
-                isDisabled={isDisabled}
-                onChange={(value) => setActionDraft(field, value)}
-                onBlur={() => applyAction(field, actionDrafts[field])}
-                onStep={(delta) => stepAction(field, delta)}
+        <Stack spacing={3}>
+          <ScaleActionGroup
+            scaleX={actionDrafts.scaleX}
+            scaleY={actionDrafts.scaleY}
+            isDisabled={isDisabled}
+            isScaleLocked={isScaleLocked}
+            onScaleXChange={(value) => {
+              setActionDraft('scaleX', value)
+              if (isScaleLocked) setActionDraft('scaleY', value)
+            }}
+            onScaleYChange={(value) => {
+              setActionDraft('scaleY', value)
+              if (isScaleLocked) setActionDraft('scaleX', value)
+            }}
+            onScaleXStep={(delta) => stepActionDraft('scaleX', delta)}
+            onScaleYStep={(delta) => stepActionDraft('scaleY', delta)}
+            onScaleXDown={() => applyScaleStep('x', -1)}
+            onScaleXUp={() => applyScaleStep('x', 1)}
+            onScaleYDown={() => applyScaleStep('y', -1)}
+            onScaleYUp={() => applyScaleStep('y', 1)}
+            onToggleLock={() => setIsScaleLocked((current) => !current)}
+          />
+          <ActionRow
+            label="Rotate"
+            value={actionDrafts.rotate}
+            unit="deg"
+            isDisabled={isDisabled}
+            leftLabel="Rotate counterclockwise"
+            rightLabel="Rotate clockwise"
+            leftIcon={
+              <Refresh
+                width={16}
+                height={16}
+                style={{ transform: 'scaleX(-1)' }}
               />
-            </GridItem>
-          ))}
-          <GridItem>
-            <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              Quick
-            </Text>
-            <Tooltip label="Rotate 90 degrees">
-              <IconButton
-                aria-label="Rotate 90 degrees"
-                icon={<RotateCameraRight width={16} height={16} />}
-                size="sm"
-                w="100%"
-                isDisabled={isDisabled}
-                onClick={() => applyAction('rotate', '90')}
-              />
-            </Tooltip>
-          </GridItem>
-        </Grid>
+            }
+            rightIcon={<Refresh width={16} height={16} />}
+            onChange={(value) => setActionDraft('rotate', value)}
+            onStep={(delta) => stepActionDraft('rotate', delta)}
+            onLeft={() => applyRotationStep(-1)}
+            onRight={() => applyRotationStep(1)}
+          />
+          <ActionRow
+            label="Skew X"
+            value={actionDrafts.skewX}
+            unit="deg"
+            isDisabled={isDisabled}
+            leftLabel="Skew X negative"
+            rightLabel="Skew X positive"
+            leftIcon={<SkewIcon axis="x" direction={-1} />}
+            rightIcon={<SkewIcon axis="x" direction={1} />}
+            onChange={(value) => setActionDraft('skewX', value)}
+            onStep={(delta) => stepActionDraft('skewX', delta)}
+            onLeft={() => applySkewStep('x', -1)}
+            onRight={() => applySkewStep('x', 1)}
+          />
+          <ActionRow
+            label="Skew Y"
+            value={actionDrafts.skewY}
+            unit="deg"
+            isDisabled={isDisabled}
+            leftLabel="Skew Y negative"
+            rightLabel="Skew Y positive"
+            leftIcon={<SkewIcon axis="y" direction={1} />}
+            rightIcon={<SkewIcon axis="y" direction={-1} />}
+            onChange={(value) => setActionDraft('skewY', value)}
+            onStep={(delta) => stepActionDraft('skewY', delta)}
+            onLeft={() => applySkewStep('y', -1)}
+            onRight={() => applySkewStep('y', 1)}
+          />
+        </Stack>
 
         <Divider borderColor="field.panelMuted" />
 
@@ -397,7 +514,9 @@ export function TransformCard({
               <Button
                 size="sm"
                 variant="outline"
-                leftIcon={<Mirror width={16} height={16} />}
+                leftIcon={
+                  <Flip width={16} height={16} transform="rotate(-90)" />
+                }
                 isDisabled={isDisabled}
                 onClick={() => applyMirror('x')}
               >
@@ -446,18 +565,23 @@ export function TransformCard({
               Path ops
             </Text>
             <Text fontSize="10px" color="field.muted" fontFamily="mono">
-              contour tools next
+              {canApplyPathOps
+                ? `${selectedClosedPathIds.length} paths`
+                : 'select 2 closed paths'}
             </Text>
           </HStack>
           <Grid templateColumns="repeat(4, minmax(0, 1fr))" gap={2}>
-            {pathActions.map(({ icon: Icon, label }) => (
+            {pathActions.map(({ icon: Icon, label, operation }) => (
               <Tooltip key={label} label={label}>
                 <IconButton
                   aria-label={label}
                   icon={<Icon width={16} height={16} />}
                   size="sm"
                   variant="outline"
-                  isDisabled
+                  isDisabled={!canApplyPathOps}
+                  onClick={() =>
+                    onPathOperation(operation, selectedClosedPathIds)
+                  }
                 />
               </Tooltip>
             ))}
@@ -465,6 +589,298 @@ export function TransformCard({
         </Stack>
       </Stack>
     </Box>
+  )
+}
+
+function ActionRow({
+  label,
+  value,
+  unit,
+  isDisabled,
+  leftLabel,
+  rightLabel,
+  leftIcon,
+  rightIcon,
+  onChange,
+  onStep,
+  onLeft,
+  onRight,
+}: ActionRowProps) {
+  return (
+    <Box>
+      <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
+        {label}
+      </Text>
+      <Grid templateColumns="32px 88px 32px" gap={1} justifyContent="center">
+        <Tooltip label={leftLabel}>
+          <IconButton
+            aria-label={leftLabel}
+            icon={leftIcon}
+            size="sm"
+            minW="32px"
+            variant="outline"
+            isDisabled={isDisabled}
+            onClick={onLeft}
+          />
+        </Tooltip>
+        <ActionValueInput
+          value={value}
+          unit={unit}
+          isDisabled={isDisabled}
+          onChange={onChange}
+          onStep={onStep}
+        />
+        <Tooltip label={rightLabel}>
+          <IconButton
+            aria-label={rightLabel}
+            icon={rightIcon}
+            size="sm"
+            minW="32px"
+            variant="outline"
+            isDisabled={isDisabled}
+            onClick={onRight}
+          />
+        </Tooltip>
+      </Grid>
+    </Box>
+  )
+}
+
+function ScaleActionGroup({
+  scaleX,
+  scaleY,
+  isDisabled,
+  isScaleLocked,
+  onScaleXChange,
+  onScaleYChange,
+  onScaleXStep,
+  onScaleYStep,
+  onScaleXDown,
+  onScaleXUp,
+  onScaleYDown,
+  onScaleYUp,
+  onToggleLock,
+}: ScaleActionGroupProps) {
+  const isScaleYDisabled = isDisabled || isScaleLocked
+
+  return (
+    <Box position="relative">
+      <Stack spacing={2}>
+        <ScaleActionLine
+          label="Scale X"
+          value={scaleX}
+          isDisabled={isDisabled}
+          leftLabel="Scale down X"
+          rightLabel="Scale up X"
+          onChange={onScaleXChange}
+          onStep={onScaleXStep}
+          onLeft={onScaleXDown}
+          onRight={onScaleXUp}
+        />
+        <ScaleActionLine
+          label="Scale Y"
+          value={scaleY}
+          isDisabled={isScaleYDisabled}
+          leftLabel="Scale down Y"
+          rightLabel="Scale up Y"
+          onChange={onScaleYChange}
+          onStep={onScaleYStep}
+          onLeft={onScaleYDown}
+          onRight={onScaleYUp}
+        />
+      </Stack>
+      <Tooltip
+        label={
+          isScaleLocked
+            ? 'Unlock proportional scale'
+            : 'Lock proportional scale'
+        }
+      >
+        <IconButton
+          aria-label={
+            isScaleLocked
+              ? 'Unlock proportional scale'
+              : 'Lock proportional scale'
+          }
+          icon={<Lock width={16} height={16} />}
+          position="absolute"
+          right="0"
+          top="50%"
+          size="sm"
+          minW="32px"
+          variant={isScaleLocked ? 'solid' : 'outline'}
+          isDisabled={isDisabled}
+          onClick={onToggleLock}
+        />
+      </Tooltip>
+    </Box>
+  )
+}
+
+function ScaleActionLine({
+  label,
+  value,
+  isDisabled,
+  leftLabel,
+  rightLabel,
+  onChange,
+  onStep,
+  onLeft,
+  onRight,
+}: ScaleActionLineProps) {
+  return (
+    <Box>
+      <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
+        {label}
+      </Text>
+      <Grid templateColumns="32px 88px 32px" gap={1} justifyContent="center">
+        <Tooltip label={leftLabel}>
+          <IconButton
+            aria-label={leftLabel}
+            icon={<ScaleFrameReduce width={16} height={16} />}
+            size="sm"
+            minW="32px"
+            variant="outline"
+            isDisabled={isDisabled}
+            onClick={onLeft}
+          />
+        </Tooltip>
+        <ActionValueInput
+          value={value}
+          unit="%"
+          isDisabled={isDisabled}
+          onChange={onChange}
+          onStep={onStep}
+        />
+        <Tooltip label={rightLabel}>
+          <IconButton
+            aria-label={rightLabel}
+            icon={<ScaleFrameEnlarge width={16} height={16} />}
+            size="sm"
+            minW="32px"
+            variant="outline"
+            isDisabled={isDisabled}
+            onClick={onRight}
+          />
+        </Tooltip>
+      </Grid>
+    </Box>
+  )
+}
+
+function ActionValueInput({
+  value,
+  unit,
+  isDisabled,
+  onChange,
+  onStep,
+}: {
+  value: string
+  unit: string
+  isDisabled: boolean
+  onChange: (value: string) => void
+  onStep: (delta: number) => void
+}) {
+  const handleStep = (direction: 1 | -1) => {
+    onStep(direction)
+  }
+
+  return (
+    <Box position="relative">
+      <Input
+        size="sm"
+        type="number"
+        textAlign="center"
+        pr="42px"
+        value={value}
+        isDisabled={isDisabled}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur()
+          }
+        }}
+      />
+      <Text
+        position="absolute"
+        top="50%"
+        right="25px"
+        transform="translateY(-50%)"
+        fontSize="10px"
+        color="field.muted"
+        pointerEvents="none"
+      >
+        {unit}
+      </Text>
+      <Box
+        position="absolute"
+        top="1px"
+        right="1px"
+        bottom="1px"
+        w="18px"
+        display="grid"
+        gridTemplateRows="1fr 1fr"
+        borderLeft="1px solid"
+        borderColor="field.panelMuted"
+        pointerEvents={isDisabled ? 'none' : 'auto'}
+        opacity={isDisabled ? 0.35 : 1}
+      >
+        <Box
+          as="button"
+          type="button"
+          aria-label="Increment action value"
+          fontSize="7px"
+          lineHeight="1"
+          color="field.muted"
+          borderTopRightRadius="3px"
+          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
+          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
+            event.preventDefault()
+          }
+          onClick={() => handleStep(1)}
+        >
+          ▲
+        </Box>
+        <Box
+          as="button"
+          type="button"
+          aria-label="Decrement action value"
+          fontSize="7px"
+          lineHeight="1"
+          color="field.muted"
+          borderBottomRightRadius="3px"
+          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
+          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
+            event.preventDefault()
+          }
+          onClick={() => handleStep(-1)}
+        >
+          ▼
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
+function SkewIcon({ axis, direction }: { axis: SkewAxis; direction: 1 | -1 }) {
+  const rotation = axis === 'y' ? 90 : 0
+  const scale = direction === -1 ? -1 : 1
+
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 1 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ transform: `rotate(${rotation}deg) scaleX(${scale})` }}
+      aria-hidden="true"
+    >
+      <path d="M5.5 3.5h6l-3 9h-6l3-9Z" />
+    </svg>
   )
 }
 

@@ -85,6 +85,7 @@ export function EditorRightPanel() {
                     glyph={panel.glyph}
                     selectedNodeIds={panel.selectedNodeIds}
                     onMoveSelection={panel.handleMoveSelection}
+                    onPathOperation={panel.handlePathOperation}
                   />
 
                   <ProjectSaveCard

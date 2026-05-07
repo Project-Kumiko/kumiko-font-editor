@@ -2,6 +2,7 @@ import type {
   ProjectRoundTripFormat,
   ProjectSourceFormat,
 } from '../lib/projectFormats'
+import type { PathBooleanOperation } from '../lib/pathBooleanOperations'
 
 export type NodeType = 'corner' | 'smooth' | 'offcurve' | 'qcurve'
 
@@ -224,6 +225,11 @@ export interface GlobalState {
   reconnectSelectedNodes: (
     glyphId: string,
     selectedNodeIds: string[]
+  ) => string[]
+  applyPathBooleanOperation: (
+    glyphId: string,
+    pathIds: string[],
+    operation: PathBooleanOperation
   ) => string[]
   convertLineSegmentToCurve: (
     glyphId: string,

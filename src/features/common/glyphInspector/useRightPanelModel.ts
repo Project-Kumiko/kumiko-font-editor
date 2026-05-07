@@ -12,6 +12,7 @@ import {
   useStore,
   type NodeType,
 } from '../../../store'
+import type { PathBooleanOperation } from '../../../lib/pathBooleanOperations'
 import { useGitHubCommitFlow } from './useGitHubCommitFlow'
 import { parseNumberInput, parseSelectedNode } from './utils'
 
@@ -36,6 +37,9 @@ export function useRightPanelModel() {
   const updateNodePositions = useStore((state) => state.updateNodePositions)
   const updateNodeType = useStore((state) => state.updateNodeType)
   const updateGlyphMetrics = useStore((state) => state.updateGlyphMetrics)
+  const applyPathBooleanOperation = useStore(
+    (state) => state.applyPathBooleanOperation
+  )
   const convertLineSegmentToCurve = useStore(
     (state) => state.convertLineSegmentToCurve
   )
@@ -164,6 +168,17 @@ export function useRightPanelModel() {
     updateNodePositions(glyph.id, updates)
   }
 
+  const handlePathOperation = (
+    operation: PathBooleanOperation,
+    pathIds: string[]
+  ) => {
+    if (!glyph || pathIds.length < 2) {
+      return
+    }
+
+    applyPathBooleanOperation(glyph.id, pathIds, operation)
+  }
+
   const handleDeleteGlyph = () => {
     if (!glyph) {
       return
@@ -240,6 +255,7 @@ export function useRightPanelModel() {
     handleMetricsChange,
     handleMoveSelection,
     handleNodeTypeChange,
+    handlePathOperation,
     handleSaveProject,
     setSelectedLayerId,
     setWorkspaceView,

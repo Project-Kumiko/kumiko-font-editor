@@ -3,6 +3,10 @@
  * connect/reconnect open paths, convert segments.
  */
 import type { StateCreator } from 'zustand'
+import {
+  buildBooleanOperationPaths,
+  type PathBooleanOperation,
+} from '../../lib/pathBooleanOperations'
 import type { GlobalState, PathData, PathNode } from '../types'
 import {
   findPath,
@@ -306,6 +310,53 @@ export const buildPathActions = (set: ImmerSet) => ({
       }
 
       nextSelection = Array.from(new Set(selectedAfterReconnect))
+      state.selectedNodeIds = nextSelection
+      state.selectedSegment = null
+      markGlyphDirty(state, glyphId)
+    })
+
+    return nextSelection
+  },
+
+  applyPathBooleanOperation: (
+    glyphId: string,
+    pathIds: string[],
+    operation: PathBooleanOperation
+  ) => {
+    let nextSelection: string[] = []
+
+    set((state) => {
+      const glyph = state.fontData?.glyphs[glyphId]
+      const selectedPathIds = Array.from(new Set(pathIds))
+      if (!glyph || selectedPathIds.length < 2) {
+        return
+      }
+
+      const selectedPaths = selectedPathIds.flatMap((pathId) => {
+        const path = findPath(glyph, pathId)
+        return path?.closed ? [path] : []
+      })
+      if (selectedPaths.length < 2) {
+        return
+      }
+
+      const resultPaths = buildBooleanOperationPaths(selectedPaths, operation)
+      if (resultPaths.length === 0) {
+        return
+      }
+
+      const selectedPathIdSet = new Set(selectedPathIds)
+      const firstSelectedPathIndex = glyph.paths.findIndex((path) =>
+        selectedPathIdSet.has(path.id)
+      )
+      glyph.paths = glyph.paths.filter(
+        (path) => !selectedPathIdSet.has(path.id)
+      )
+      glyph.paths.splice(Math.max(0, firstSelectedPathIndex), 0, ...resultPaths)
+
+      nextSelection = resultPaths.flatMap((path) =>
+        path.nodes.map((node) => `${path.id}:${node.id}`)
+      )
       state.selectedNodeIds = nextSelection
       state.selectedSegment = null
       markGlyphDirty(state, glyphId)
