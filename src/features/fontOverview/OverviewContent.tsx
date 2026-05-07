@@ -1,4 +1,12 @@
-import { Box, Heading, HStack, Stack, Tag, Text } from '@chakra-ui/react'
+import {
+  Box,
+  Button,
+  Heading,
+  HStack,
+  Stack,
+  Tag,
+  Text,
+} from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from 'react'
 import {
   VirtuosoGrid,
@@ -28,6 +36,7 @@ interface OverviewContentProps {
   topGlyphId: string | null
   visibleSections: OverviewSection[]
   onEnterEditor: (glyphId: string) => void
+  onOpenAddGlyphModal: () => void
   onGridStateChange: (state: GridStateSnapshot) => void
   onRangeChange: (range: ListRange) => void
   onSelectGlyph: (glyphId: string, event: MouseEvent) => void
@@ -42,6 +51,7 @@ export function OverviewContent({
   topGlyphId,
   visibleSections,
   onEnterEditor,
+  onOpenAddGlyphModal,
   onGridStateChange,
   onRangeChange,
   onSelectGlyph,
@@ -131,28 +141,38 @@ export function OverviewContent({
       backgroundRepeat="repeat"
     >
       <Stack spacing={5}>
-        <Box>
-          <Text
-            fontSize="10px"
-            color="field.muted"
-            fontFamily="mono"
-            fontWeight="900"
-            letterSpacing="0.16em"
+        <HStack justify="space-between" align="flex-start" spacing={4}>
+          <Box>
+            <Text
+              fontSize="10px"
+              color="field.muted"
+              fontFamily="mono"
+              fontWeight="900"
+              letterSpacing="0.16em"
+            >
+              GLYPH INDEX / TOTAL FIELD
+            </Text>
+            <Heading
+              color="field.ink"
+              fontSize="52px"
+              lineHeight="0.86"
+              letterSpacing="0"
+            >
+              字符總覽
+            </Heading>
+            <Text fontSize="sm" color="field.muted" mt={2}>
+              單擊查看資訊，雙擊進入字符編輯器
+            </Text>
+          </Box>
+          <Button
+            size="sm"
+            variant="outline"
+            flexShrink={0}
+            onClick={onOpenAddGlyphModal}
           >
-            GLYPH INDEX / TOTAL FIELD
-          </Text>
-          <Heading
-            color="field.ink"
-            fontSize="52px"
-            lineHeight="0.86"
-            letterSpacing="0"
-          >
-            字符總覽
-          </Heading>
-          <Text fontSize="sm" color="field.muted" mt={2}>
-            單擊查看資訊，雙擊進入字符編輯器
-          </Text>
-        </Box>
+            ＋ 新增字符
+          </Button>
+        </HStack>
 
         {visibleSections.length === 0 ? (
           <Box p={10} bg="field.panel" borderRadius="sm">

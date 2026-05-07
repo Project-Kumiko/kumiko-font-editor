@@ -1,4 +1,4 @@
-import { extendTheme, type ThemeConfig } from '@chakra-ui/react'
+import { extendTheme, Tabs, type ThemeConfig } from '@chakra-ui/react'
 
 const config: ThemeConfig = {
   initialColorMode: 'light',
@@ -201,14 +201,18 @@ const components = {
     variants: {
       enclosed: {
         tab: {
-          borderRadius: '2px 2px 0 0',
+          borderRadius: 'full',
           borderColor: 'transparent',
           fontWeight: 900,
+          border: 'none',
           _selected: {
             color: 'field.ink',
             bg: 'field.yellow.400',
             borderColor: 'field.line',
           },
+        },
+        tablist: {
+          borderBottom: 'none',
         },
       },
     },

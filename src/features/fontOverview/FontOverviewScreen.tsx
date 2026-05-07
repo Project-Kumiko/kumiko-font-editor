@@ -18,6 +18,7 @@ import {
 } from 'src/lib/glyphOverview'
 import { saveDraftSnapshot } from 'src/lib/draftSave'
 import { useStore } from 'src/store'
+import { AddGlyphModal } from 'src/features/fontOverview/AddGlyphModal'
 import { OverviewContent } from 'src/features/fontOverview/OverviewContent'
 import { OverviewRightPanel } from 'src/features/fontOverview/OverviewRightPanel'
 import { OverviewSidebar } from 'src/features/fontOverview/OverviewSidebar'
@@ -149,6 +150,10 @@ export function FontOverviewScreen() {
   const selectedGlyph =
     overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
   const glyphMap = useMemo(() => fontData?.glyphs ?? {}, [fontData?.glyphs])
+  const existingGlyphIds = useMemo(
+    () => new Set(Object.keys(glyphMap)),
+    [glyphMap]
+  )
   const overviewSelectedGlyphIdSet = useMemo(() => {
     const selectedGlyphIds = new Set(overviewSelectedGlyphIds)
     if (selectedGlyphId) {
@@ -187,8 +192,8 @@ export function FontOverviewScreen() {
     const candidates = parseGlyphAdditionInput(glyphInputValue)
     if (candidates.length === 0) {
       toast({
-        title: '沒有可新增的字符',
-        description: '請輸入字符本身，或用空白分隔的 uniXXXX。',
+        title: '沒有可新增的 glyph',
+        description: '請輸入字符、glyph name、recipe 或 unicode 範圍。',
         status: 'warning',
         duration: 2200,
         isClosable: true,
@@ -196,7 +201,6 @@ export function FontOverviewScreen() {
       return
     }
 
-    const existingGlyphIds = new Set(Object.keys(glyphMap))
     const missingCandidates = candidates.filter(
       (candidate) => !existingGlyphIds.has(candidate.id)
     )
@@ -223,6 +227,15 @@ export function FontOverviewScreen() {
       duration: 2600,
       isClosable: true,
     })
+  }
+
+  const handleCloseAddGlyphModal = () => {
+    setGlyphInputValue('')
+    setIsAddingGlyphs(false)
+  }
+
+  const handleOpenAddGlyphModal = () => {
+    setIsAddingGlyphs(true)
   }
 
   const handleCloseProject = useCallback(async () => {
@@ -430,58 +443,61 @@ export function FontOverviewScreen() {
   )
 
   return (
-    <Grid
-      templateColumns="280px minmax(0, 1fr) 320px"
-      templateAreas={`"left center right"`}
-      h="100vh"
-      w="100vw"
-      overflow="hidden"
-      bg="field.paper"
-    >
-      <GridItem area="left" minW={0} minH={0}>
-        <OverviewSidebar
-          currentSearchQuery={currentSearchQuery}
-          glyphInputValue={glyphInputValue}
-          isAddingGlyphs={isAddingGlyphs}
-          overviewGlyphCount={overviewGlyphs.length}
-          projectTitle={projectTitle}
-          selectedSectionId={selectedSectionId}
-          showOnlyEmptyGlyphs={showOnlyEmptyGlyphs}
-          isClosingProject={isClosingProject}
-          treeNodes={treeNodes}
-          onCancelAddGlyphs={() => {
-            setGlyphInputValue('')
-            setIsAddingGlyphs(false)
-          }}
-          onCloseProject={handleCloseProject}
-          onGlyphInputChange={setGlyphInputValue}
-          onGlyphInputSubmit={handleAddGlyphs}
-          onSearchQueryChange={setSearchQuery}
-          onSectionSelect={handleSectionSelect}
-          onShowOnlyEmptyGlyphsChange={setShowOnlyEmptyGlyphs}
-          onToggleAddGlyphs={() => setIsAddingGlyphs(true)}
-        />
-      </GridItem>
+    <>
+      <Grid
+        templateColumns="280px minmax(0, 1fr) 320px"
+        templateAreas={`"left center right"`}
+        h="100vh"
+        w="100vw"
+        overflow="hidden"
+        bg="field.paper"
+      >
+        <GridItem area="left" minW={0} minH={0}>
+          <OverviewSidebar
+            currentSearchQuery={currentSearchQuery}
+            overviewGlyphCount={overviewGlyphs.length}
+            projectTitle={projectTitle}
+            selectedSectionId={selectedSectionId}
+            showOnlyEmptyGlyphs={showOnlyEmptyGlyphs}
+            isClosingProject={isClosingProject}
+            treeNodes={treeNodes}
+            onCloseProject={handleCloseProject}
+            onSearchQueryChange={setSearchQuery}
+            onSectionSelect={handleSectionSelect}
+            onShowOnlyEmptyGlyphsChange={setShowOnlyEmptyGlyphs}
+          />
+        </GridItem>
 
-      <GridItem area="center" minW={0} minH={0}>
-        <OverviewContent
-          activeSection={activeSection}
-          glyphMap={glyphMap}
-          gridRef={gridRef}
-          restoreSnapshot={overviewGridState}
-          selectedGlyphIds={overviewSelectedGlyphIdSet}
-          topGlyphId={overviewTopGlyphId}
-          visibleSections={visibleSections}
-          onEnterEditor={handleEnterEditor}
-          onGridStateChange={handleGridStateChange}
-          onRangeChange={handleGridRangeChange}
-          onSelectGlyph={handleOverviewGlyphSelect}
-        />
-      </GridItem>
+        <GridItem area="center" minW={0} minH={0}>
+          <OverviewContent
+            activeSection={activeSection}
+            glyphMap={glyphMap}
+            gridRef={gridRef}
+            restoreSnapshot={overviewGridState}
+            selectedGlyphIds={overviewSelectedGlyphIdSet}
+            topGlyphId={overviewTopGlyphId}
+            visibleSections={visibleSections}
+            onEnterEditor={handleEnterEditor}
+            onOpenAddGlyphModal={handleOpenAddGlyphModal}
+            onGridStateChange={handleGridStateChange}
+            onRangeChange={handleGridRangeChange}
+            onSelectGlyph={handleOverviewGlyphSelect}
+          />
+        </GridItem>
 
-      <GridItem area="right" minW={0} minH={0}>
-        <OverviewRightPanel />
-      </GridItem>
-    </Grid>
+        <GridItem area="right" minW={0} minH={0}>
+          <OverviewRightPanel />
+        </GridItem>
+      </Grid>
+
+      <AddGlyphModal
+        existingGlyphIds={existingGlyphIds}
+        inputValue={glyphInputValue}
+        isOpen={isAddingGlyphs}
+        onClose={handleCloseAddGlyphModal}
+        onInputChange={setGlyphInputValue}
+        onSubmit={handleAddGlyphs}
+      />
+    </>
   )
 }

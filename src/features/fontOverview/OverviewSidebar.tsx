@@ -6,7 +6,6 @@ import {
   Heading,
   HStack,
   Input,
-  Stack,
   Tag,
   Text,
   VStack,
@@ -16,42 +15,30 @@ import { OverviewTreeNav } from 'src/features/fontOverview/OverviewTreeNav'
 
 interface OverviewSidebarProps {
   currentSearchQuery: string
-  glyphInputValue: string
-  isAddingGlyphs: boolean
   isClosingProject: boolean
   overviewGlyphCount: number
   projectTitle: string
   selectedSectionId: string
   showOnlyEmptyGlyphs: boolean
   treeNodes: GlyphOverviewTreeNode[]
-  onCancelAddGlyphs: () => void
   onCloseProject: () => void
-  onGlyphInputChange: (value: string) => void
-  onGlyphInputSubmit: () => void
   onSearchQueryChange: (value: string) => void
   onSectionSelect: (sectionId: string) => void
   onShowOnlyEmptyGlyphsChange: (value: boolean) => void
-  onToggleAddGlyphs: () => void
 }
 
 export function OverviewSidebar({
   currentSearchQuery,
-  glyphInputValue,
-  isAddingGlyphs,
   isClosingProject,
   overviewGlyphCount,
   projectTitle,
   selectedSectionId,
   showOnlyEmptyGlyphs,
   treeNodes,
-  onCancelAddGlyphs,
   onCloseProject,
-  onGlyphInputChange,
-  onGlyphInputSubmit,
   onSearchQueryChange,
   onSectionSelect,
   onShowOnlyEmptyGlyphsChange,
-  onToggleAddGlyphs,
 }: OverviewSidebarProps) {
   return (
     <Box
@@ -99,44 +86,6 @@ export function OverviewSidebar({
             ⬅︎ 首頁
           </Button>
         </HStack>
-
-        <Box>
-          {!isAddingGlyphs ? (
-            <Button
-              size="sm"
-              variant="outline"
-              width="full"
-              onClick={onToggleAddGlyphs}
-            >
-              ＋ 新增字符
-            </Button>
-          ) : (
-            <Stack spacing={2}>
-              <Input
-                placeholder="輸入字符或 uni8655 uni8656"
-                value={glyphInputValue}
-                onChange={(event) => onGlyphInputChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    onGlyphInputSubmit()
-                  } else if (event.key === 'Escape') {
-                    event.preventDefault()
-                    onCancelAddGlyphs()
-                  }
-                }}
-              />
-              <HStack>
-                <Button size="sm" flex={1} onClick={onGlyphInputSubmit}>
-                  新增
-                </Button>
-                <Button size="sm" variant="ghost" onClick={onCancelAddGlyphs}>
-                  取消
-                </Button>
-              </HStack>
-            </Stack>
-          )}
-        </Box>
 
         <Input
           placeholder="搜尋字符、glyph name 或 unicode"
