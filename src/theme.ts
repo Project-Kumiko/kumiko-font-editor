@@ -105,6 +105,9 @@ const components = {
           bg: 'field.panelMuted',
           color: 'field.ink',
         },
+        _disabled: {
+          pointerEvents: 'none',
+        },
       },
     },
     sizes: {

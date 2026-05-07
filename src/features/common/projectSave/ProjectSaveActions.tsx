@@ -1,5 +1,5 @@
 import { Box, HStack, IconButton, Tooltip } from '@chakra-ui/react'
-import { Check, Download, FloppyDisk, GithubCircle } from 'iconoir-react'
+import { Check, Download, FloppyDisk, Github } from 'iconoir-react'
 
 interface ProjectSaveActionsProps {
   canSaveDraft: boolean
@@ -27,7 +27,7 @@ export function ProjectSaveActions({
       alignSelf="flex-end"
       px={2}
       py={1}
-      bg="field.yellow.400"
+      bg="field.panelMuted"
       borderRadius="full"
     >
       {hasGitHubSource ? (
@@ -35,7 +35,7 @@ export function ProjectSaveActions({
           <IconButton
             aria-label="開啟 GitHub commit modal"
             icon={
-              <GithubCircle
+              <Github
                 width={18}
                 height={18}
                 strokeWidth={1.9}
