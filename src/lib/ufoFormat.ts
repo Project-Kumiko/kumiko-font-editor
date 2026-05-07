@@ -8,6 +8,18 @@ import type {
 import type { ProjectSourceFormat } from 'src/lib/projectFormats'
 import { hashString } from 'src/lib/hash'
 import {
+  buildUfoLibFromFontData,
+  defaultFontSource,
+  fontInfoFromUfoFontInfo,
+  fontInfoToUfoFontInfo,
+  fontAxesFromLib,
+  fontSourcesFromLib,
+  openTypeFeaturesFromUfo,
+  exportInstancesFromLib,
+  statusDefinitionsFromLib,
+  settingsFromLib,
+} from 'src/lib/fontInfoSettings'
+import {
   deleteUfoGlyphBatch,
   makeUfoGlyphKey,
   listDirtyUfoGlyphs,
@@ -683,6 +695,7 @@ const buildFontDataFromUfoGlyphs = (
 ): FontData => {
   const resolveBounds = buildBoundsResolver(glyphRecords)
 
+  const axes = fontAxesFromLib(metadata.lib)
   return {
     glyphs: Object.fromEntries(
       glyphRecords.map((record) => {
@@ -743,6 +756,21 @@ const buildFontDataFromUfoGlyphs = (
         ]
       })
     ),
+    fontInfo: fontInfoFromUfoFontInfo(metadata.fontinfo),
+    axes,
+    sources: fontSourcesFromLib(metadata.lib) ?? {
+      [metadata.ufoId]: defaultFontSource(
+        metadata.ufoId,
+        typeof metadata.fontinfo?.styleName === 'string'
+          ? metadata.fontinfo.styleName
+          : 'Regular',
+        { lineMetricsHorizontalLayout: buildLineMetrics(metadata.fontinfo) }
+      ),
+    },
+    features: openTypeFeaturesFromUfo(metadata.featuresText),
+    exportInstances: exportInstancesFromLib(metadata.lib) ?? [],
+    statusDefinitions: statusDefinitionsFromLib(metadata.lib) ?? [],
+    settings: settingsFromLib(metadata.lib, axes),
     unitsPerEm: getUnitsPerEm(metadata.fontinfo),
     lineMetricsHorizontalLayout: buildLineMetrics(metadata.fontinfo),
   }
@@ -1046,7 +1074,6 @@ export const syncHotFontDataToUfoRecords = async (input: {
   const metadata = await loadUfoMetadata(input.projectId, input.activeUfoId)
   const nextContents = { ...(metadata?.contents ?? {}) }
   const nextGlyphOrder = [...(metadata?.glyphOrder ?? [])]
-  let didUpdateMetadata = false
   const deletedKeys: Array<[string, string, string, string]> = []
   const deletedFilePaths: string[] = []
 
@@ -1063,12 +1090,10 @@ export const syncHotFontDataToUfoRecords = async (input: {
     }
     if (nextContents[glyphId]) {
       delete nextContents[glyphId]
-      didUpdateMetadata = true
     }
     const glyphOrderIndex = nextGlyphOrder.indexOf(glyphId)
     if (glyphOrderIndex >= 0) {
       nextGlyphOrder.splice(glyphOrderIndex, 1)
-      didUpdateMetadata = true
     }
     for (const layer of metadata?.layers ?? [
       { layerId: input.activeLayerId, glyphDir: 'glyphs' },
@@ -1100,11 +1125,9 @@ export const syncHotFontDataToUfoRecords = async (input: {
     const nextFileName = existingRecord?.fileName ?? `${glyph.id}.glif`
     if (!nextContents[glyph.id]) {
       nextContents[glyph.id] = nextFileName
-      didUpdateMetadata = true
     }
     if (!nextGlyphOrder.includes(glyph.id)) {
       nextGlyphOrder.push(glyph.id)
-      didUpdateMetadata = true
     }
     records.push({
       projectId: input.projectId,
@@ -1158,11 +1181,47 @@ export const syncHotFontDataToUfoRecords = async (input: {
     await deleteUfoGlyphBatch(deletedKeys)
   }
 
-  if (metadata && didUpdateMetadata) {
+  if (metadata) {
+    const nextFontInfo = {
+      ...(metadata.fontinfo ?? {}),
+      ...fontInfoToUfoFontInfo(
+        input.fontData.fontInfo,
+        typeof metadata.fontinfo?.familyName === 'string'
+          ? metadata.fontinfo.familyName
+          : input.projectId,
+        input.fontData.unitsPerEm ?? 1000
+      ),
+      ...(input.fontData.lineMetricsHorizontalLayout?.ascender
+        ? {
+            ascender: input.fontData.lineMetricsHorizontalLayout.ascender.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.descender
+        ? {
+            descender:
+              input.fontData.lineMetricsHorizontalLayout.descender.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.xHeight
+        ? {
+            xHeight: input.fontData.lineMetricsHorizontalLayout.xHeight.value,
+          }
+        : {}),
+      ...(input.fontData.lineMetricsHorizontalLayout?.capHeight
+        ? {
+            capHeight:
+              input.fontData.lineMetricsHorizontalLayout.capHeight.value,
+          }
+        : {}),
+    }
+
     await saveUfoMetadata({
       ...metadata,
       contents: nextContents,
+      featuresText: input.fontData.features?.text ?? metadata.featuresText,
+      fontinfo: nextFontInfo,
       glyphOrder: nextGlyphOrder,
+      lib: buildUfoLibFromFontData(input.fontData, metadata.lib),
       updatedAt: timestamp,
     })
   }

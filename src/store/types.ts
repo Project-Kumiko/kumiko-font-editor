@@ -85,6 +85,13 @@ export interface GlyphData {
 
 export interface FontData {
   glyphs: Record<string, GlyphData>
+  fontInfo?: FontInfo
+  axes?: FontAxes
+  sources?: Record<string, FontSource>
+  features?: OpenTypeFeatures
+  exportInstances?: FontExportInstance[]
+  statusDefinitions?: DevelopmentStatusDefinition[]
+  settings?: FontProjectSettings
   unitsPerEm?: number
   lineMetricsHorizontalLayout?: Record<
     string,
@@ -93,6 +100,101 @@ export interface FontData {
       zone?: number
     }
   >
+}
+
+export type FontInfoCustomDataValue =
+  | string
+  | number
+  | boolean
+  | number[]
+  | string[]
+  | null
+
+export interface FontInfo {
+  familyName?: string
+  versionMajor?: number
+  versionMinor?: number
+  copyright?: string
+  trademark?: string
+  description?: string
+  sampleText?: string
+  designer?: string
+  designerURL?: string
+  manufacturer?: string
+  manufacturerURL?: string
+  licenseDescription?: string
+  licenseInfoURL?: string
+  vendorID?: string
+  customData: Record<string, FontInfoCustomDataValue>
+}
+
+export interface FontAxis {
+  name: string
+  label: string
+  tag: string
+  minValue: number
+  defaultValue: number
+  maxValue: number
+  hidden?: boolean
+  mapping?: Array<[number, number]>
+  customData?: Record<string, unknown>
+}
+
+export interface CrossAxisMapping {
+  description?: string
+  groupDescription?: string
+  inputLocation: Record<string, number>
+  outputLocation: Record<string, number>
+}
+
+export interface FontAxes {
+  axes: FontAxis[]
+  mappings: CrossAxisMapping[]
+  customData?: Record<string, unknown>
+}
+
+export interface FontSource {
+  id: string
+  name: string
+  location: Record<string, number>
+  italicAngle?: number
+  lineMetricsHorizontalLayout?: Record<string, { value: number; zone?: number }>
+  lineMetricsVerticalLayout?: Record<string, { value: number; zone?: number }>
+  customData?: Record<string, unknown>
+}
+
+export interface OpenTypeFeatures {
+  language: string
+  text: string
+  customData?: Record<string, unknown>
+}
+
+export interface FontExportInstance {
+  id: string
+  name: string
+  styleName: string
+  location: Record<string, number>
+  export: boolean
+  fileName?: string
+  familyName?: string
+  weightClass?: number
+  widthClass?: number
+  customData?: Record<string, unknown>
+}
+
+export interface DevelopmentStatusDefinition {
+  value: number
+  label: string
+  color: [number, number, number, number]
+  isDefault?: boolean
+}
+
+export interface FontProjectSettings {
+  fontType?: 'static' | 'variable'
+  outlineType?: 'cubic' | 'quadratic'
+  customParameters?: Record<string, unknown>
+  notes?: string
+  supplementalText?: string
 }
 
 export interface SelectedNodeRef {
@@ -257,6 +359,8 @@ export interface GlobalState {
   closeProjectState: () => void
   markDraftSaved: () => void
   markLocalSaved: () => void
+  updateFontInfo: (update: { fontInfo: FontInfo; unitsPerEm?: number }) => void
+  updateFontSettings: (fontDataUpdate: Partial<FontData>) => void
   setPreviewGlyphMetrics: (glyphId: string, metrics: GlyphMetrics) => void
   clearPreviewGlyphMetrics: (glyphId?: string) => void
 }

@@ -9,17 +9,14 @@ import {
   ModalFooter,
   ModalOverlay,
   Stack,
-  Tab,
-  TabList,
   TabPanel,
   TabPanels,
   Tabs,
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { LayoutGroup, motion } from 'framer-motion'
-import type { ReactNode } from 'react'
 import { useMemo, useRef, useState } from 'react'
+import { SlidingTabList } from 'src/features/common/SlidingTabList'
 import {
   GlyphPackageSelectionSummary,
   GlyphPackagePicker,
@@ -33,53 +30,6 @@ const emptyPackageSelection: GlyphPackageSelection = {
   existingCount: 0,
   missingGlyphNames: [],
   packages: [],
-}
-
-const tabHighlightTransition = {
-  type: 'spring',
-  stiffness: 520,
-  damping: 38,
-  mass: 0.8,
-} as const
-
-interface ModeTabProps {
-  children: ReactNode
-  isSelected: boolean
-}
-
-function ModeTab({ children, isSelected }: ModeTabProps) {
-  return (
-    <Tab
-      position="relative"
-      overflow="visible"
-      bg="transparent"
-      color={isSelected ? 'field.yellow.300' : 'field.ink'}
-      _hover={{
-        bg: 'transparent',
-        color: isSelected ? 'field.yellow.300' : 'field.ink',
-      }}
-      _selected={{
-        bg: 'transparent',
-        color: 'field.yellow.300',
-      }}
-    >
-      {isSelected && (
-        <motion.span
-          layoutId="add-glyph-modal-active-tab"
-          transition={tabHighlightTransition}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            borderRadius: 9999,
-            background: 'var(--chakra-colors-field-ink)',
-          }}
-        />
-      )}
-      <Box as="span" position="relative" zIndex={1}>
-        {children}
-      </Box>
-    </Tab>
-  )
 }
 
 interface AddGlyphModalProps {
@@ -144,12 +94,11 @@ export function AddGlyphModal({
             <Text as="h2" fontSize="xl" fontWeight="900">
               新增字符
             </Text>
-            <LayoutGroup id="add-glyph-modal-tabs">
-              <TabList>
-                <ModeTab isSelected={activeTabIndex === 0}>字集匯入</ModeTab>
-                <ModeTab isSelected={activeTabIndex === 1}>手動輸入</ModeTab>
-              </TabList>
-            </LayoutGroup>
+            <SlidingTabList
+              activeIndex={activeTabIndex}
+              labels={['字集匯入', '手動輸入']}
+              layoutGroupId="add-glyph-modal-tabs"
+            />
           </HStack>
           <ModalBody pb={5} flex={1} minH={0}>
             <TabPanels h="100%">

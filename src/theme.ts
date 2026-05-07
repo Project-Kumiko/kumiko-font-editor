@@ -228,6 +228,18 @@ const components = {
       },
     },
   },
+  Tooltip: {
+    baseStyle: {
+      color: 'white',
+      bg: 'field.ink',
+      fontSize: '10px',
+      fontWeight: 800,
+      borderRadius: '2px',
+      _disabled: {
+        pointerEvents: 'none',
+      },
+    },
+  },
 }
 
 const theme = extendTheme({

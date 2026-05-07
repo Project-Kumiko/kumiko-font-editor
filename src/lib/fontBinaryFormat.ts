@@ -1,5 +1,11 @@
 import opentype from 'opentype.js'
-import type { FontData, GlyphData, PathData, PathNode } from 'src/store'
+import type {
+  FontData,
+  FontInfo,
+  GlyphData,
+  PathData,
+  PathNode,
+} from 'src/store'
 import type { ProjectSourceFormat } from 'src/lib/projectFormats'
 
 const DEFAULT_LAYER_ID = 'public.default'
@@ -76,6 +82,75 @@ const buildLineMetricsFromOpenTypeFont = (font: opentype.Font) => {
   ) as NonNullable<FontData['lineMetricsHorizontalLayout']>
 
   return Object.keys(presentMetrics).length > 0 ? presentMetrics : undefined
+}
+
+type OpenTypeNameTable = Record<string, Record<string, opentype.LocalizedName>>
+
+const getLocalizedValue = (localized: opentype.LocalizedName | undefined) => {
+  if (!localized) {
+    return undefined
+  }
+  return (
+    localized.en ??
+    localized['en-US'] ??
+    localized['en-GB'] ??
+    Object.values(localized)[0] ??
+    undefined
+  )
+}
+
+const getLocalizedName = (font: opentype.Font, ...keys: string[]) => {
+  const names = font.names as unknown as OpenTypeNameTable
+  for (const key of keys) {
+    const englishName = font.getEnglishName(key)
+    if (englishName) {
+      return englishName
+    }
+
+    for (const platform of ['unicode', 'windows', 'macintosh']) {
+      const value = getLocalizedValue(names[platform]?.[key])
+      if (value) {
+        return value
+      }
+    }
+
+    for (const platformNames of Object.values(names)) {
+      const value = getLocalizedValue(platformNames[key])
+      if (value) {
+        return value
+      }
+    }
+  }
+  return undefined
+}
+
+const buildFontInfoFromOpenTypeFont = (font: opentype.Font): FontInfo => {
+  const versionText = getLocalizedName(font, 'version')
+  const versionMatch = versionText?.match(/(\d+)(?:\.(\d+))?/)
+  const fullName = getLocalizedName(font, 'fullName')
+
+  return {
+    familyName: getLocalizedName(font, 'preferredFamily', 'fontFamily'),
+    copyright: getLocalizedName(font, 'copyright'),
+    trademark: getLocalizedName(font, 'trademark'),
+    description: getLocalizedName(font, 'description'),
+    designer: getLocalizedName(font, 'designer'),
+    designerURL: getLocalizedName(font, 'designerURL'),
+    manufacturer: getLocalizedName(font, 'manufacturer'),
+    manufacturerURL: getLocalizedName(font, 'manufacturerURL'),
+    licenseDescription: getLocalizedName(font, 'license'),
+    licenseInfoURL: getLocalizedName(font, 'licenseURL'),
+    versionMajor: versionMatch
+      ? Number.parseInt(versionMatch[1], 10)
+      : undefined,
+    versionMinor: versionMatch?.[2]
+      ? Number.parseInt(versionMatch[2], 10)
+      : undefined,
+    customData: {
+      ...(versionText ? { openTypeNameVersion: versionText } : {}),
+      ...(fullName ? { openTypeNameCompatibleFullName: fullName } : {}),
+    },
+  }
 }
 
 const getGlyphXBounds = (glyph: opentype.Glyph) => {
@@ -246,6 +321,7 @@ export const importBinaryFontFile = async (file: File) => {
     projectTitle: file.name.replace(/\.[^.]+$/, ''),
     fontData: {
       glyphs,
+      fontInfo: buildFontInfoFromOpenTypeFont(font),
       unitsPerEm: font.unitsPerEm,
       lineMetricsHorizontalLayout: buildLineMetricsFromOpenTypeFont(font),
     } as FontData,
@@ -312,7 +388,7 @@ export const exportFontAsBinary = (
   })
 
   const font = new opentype.Font({
-    familyName: 'KumikoExport',
+    familyName: fontData.fontInfo?.familyName || 'KumikoExport',
     styleName: 'Regular',
     unitsPerEm: fontData.unitsPerEm ?? 1000,
     ascender: fontData.lineMetricsHorizontalLayout?.ascender?.value ?? 800,

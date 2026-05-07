@@ -153,4 +153,36 @@ export const buildProjectActions = (
       state.localDirtyGlyphIds = []
       state.localDeletedGlyphIds = []
     }),
+
+  updateFontInfo: (update: {
+    fontInfo: FontData['fontInfo']
+    unitsPerEm?: number
+  }) =>
+    set((state) => {
+      if (!state.fontData || !update.fontInfo) {
+        return
+      }
+
+      state.fontData.fontInfo = update.fontInfo
+      if (update.unitsPerEm !== undefined) {
+        state.fontData.unitsPerEm = update.unitsPerEm
+      }
+      state.isDirty = true
+      state.hasLocalChanges = true
+    }),
+
+  updateFontSettings: (fontDataUpdate: Partial<FontData>) =>
+    set((state) => {
+      if (!state.fontData) {
+        return
+      }
+
+      state.fontData = {
+        ...state.fontData,
+        ...fontDataUpdate,
+        glyphs: state.fontData.glyphs,
+      }
+      state.isDirty = true
+      state.hasLocalChanges = true
+    }),
 })

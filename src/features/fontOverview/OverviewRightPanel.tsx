@@ -4,12 +4,16 @@ import { useFontExport } from 'src/features/common/fontExport/useFontExport'
 import { GitHubCommitModal } from 'src/features/common/glyphInspector/GitHubCommitModal'
 import { GlyphSummaryCard } from 'src/features/common/glyphInspector/GlyphSummaryCard'
 import { useRightPanelModel } from 'src/features/common/glyphInspector/useRightPanelModel'
-import { ProjectSaveActions } from 'src/features/common/projectSave/ProjectSaveActions'
+import { FontSettingsModal } from 'src/features/common/projectControl/FontSettingsModal'
+import { ProjectControlActions } from 'src/features/common/projectControl/ProjectControlActions'
+import { useStore } from 'src/store'
 
 export function OverviewRightPanel() {
   const panel = useRightPanelModel()
   const exportModal = useDisclosure()
+  const fontSettingsModal = useDisclosure()
   const fontExport = useFontExport()
+  const updateFontSettings = useStore((state) => state.updateFontSettings)
 
   return (
     <Box
@@ -21,7 +25,7 @@ export function OverviewRightPanel() {
       backgroundRepeat="repeat"
     >
       <Stack spacing={4}>
-        <ProjectSaveActions
+        <ProjectControlActions
           canSaveDraft={Boolean(
             panel.fontData &&
             panel.projectId &&
@@ -37,6 +41,7 @@ export function OverviewRightPanel() {
           )}
           isSavingToLocal={fontExport.isExporting}
           onOpenExportModal={exportModal.onOpen}
+          onOpenFontSettingsModal={fontSettingsModal.onOpen}
           onOpenGitHubModal={() =>
             void panel.gitHubCommitFlow.openGitHubModal()
           }
@@ -70,6 +75,15 @@ export function OverviewRightPanel() {
         onClose={exportModal.onClose}
         onExport={(format) => void fontExport.exportFont(format)}
       />
+      {fontSettingsModal.isOpen ? (
+        <FontSettingsModal
+          fontData={panel.fontData}
+          isOpen={fontSettingsModal.isOpen}
+          projectTitle={panel.projectTitle}
+          onClose={fontSettingsModal.onClose}
+          onSave={updateFontSettings}
+        />
+      ) : null}
       <GitHubCommitModal {...panel.gitHubCommitFlow.modalProps} />
     </Box>
   )

@@ -1,6 +1,10 @@
 import { strToU8, zipSync } from 'fflate'
 import type { FontData, GlyphData, GlyphLayerData } from 'src/store'
 import {
+  buildUfoLibFromFontData,
+  fontInfoToUfoFontInfo,
+} from 'src/lib/fontInfoSettings'
+import {
   pathToUfoContour,
   serializeGlifRecord,
   serializeXmlPlist,
@@ -155,9 +159,11 @@ export const exportFontDataAsUfoZip = (input: {
   )
   files[`${ufoDir}/fontinfo.plist`] = strToU8(
     serializeXmlPlist({
-      familyName: input.projectTitle || input.projectId,
-      styleName: 'Regular',
-      unitsPerEm: input.fontData.unitsPerEm ?? 1000,
+      ...fontInfoToUfoFontInfo(
+        input.fontData.fontInfo,
+        input.projectTitle || input.projectId,
+        input.fontData.unitsPerEm ?? 1000
+      ),
       ...(input.fontData.lineMetricsHorizontalLayout?.ascender
         ? {
             ascender: input.fontData.lineMetricsHorizontalLayout.ascender.value,
@@ -182,9 +188,14 @@ export const exportFontDataAsUfoZip = (input: {
         : {}),
     })
   )
-  files[`${ufoDir}/lib.plist`] = strToU8(serializeXmlPlist({}))
+  files[`${ufoDir}/lib.plist`] = strToU8(
+    serializeXmlPlist(buildUfoLibFromFontData(input.fontData))
+  )
   files[`${ufoDir}/groups.plist`] = strToU8(serializeXmlPlist({}))
   files[`${ufoDir}/kerning.plist`] = strToU8(serializeXmlPlist({}))
+  if (input.fontData.features?.text) {
+    files[`${ufoDir}/features.fea`] = strToU8(input.fontData.features.text)
+  }
   files[`${ufoDir}/layercontents.plist`] = strToU8(
     serializeXmlPlist([[DEFAULT_LAYER_ID, DEFAULT_GLYPH_DIR]])
   )
