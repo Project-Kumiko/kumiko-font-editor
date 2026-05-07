@@ -23,6 +23,10 @@ import { OverviewContent } from 'src/features/fontOverview/OverviewContent'
 import { OverviewRightPanel } from 'src/features/fontOverview/OverviewRightPanel'
 import { OverviewSidebar } from 'src/features/fontOverview/OverviewSidebar'
 import { parseGlyphAdditionInput } from 'src/features/fontOverview/glyphInput'
+import {
+  getExistingGlyphLookupKeys,
+  hasGlyphCandidate,
+} from 'src/features/fontOverview/glyphLookup'
 
 export function FontOverviewScreen() {
   const toast = useToast()
@@ -150,8 +154,8 @@ export function FontOverviewScreen() {
   const selectedGlyph =
     overviewGlyphs.find((glyph) => glyph.id === selectedGlyphId) ?? null
   const glyphMap = useMemo(() => fontData?.glyphs ?? {}, [fontData?.glyphs])
-  const existingGlyphIds = useMemo(
-    () => new Set(Object.keys(glyphMap)),
+  const existingGlyphKeys = useMemo(
+    () => getExistingGlyphLookupKeys(glyphMap),
     [glyphMap]
   )
   const overviewSelectedGlyphIdSet = useMemo(() => {
@@ -188,8 +192,8 @@ export function FontOverviewScreen() {
     [glyphMap]
   )
 
-  const handleAddGlyphs = () => {
-    const candidates = parseGlyphAdditionInput(glyphInputValue)
+  const handleAddGlyphs = (inputValue = glyphInputValue) => {
+    const candidates = parseGlyphAdditionInput(inputValue)
     if (candidates.length === 0) {
       toast({
         title: '沒有可新增的 glyph',
@@ -202,7 +206,7 @@ export function FontOverviewScreen() {
     }
 
     const missingCandidates = candidates.filter(
-      (candidate) => !existingGlyphIds.has(candidate.id)
+      (candidate) => !hasGlyphCandidate(existingGlyphKeys, candidate)
     )
     const addedGlyphIds = addGlyphs(missingCandidates)
     if (addedGlyphIds.length > 0) {
@@ -236,6 +240,10 @@ export function FontOverviewScreen() {
 
   const handleOpenAddGlyphModal = () => {
     setIsAddingGlyphs(true)
+  }
+
+  const handleAddGlyphNames = (glyphNames: string[]) => {
+    handleAddGlyphs(glyphNames.join('\n'))
   }
 
   const handleCloseProject = useCallback(async () => {
@@ -491,12 +499,13 @@ export function FontOverviewScreen() {
       </Grid>
 
       <AddGlyphModal
-        existingGlyphIds={existingGlyphIds}
+        glyphMap={glyphMap}
         inputValue={glyphInputValue}
         isOpen={isAddingGlyphs}
         onClose={handleCloseAddGlyphModal}
         onInputChange={setGlyphInputValue}
-        onSubmit={handleAddGlyphs}
+        onSubmitGlyphNames={handleAddGlyphNames}
+        onSubmitManualInput={() => handleAddGlyphs()}
       />
     </>
   )

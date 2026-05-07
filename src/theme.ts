@@ -177,8 +177,6 @@ const components = {
     baseStyle: {
       list: {
         borderRadius: '2px',
-        border: '1px solid',
-        borderColor: 'field.line',
         bg: 'field.panel',
         p: 1,
         boxShadow: '6px 6px 0 rgba(8, 11, 13, 0.18)',
@@ -205,14 +203,24 @@ const components = {
           borderColor: 'transparent',
           fontWeight: 900,
           border: 'none',
-          _selected: {
+          px: 4,
+          _hover: {
+            bg: 'field.panel',
             color: 'field.ink',
-            bg: 'field.yellow.400',
-            borderColor: 'field.line',
+          },
+          _selected: {
+            color: 'field.yellow.300',
+            bg: 'field.ink',
+            borderColor: 'transparent',
           },
         },
         tablist: {
+          alignItems: 'center',
+          bg: 'field.panelMuted',
           borderBottom: 'none',
+          borderRadius: 'full',
+          gap: 1,
+          p: 1,
         },
       },
     },

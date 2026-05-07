@@ -2,15 +2,12 @@ import {
   Badge,
   Box,
   Button,
-  Link,
+  Grid,
+  GridItem,
   HStack,
+  Link,
   SimpleGrid,
   Stack,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
   Text,
   Wrap,
   WrapItem,
@@ -25,7 +22,14 @@ import {
 
 interface GlyphPackagePickerProps {
   existingGlyphIds: Set<string>
-  onSelectedGlyphNamesChange: (glyphNames: string[]) => void
+  onSelectionChange: (selection: GlyphPackageSelection) => void
+}
+
+export interface GlyphPackageSelection {
+  glyphNames: string[]
+  existingCount: number
+  missingGlyphNames: string[]
+  packages: DefaultGlyphPackage[]
 }
 
 const getPackageGlyphNames = (packages: DefaultGlyphPackage[]) => {
@@ -48,6 +52,8 @@ const packageGroups: Array<{ id: GlyphPackageGroup; label: string }> = [
 const groupLabelById = new Map(
   packageGroups.map((group) => [group.id, group.label])
 )
+
+const firstPackageGroupId = packageGroups[0]?.id ?? 'zh-jf7000'
 
 const getPackagesBySection = (packages: DefaultGlyphPackage[]) => {
   const sections = new Map<string, DefaultGlyphPackage[]>()
@@ -94,6 +100,7 @@ function PackageCard({ glyphPackage, isSelected, onToggle }: PackageCardProps) {
       _focusVisible={{ boxShadow: '0 0 0 2px var(--chakra-colors-field-ink)' }}
       onClick={onToggle}
       p={3}
+      position="relative"
     >
       <Stack spacing={2} align="center" textAlign="center" w="100%">
         <Stack spacing={1} align="center">
@@ -122,6 +129,130 @@ function PackageCard({ glyphPackage, isSelected, onToggle }: PackageCardProps) {
         </Text>
       </Stack>
     </Button>
+  )
+}
+
+interface PackageGroupSidebarProps {
+  activeGroupId: GlyphPackageGroup
+  onSelectGroup: (groupId: GlyphPackageGroup) => void
+}
+
+function PackageGroupSidebar({
+  activeGroupId,
+  onSelectGroup,
+}: PackageGroupSidebarProps) {
+  return (
+    <Stack spacing={2}>
+      {packageGroups.map((group) => {
+        const isActive = activeGroupId === group.id
+        return (
+          <Button
+            key={group.id}
+            justifyContent="flex-start"
+            variant="outline"
+            bg={isActive ? 'field.ink' : 'field.panelMuted'}
+            color={isActive ? 'field.yellow.300' : 'field.ink'}
+            borderColor={isActive ? 'field.ink' : 'transparent'}
+            _hover={{
+              bg: isActive ? 'field.ink' : 'field.panel',
+              color: isActive ? 'field.yellow.300' : 'field.ink',
+              borderColor: 'field.ink',
+            }}
+            onClick={() => onSelectGroup(group.id)}
+          >
+            {group.label}
+          </Button>
+        )
+      })}
+    </Stack>
+  )
+}
+
+interface PackageGroupSourceProps {
+  groupId: GlyphPackageGroup
+}
+
+function PackageGroupSource({ groupId }: PackageGroupSourceProps) {
+  if (groupId !== 'zh-jf7000') {
+    return null
+  }
+
+  return (
+    <Text fontSize="xs" color="field.muted">
+      來源：
+      <Link
+        href="https://justfont.com/jf7000"
+        isExternal
+        fontWeight="900"
+        color="field.ink"
+        textDecoration="underline"
+      >
+        jf7000 當務字集
+      </Link>
+    </Text>
+  )
+}
+
+interface PackageCardSectionProps {
+  section: string
+  sectionPackages: DefaultGlyphPackage[]
+  selectedPackageIds: Set<string>
+  onTogglePackage: (glyphPackage: DefaultGlyphPackage) => void
+}
+
+function PackageCardSection({
+  section,
+  sectionPackages,
+  selectedPackageIds,
+  onTogglePackage,
+}: PackageCardSectionProps) {
+  return (
+    <Stack spacing={2}>
+      <Text
+        fontSize="xs"
+        color="field.muted"
+        fontFamily="mono"
+        fontWeight="900"
+      >
+        {section}
+      </Text>
+      <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={2}>
+        {sectionPackages.map((glyphPackage) => (
+          <PackageCard
+            key={glyphPackage.id}
+            glyphPackage={glyphPackage}
+            isSelected={selectedPackageIds.has(glyphPackage.id)}
+            onToggle={() => onTogglePackage(glyphPackage)}
+          />
+        ))}
+      </SimpleGrid>
+    </Stack>
+  )
+}
+
+interface PackageCardsAreaProps {
+  packages: DefaultGlyphPackage[]
+  selectedPackageIds: Set<string>
+  onTogglePackage: (glyphPackage: DefaultGlyphPackage) => void
+}
+
+function PackageCardsArea({
+  packages,
+  selectedPackageIds,
+  onTogglePackage,
+}: PackageCardsAreaProps) {
+  return (
+    <Stack spacing={3} w="100%">
+      {getPackagesBySection(packages).map(([section, sectionPackages]) => (
+        <PackageCardSection
+          key={section}
+          section={section}
+          sectionPackages={sectionPackages}
+          selectedPackageIds={selectedPackageIds}
+          onTogglePackage={onTogglePackage}
+        />
+      ))}
+    </Stack>
   )
 }
 
@@ -191,13 +322,44 @@ function SummaryFormula({ packages }: SummaryFormulaProps) {
   )
 }
 
+interface GlyphPackageSelectionSummaryProps {
+  selection: GlyphPackageSelection
+}
+
+export function GlyphPackageSelectionSummary({
+  selection,
+}: GlyphPackageSelectionSummaryProps) {
+  return (
+    <Box minW={0}>
+      <SummaryFormula packages={selection.packages} />
+      <Text fontSize="xl" fontWeight={500} color="field.steel" mt={2}>
+        合計
+        <Box as="span" fontWeight={700} mx={1}>
+          {selection.glyphNames.length.toLocaleString()}
+        </Box>
+        字符，已存在
+        <Box as="span" fontWeight={700} mx={1}>
+          {selection.existingCount.toLocaleString()}
+        </Box>
+        字符 ，預計新增
+        <Box as="span" fontWeight={800} mx={1}>
+          {selection.missingGlyphNames.length.toLocaleString()}
+        </Box>
+        字符
+      </Text>
+    </Box>
+  )
+}
+
 export function GlyphPackagePicker({
   existingGlyphIds,
-  onSelectedGlyphNamesChange,
+  onSelectionChange,
 }: GlyphPackagePickerProps) {
   const [selectedPackageIds, setSelectedPackageIds] = useState<Set<string>>(
     () => new Set(['zh-basic'])
   )
+  const [activeGroupId, setActiveGroupId] =
+    useState<GlyphPackageGroup>(firstPackageGroupId)
   const packageById = useMemo(
     () =>
       new Map(
@@ -227,8 +389,18 @@ export function GlyphPackagePicker({
     [existingGlyphIds, selectedGlyphNames]
   )
   useEffect(() => {
-    onSelectedGlyphNamesChange(missingGlyphNames)
-  }, [missingGlyphNames, onSelectedGlyphNamesChange])
+    onSelectionChange({
+      glyphNames: Array.from(selectedGlyphNames),
+      existingCount: selectedGlyphNames.size - missingGlyphNames.length,
+      missingGlyphNames,
+      packages: selectedPackages,
+    })
+  }, [
+    missingGlyphNames,
+    onSelectionChange,
+    selectedGlyphNames,
+    selectedPackages,
+  ])
 
   const addDependencies = (
     nextSelectedIds: Set<string>,
@@ -270,84 +442,53 @@ export function GlyphPackagePicker({
     })
   }
 
+  const activeGroupPackages = useMemo(
+    () =>
+      defaultGlyphPackages.filter(
+        (glyphPackage) => glyphPackage.group === activeGroupId
+      ),
+    [activeGroupId]
+  )
+
   return (
-    <Stack spacing={3}>
-      <Box>
-        <SummaryFormula packages={selectedPackages} />
-        <Text fontSize="xs" color="field.muted" mt={2}>
-          合計 {selectedGlyphNames.size.toLocaleString()} glyphs，已存在{' '}
-          {selectedGlyphNames.size - missingGlyphNames.length}，預計新增{' '}
-          {missingGlyphNames.length.toLocaleString()}
-        </Text>
-      </Box>
-
-      <Tabs variant="enclosed" size="sm">
-        <TabList flexWrap="wrap" gap={2}>
-          {packageGroups.map((group) => (
-            <Tab key={group.id}>{group.label}</Tab>
-          ))}
-        </TabList>
-        <TabPanels>
-          {packageGroups.map((group) => {
-            const groupPackages = defaultGlyphPackages.filter(
-              (glyphPackage) => glyphPackage.group === group.id
-            )
-
-            return (
-              <TabPanel
-                key={group.id}
-                px={0}
-                pb={0}
-                maxH="100%"
-                overflow="auto"
-              >
-                <Stack spacing={3}>
-                  {group.id === 'zh-jf7000' && (
-                    <Text fontSize="xs" color="field.muted">
-                      來源：
-                      <Link
-                        href="https://justfont.com/jf7000"
-                        isExternal
-                        fontWeight="900"
-                        color="field.ink"
-                        textDecoration="underline"
-                      >
-                        jf7000 當務字集
-                      </Link>
-                    </Text>
-                  )}
-                  {getPackagesBySection(groupPackages).map(
-                    ([section, sectionPackages]) => (
-                      <Stack key={section} spacing={2}>
-                        <Text
-                          fontSize="xs"
-                          color="field.muted"
-                          fontFamily="mono"
-                          fontWeight="900"
-                        >
-                          {section}
-                        </Text>
-                        <SimpleGrid columns={{ base: 2, md: 3 }} spacing={2}>
-                          {sectionPackages.map((glyphPackage) => (
-                            <PackageCard
-                              key={glyphPackage.id}
-                              glyphPackage={glyphPackage}
-                              isSelected={selectedPackageIds.has(
-                                glyphPackage.id
-                              )}
-                              onToggle={() => togglePackage(glyphPackage)}
-                            />
-                          ))}
-                        </SimpleGrid>
-                      </Stack>
-                    )
-                  )}
-                </Stack>
-              </TabPanel>
-            )
-          })}
-        </TabPanels>
-      </Tabs>
-    </Stack>
+    <Grid
+      templateColumns={{
+        base: '132px minmax(0, 1fr)',
+        md: '160px minmax(0, 1fr)',
+      }}
+      gap={4}
+      h="100%"
+      minH={0}
+    >
+      <GridItem
+        borderRight="1px solid"
+        borderColor="field.panelMuted"
+        pr={3}
+        minH={0}
+      >
+        <PackageGroupSidebar
+          activeGroupId={activeGroupId}
+          onSelectGroup={setActiveGroupId}
+        />
+      </GridItem>
+      <GridItem minW={0} minH={0}>
+        <Stack h="100%" minH={0} spacing={3}>
+          <Box
+            flex={1}
+            minH={0}
+            overflow="auto"
+            display="flex"
+            flexDirection="column"
+          >
+            <PackageCardsArea
+              packages={activeGroupPackages}
+              selectedPackageIds={selectedPackageIds}
+              onTogglePackage={togglePackage}
+            />
+          </Box>
+          <PackageGroupSource groupId={activeGroupId} />
+        </Stack>
+      </GridItem>
+    </Grid>
   )
 }
