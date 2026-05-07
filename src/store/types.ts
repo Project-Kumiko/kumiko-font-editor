@@ -3,6 +3,7 @@ import type {
   ProjectSourceFormat,
 } from 'src/lib/projectFormats'
 import type { PathBooleanOperation } from 'src/lib/pathBooleanOperations'
+import type { GlyphEditTimes } from 'src/lib/glyphEditTimes'
 
 export type NodeType = 'corner' | 'smooth' | 'offcurve' | 'qcurve'
 
@@ -124,6 +125,7 @@ export interface GlobalState {
   hasLocalChanges: boolean
   localDirtyGlyphIds: string[]
   localDeletedGlyphIds: string[]
+  glyphEditTimes: GlyphEditTimes
   editorGlyphIds: string[]
   editorText: string
   editorTextCursorIndex: number
@@ -249,7 +251,8 @@ export interface GlobalState {
   ) => void
   hydratePersistedLocalChanges: (
     dirtyGlyphIds: string[],
-    deletedGlyphIds: string[]
+    deletedGlyphIds: string[],
+    glyphEditTimes?: GlyphEditTimes
   ) => void
   closeProjectState: () => void
   markDraftSaved: () => void

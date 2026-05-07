@@ -31,6 +31,7 @@ export function useRightPanelModel() {
   const isDirty = useStore((state) => state.isDirty)
   const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds)
   const deletedGlyphIds = useStore((state) => state.deletedGlyphIds)
+  const glyphEditTimes = useStore((state) => state.glyphEditTimes)
   const hasLocalChanges = useStore((state) => state.hasLocalChanges)
   const localDirtyGlyphIds = useStore((state) => state.localDirtyGlyphIds)
   const localDeletedGlyphIds = useStore((state) => state.localDeletedGlyphIds)
@@ -208,6 +209,7 @@ export function useRightPanelModel() {
         fontData,
         dirtyGlyphIds,
         deletedGlyphIds,
+        glyphEditTimes,
         selectedLayerId,
       })
       markDraftSaved()

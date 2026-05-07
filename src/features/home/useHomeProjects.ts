@@ -1,5 +1,9 @@
 import { useCallback, useMemo } from 'react'
 import { UFO_LOCAL_DELETED_GLYPHS_KEY } from 'src/lib/draftSave'
+import {
+  sanitizeGlyphEditTimes,
+  UFO_GLYPH_EDIT_TIMES_KEY,
+} from 'src/lib/glyphEditTimes'
 import { listDirtyUfoGlyphs, loadUfoUiValue } from 'src/lib/ufoPersistence'
 import { useStore } from 'src/store'
 import { useGitHubImport } from 'src/features/home/useGitHubImport'
@@ -25,9 +29,13 @@ export function useHomeProjects() {
           projectId,
           UFO_LOCAL_DELETED_GLYPHS_KEY
         )) ?? []
+      const glyphEditTimes = sanitizeGlyphEditTimes(
+        await loadUfoUiValue(projectId, UFO_GLYPH_EDIT_TIMES_KEY)
+      )
       hydratePersistedLocalChanges(
         dirtyGlyphs.map((glyph) => glyph.glyphName),
-        deletedGlyphIds
+        deletedGlyphIds,
+        glyphEditTimes
       )
     },
     [hydratePersistedLocalChanges]

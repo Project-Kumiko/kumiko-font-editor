@@ -13,9 +13,10 @@ import type {
   VirtuosoGridHandle,
 } from 'react-virtuoso'
 import {
-  getGlyphOverviewSections,
-  type OverviewGroupBy,
+  flattenGlyphOverviewTree,
+  getGlyphOverviewTree,
 } from 'src/lib/glyphOverview'
+import { saveDraftSnapshot } from 'src/lib/draftSave'
 import { useStore } from 'src/store'
 import { OverviewContent } from 'src/features/fontOverview/OverviewContent'
 import { OverviewRightPanel } from 'src/features/fontOverview/OverviewRightPanel'
@@ -36,10 +37,15 @@ export function FontOverviewScreen() {
   const setEditorTextState = useStore((state) => state.setEditorTextState)
   const setWorkspaceView = useStore((state) => state.setWorkspaceView)
   const closeProjectState = useStore((state) => state.closeProjectState)
+  const markDraftSaved = useStore((state) => state.markDraftSaved)
+  const isDirty = useStore((state) => state.isDirty)
+  const projectId = useStore((state) => state.projectId)
   const projectTitle = useStore((state) => state.projectTitle)
   const fontData = useStore((state) => state.fontData)
-  const groupBy = useStore((state) => state.overviewGroupBy) as OverviewGroupBy
-  const setOverviewGrouping = useStore((state) => state.setOverviewGrouping)
+  const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds)
+  const deletedGlyphIds = useStore((state) => state.deletedGlyphIds)
+  const glyphEditTimes = useStore((state) => state.glyphEditTimes)
+  const selectedLayerId = useStore((state) => state.selectedLayerId)
   const selectedSectionId = useStore((state) => state.overviewSectionId)
   const setOverviewSectionId = useStore((state) => state.setOverviewSectionId)
   const overviewGridState = useStore(
@@ -53,6 +59,7 @@ export function FontOverviewScreen() {
   const [overviewSelectedGlyphIds, setOverviewSelectedGlyphIds] = useState<
     string[]
   >(() => (selectedGlyphId ? [selectedGlyphId] : []))
+  const [isClosingProject, setIsClosingProject] = useState(false)
   const pendingOverviewGridStateRef = useRef<GridStateSnapshot | null>(
     overviewGridState
   )
@@ -71,24 +78,30 @@ export function FontOverviewScreen() {
     [filteredGlyphList, showOnlyEmptyGlyphs]
   )
 
+  const treeNodes = useMemo(
+    () => getGlyphOverviewTree(overviewGlyphs, glyphEditTimes),
+    [glyphEditTimes, overviewGlyphs]
+  )
+
   const sections = useMemo(
-    () => getGlyphOverviewSections(overviewGlyphs, groupBy),
-    [groupBy, overviewGlyphs]
+    () => flattenGlyphOverviewTree(treeNodes),
+    [treeNodes]
   )
 
   const visibleSections = useMemo(() => {
-    if (selectedSectionId === 'all') {
-      return sections
-    }
-    return sections.filter((section) => section.id === selectedSectionId)
+    const selectedSection = sections.find(
+      (section) => section.id === selectedSectionId
+    )
+    return selectedSection?.glyphs.length ? [selectedSection] : []
   }, [sections, selectedSectionId])
 
   const activeSection = useMemo(() => {
     if (selectedSectionId === 'all') {
+      const allSection = sections.find((section) => section.id === 'all')
       return {
         id: 'all',
-        label: groupBy === 'none' ? '全部字符' : '全部分組結果',
-        glyphs: overviewGlyphs,
+        label: '全部字符',
+        glyphs: allSection?.glyphs ?? overviewGlyphs,
       }
     }
 
@@ -99,7 +112,7 @@ export function FontOverviewScreen() {
         glyphs: overviewGlyphs,
       }
     )
-  }, [groupBy, overviewGlyphs, sections, selectedSectionId])
+  }, [overviewGlyphs, sections, selectedSectionId])
 
   useEffect(() => {
     if (
@@ -211,6 +224,61 @@ export function FontOverviewScreen() {
       isClosable: true,
     })
   }
+
+  const handleCloseProject = useCallback(async () => {
+    if (isClosingProject) {
+      return
+    }
+
+    if (!isDirty) {
+      closeProjectState()
+      return
+    }
+
+    if (!fontData || !projectId || !projectTitle) {
+      closeProjectState()
+      return
+    }
+
+    setIsClosingProject(true)
+    try {
+      await saveDraftSnapshot({
+        projectId,
+        projectTitle,
+        fontData,
+        dirtyGlyphIds,
+        deletedGlyphIds,
+        glyphEditTimes,
+        selectedLayerId,
+      })
+      markDraftSaved()
+      closeProjectState()
+    } catch (error) {
+      console.warn('Save before closing project failed.', error)
+      toast({
+        title: '離開前儲存失敗',
+        description: '目前仍留在專案中，請稍後再試或手動儲存。',
+        status: 'error',
+        duration: 3200,
+        isClosable: true,
+      })
+    } finally {
+      setIsClosingProject(false)
+    }
+  }, [
+    closeProjectState,
+    deletedGlyphIds,
+    dirtyGlyphIds,
+    fontData,
+    glyphEditTimes,
+    isClosingProject,
+    isDirty,
+    markDraftSaved,
+    projectId,
+    projectTitle,
+    selectedLayerId,
+    toast,
+  ])
 
   const handleSectionSelect = (sectionId: string) => {
     if (sectionId === selectedSectionId) {
@@ -373,27 +441,21 @@ export function FontOverviewScreen() {
       <GridItem area="left" minW={0} minH={0}>
         <OverviewSidebar
           currentSearchQuery={currentSearchQuery}
-          groupBy={groupBy}
           glyphInputValue={glyphInputValue}
           isAddingGlyphs={isAddingGlyphs}
           overviewGlyphCount={overviewGlyphs.length}
           projectTitle={projectTitle}
-          sections={sections}
           selectedSectionId={selectedSectionId}
           showOnlyEmptyGlyphs={showOnlyEmptyGlyphs}
+          isClosingProject={isClosingProject}
+          treeNodes={treeNodes}
           onCancelAddGlyphs={() => {
             setGlyphInputValue('')
             setIsAddingGlyphs(false)
           }}
-          onCloseProject={closeProjectState}
+          onCloseProject={handleCloseProject}
           onGlyphInputChange={setGlyphInputValue}
           onGlyphInputSubmit={handleAddGlyphs}
-          onGroupingChange={(value) => {
-            pendingOverviewGridStateRef.current = null
-            setOverviewGridState(null)
-            setOverviewGrouping(value)
-            setOverviewSectionId('all')
-          }}
           onSearchQueryChange={setSearchQuery}
           onSectionSelect={handleSectionSelect}
           onShowOnlyEmptyGlyphsChange={setShowOnlyEmptyGlyphs}

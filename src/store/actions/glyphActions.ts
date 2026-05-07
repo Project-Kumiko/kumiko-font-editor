@@ -66,6 +66,7 @@ export const buildGlyphActions = (set: ImmerSet) => ({
       if (!state.localDeletedGlyphIds.includes(glyphId)) {
         state.localDeletedGlyphIds.push(glyphId)
       }
+      delete state.glyphEditTimes[glyphId]
       syncFilteredGlyphList(state)
     }),
 
@@ -117,7 +118,9 @@ export const buildGlyphActions = (set: ImmerSet) => ({
 
       state.isDirty = true
       state.hasLocalChanges = true
+      const editedAt = Date.now()
       for (const glyphId of addedGlyphIds) {
+        state.glyphEditTimes[glyphId] = editedAt
         if (!state.dirtyGlyphIds.includes(glyphId)) {
           state.dirtyGlyphIds.push(glyphId)
         }

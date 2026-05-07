@@ -12,6 +12,11 @@ import {
 } from 'src/lib/ufoPersistence'
 import { syncHotFontDataToUfoRecords } from 'src/lib/fontAdapters/ufo'
 import type { FontData } from 'src/store'
+import type { GlyphEditTimes } from 'src/lib/glyphEditTimes'
+import {
+  UFO_GLYPH_EDIT_TIMES_KEY,
+  withProjectGlyphEditTimes,
+} from 'src/lib/glyphEditTimes'
 
 export const UFO_LOCAL_DELETED_GLYPHS_KEY = 'ufo-local-deleted-glyph-ids'
 
@@ -21,6 +26,7 @@ export const saveDraftSnapshot = async (input: {
   fontData: FontData
   dirtyGlyphIds: string[]
   deletedGlyphIds: string[]
+  glyphEditTimes: GlyphEditTimes
   selectedLayerId: string | null
 }) => {
   const projectSourceFormat = getProjectArchiveSourceFormat()
@@ -67,7 +73,10 @@ export const saveDraftSnapshot = async (input: {
       githubSource:
         persistedProject?.githubSource ?? projectRecord?.githubSource ?? null,
       fontData: hydrateProjectFontData(input.fontData),
-      projectMetadata: persistedProject?.projectMetadata ?? projectMetadata,
+      projectMetadata: withProjectGlyphEditTimes(
+        persistedProject?.projectMetadata ?? projectMetadata,
+        input.glyphEditTimes
+      ),
       projectSourceFormat,
       projectRoundTripFormat,
       projectGlyphsText: persistedProject?.projectGlyphsText ?? null,
@@ -78,6 +87,11 @@ export const saveDraftSnapshot = async (input: {
       input.projectId,
       UFO_LOCAL_DELETED_GLYPHS_KEY,
       input.deletedGlyphIds
+    )
+    await saveUfoUiValue(
+      input.projectId,
+      UFO_GLYPH_EDIT_TIMES_KEY,
+      input.glyphEditTimes
     )
     return
   }
@@ -94,7 +108,10 @@ export const saveDraftSnapshot = async (input: {
     sourceType: persistedProject?.sourceType ?? 'local',
     githubSource: persistedProject?.githubSource ?? null,
     fontData: hydrateProjectFontData(input.fontData),
-    projectMetadata: persistedProject?.projectMetadata ?? null,
+    projectMetadata: withProjectGlyphEditTimes(
+      persistedProject?.projectMetadata,
+      input.glyphEditTimes
+    ),
     projectSourceFormat,
     projectRoundTripFormat,
     projectGlyphsText: persistedProject?.projectGlyphsText ?? null,

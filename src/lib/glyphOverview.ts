@@ -1,5 +1,6 @@
 import { VarPackedPath } from 'src/font/VarPackedPath'
 import type { GlyphData } from 'src/store'
+import type { GlyphEditTimes } from 'src/lib/glyphEditTimes'
 
 export type OverviewGroupBy = 'none' | 'script' | 'block'
 
@@ -7,6 +8,10 @@ export interface GlyphOverviewSection {
   id: string
   label: string
   glyphs: GlyphData[]
+}
+
+export interface GlyphOverviewTreeNode extends GlyphOverviewSection {
+  children?: GlyphOverviewTreeNode[]
 }
 
 const SCRIPT_RANGES: Array<{ from: number; to: number; label: string }> = [
@@ -68,6 +73,33 @@ const getCodePoint = (glyph: GlyphData) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const getGlyphSortKey = (glyph: GlyphData) =>
+  glyph.unicode
+    ? Number.parseInt(glyph.unicode, 16).toString().padStart(8, '0')
+    : glyph.id
+
+const sortGlyphsByCodePoint = (glyphs: GlyphData[]) =>
+  [...glyphs].sort((left, right) => {
+    const leftCodePoint = getCodePoint(left)
+    const rightCodePoint = getCodePoint(right)
+    if (leftCodePoint !== null && rightCodePoint !== null) {
+      return leftCodePoint - rightCodePoint
+    }
+    return getGlyphSortKey(left).localeCompare(getGlyphSortKey(right))
+  })
+
+const sortGlyphsByRecentEdit = (
+  glyphs: GlyphData[],
+  glyphEditTimes: GlyphEditTimes
+) =>
+  [...glyphs]
+    .filter((glyph) => Number.isFinite(glyphEditTimes[glyph.id]))
+    .sort(
+      (left, right) =>
+        (glyphEditTimes[right.id] ?? 0) - (glyphEditTimes[left.id] ?? 0) ||
+        left.id.localeCompare(right.id)
+    )
+
 const findRangeLabel = (
   codePoint: number | null,
   ranges: Array<{ from: number; to: number; label: string }>
@@ -92,6 +124,171 @@ export const getGlyphDisplayCharacter = (glyph: GlyphData) => {
   const codePoint = getCodePoint(glyph)
   return codePoint === null ? null : String.fromCodePoint(codePoint)
 }
+
+interface GlyphTypeDefinition {
+  id: string
+  label: string
+  matches: (character: string | null) => boolean
+}
+
+const matchesUnicodeProperty = (character: string | null, pattern: RegExp) =>
+  Boolean(character && pattern.test(character))
+
+const GLYPH_TYPE_DEFINITIONS: GlyphTypeDefinition[] = [
+  {
+    id: 'letter',
+    label: '字母',
+    matches: (character) => matchesUnicodeProperty(character, /\p{Letter}/u),
+  },
+  {
+    id: 'number',
+    label: '數字',
+    matches: (character) => matchesUnicodeProperty(character, /\p{Number}/u),
+  },
+  {
+    id: 'separator',
+    label: '分隔符號',
+    matches: (character) => matchesUnicodeProperty(character, /\p{Separator}/u),
+  },
+  {
+    id: 'punctuation',
+    label: '標點',
+    matches: (character) =>
+      matchesUnicodeProperty(character, /\p{Punctuation}/u),
+  },
+  {
+    id: 'symbol',
+    label: '符號',
+    matches: (character) => matchesUnicodeProperty(character, /\p{Symbol}/u),
+  },
+  {
+    id: 'mark',
+    label: '標號',
+    matches: (character) => matchesUnicodeProperty(character, /\p{Mark}/u),
+  },
+]
+
+const OTHER_GLYPH_TYPE = {
+  id: 'other',
+  label: '其他',
+}
+
+const UNENCODED_GLYPH_TYPE = {
+  id: 'unencoded',
+  label: '未編碼',
+}
+
+const getGlyphTypeDefinition = (glyph: GlyphData) => {
+  const character = getGlyphDisplayCharacter(glyph)
+  if (!character) {
+    return glyph.unicode ? OTHER_GLYPH_TYPE : UNENCODED_GLYPH_TYPE
+  }
+
+  return (
+    GLYPH_TYPE_DEFINITIONS.find((definition) =>
+      definition.matches(character)
+    ) ?? OTHER_GLYPH_TYPE
+  )
+}
+
+const createSectionNode = (
+  id: string,
+  label: string,
+  glyphs: GlyphData[],
+  children?: GlyphOverviewTreeNode[]
+): GlyphOverviewTreeNode => ({
+  id,
+  label,
+  glyphs,
+  ...(children ? { children } : {}),
+})
+
+const buildTypeNodes = (glyphs: GlyphData[]) => {
+  const typeMap = new Map<string, GlyphData[]>()
+  for (const glyph of glyphs) {
+    const type = getGlyphTypeDefinition(glyph)
+    typeMap.set(type.id, [...(typeMap.get(type.id) ?? []), glyph])
+  }
+
+  const orderedTypes = [
+    ...GLYPH_TYPE_DEFINITIONS.map(({ id, label }) => ({ id, label })),
+    OTHER_GLYPH_TYPE,
+    UNENCODED_GLYPH_TYPE,
+  ]
+
+  return orderedTypes
+    .map(({ id, label }) => {
+      const typeGlyphs = sortGlyphsByCodePoint(typeMap.get(id) ?? [])
+      return createSectionNode(`type:${id}`, label, typeGlyphs)
+    })
+    .filter((node) => node.glyphs.length > 0)
+}
+
+const buildScriptNodes = (glyphs: GlyphData[]) => {
+  const scriptMap = new Map<string, GlyphData[]>()
+  for (const glyph of glyphs) {
+    const label = getGlyphScriptLabel(glyph)
+    scriptMap.set(label, [...(scriptMap.get(label) ?? []), glyph])
+  }
+
+  const labelsByOrder = [
+    ...SCRIPT_RANGES.map((range) => range.label),
+    'Other',
+    'Unencoded',
+  ]
+  return labelsByOrder
+    .filter((label, index, labels) => labels.indexOf(label) === index)
+    .map((label) => {
+      const scriptGlyphs = sortGlyphsByCodePoint(scriptMap.get(label) ?? [])
+      return createSectionNode(`script:${label}`, label, scriptGlyphs)
+    })
+    .filter((node) => node.glyphs.length > 0)
+}
+
+const buildCustomNodes = (
+  glyphs: GlyphData[],
+  glyphEditTimes: GlyphEditTimes
+) => [
+  createSectionNode(
+    'custom:recent-edits',
+    '最近編輯',
+    sortGlyphsByRecentEdit(glyphs, glyphEditTimes)
+  ),
+]
+
+export const getGlyphOverviewTree = (
+  glyphs: GlyphData[],
+  glyphEditTimes: GlyphEditTimes
+): GlyphOverviewTreeNode[] => {
+  const sortedGlyphs = sortGlyphsByCodePoint(glyphs)
+  const typeNodes = buildTypeNodes(glyphs)
+  const scriptNodes = buildScriptNodes(glyphs)
+  const customNodes = buildCustomNodes(glyphs, glyphEditTimes)
+
+  return [
+    createSectionNode('all', '全部', sortedGlyphs),
+    createSectionNode('type', '類型', sortedGlyphs, typeNodes),
+    createSectionNode('script', '語系', sortedGlyphs, scriptNodes),
+    createSectionNode(
+      'custom',
+      '自定篩選',
+      customNodes.flatMap((node) => node.glyphs),
+      customNodes
+    ),
+  ]
+}
+
+export const flattenGlyphOverviewTree = (
+  nodes: GlyphOverviewTreeNode[]
+): GlyphOverviewSection[] =>
+  nodes.flatMap((node) => [
+    {
+      id: node.id,
+      label: node.label,
+      glyphs: node.glyphs,
+    },
+    ...flattenGlyphOverviewTree(node.children ?? []),
+  ])
 
 export const getGlyphOverviewSections = (
   glyphs: GlyphData[],

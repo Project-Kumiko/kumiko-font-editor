@@ -13,6 +13,8 @@ import type {
   ProjectSourceFormat,
   ProjectRoundTripFormat,
 } from 'src/lib/projectFormats'
+import type { GlyphEditTimes } from 'src/lib/glyphEditTimes'
+import { getProjectGlyphEditTimes } from 'src/lib/glyphEditTimes'
 import { syncEditorTextFromGlyphIds } from 'src/store/editorLine'
 import { syncFilteredGlyphList } from 'src/store/glyphSearch'
 import { syncGlyphTopLevelFromLayer } from 'src/store/glyphLayer'
@@ -49,6 +51,7 @@ export const buildProjectActions = (
       state.hasLocalChanges = false
       state.localDirtyGlyphIds = []
       state.localDeletedGlyphIds = []
+      state.glyphEditTimes = getProjectGlyphEditTimes(projectMetadata)
       state.editorGlyphIds = []
       state.editorText = ''
       state.editorTextCursorIndex = 0
@@ -93,11 +96,16 @@ export const buildProjectActions = (
 
   hydratePersistedLocalChanges: (
     dirtyGlyphIds: string[],
-    deletedGlyphIds: string[]
+    deletedGlyphIds: string[],
+    glyphEditTimes: GlyphEditTimes = {}
   ) =>
     set((state) => {
       state.localDirtyGlyphIds = [...dirtyGlyphIds]
       state.localDeletedGlyphIds = [...deletedGlyphIds]
+      state.glyphEditTimes = {
+        ...state.glyphEditTimes,
+        ...glyphEditTimes,
+      }
       state.hasLocalChanges =
         dirtyGlyphIds.length > 0 || deletedGlyphIds.length > 0
     }),
@@ -113,6 +121,7 @@ export const buildProjectActions = (
       state.hasLocalChanges = false
       state.localDirtyGlyphIds = []
       state.localDeletedGlyphIds = []
+      state.glyphEditTimes = {}
       state.editorGlyphIds = []
       state.editorText = ''
       state.editorTextCursorIndex = 0

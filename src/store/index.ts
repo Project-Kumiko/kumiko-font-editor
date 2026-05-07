@@ -44,6 +44,7 @@ const initialState = {
   hasLocalChanges: false,
   localDirtyGlyphIds: [],
   localDeletedGlyphIds: [],
+  glyphEditTimes: {},
   editorGlyphIds: [],
   editorText: '',
   editorTextCursorIndex: 0,

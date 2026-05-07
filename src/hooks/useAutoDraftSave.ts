@@ -10,6 +10,7 @@ export function useAutoDraftSave() {
   const projectTitle = useStore((state) => state.projectTitle)
   const dirtyGlyphIds = useStore((state) => state.dirtyGlyphIds)
   const deletedGlyphIds = useStore((state) => state.deletedGlyphIds)
+  const glyphEditTimes = useStore((state) => state.glyphEditTimes)
   const selectedLayerId = useStore((state) => state.selectedLayerId)
   const isDirty = useStore((state) => state.isDirty)
   const markDraftSaved = useStore((state) => state.markDraftSaved)
@@ -35,6 +36,7 @@ export function useAutoDraftSave() {
         fontData,
         dirtyGlyphIds,
         deletedGlyphIds,
+        glyphEditTimes,
         selectedLayerId,
       })
         .then(() => {
@@ -55,6 +57,7 @@ export function useAutoDraftSave() {
     deletedGlyphIds,
     dirtyGlyphIds,
     fontData,
+    glyphEditTimes,
     isDirty,
     markDraftSaved,
     projectId,
