@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { saveDraftSnapshot } from '../lib/draftSave'
 import { useStore } from '../store'
 
+const AUTO_DRAFT_SAVE_DELAY_MS = 60_000
+
 export function useAutoDraftSave() {
   const fontData = useStore((state) => state.fontData)
   const projectId = useStore((state) => state.projectId)
@@ -41,7 +43,7 @@ export function useAutoDraftSave() {
         .catch((error) => {
           console.warn('Auto draft save failed.', error)
         })
-    }, 3000)
+    }, AUTO_DRAFT_SAVE_DELAY_MS)
 
     return () => {
       if (autosaveTimerRef.current !== null) {

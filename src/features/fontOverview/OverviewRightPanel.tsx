@@ -46,7 +46,6 @@ export function OverviewRightPanel() {
             panel.projectTitle &&
             panel.isDirty
           )}
-          hasUfoSource={panel.hasUfoSource}
           hasGitHubSource={panel.hasGitHubSource}
           isSavingToLocal={fontExport.isExporting}
           onOpenExportModal={exportModal.onOpen}

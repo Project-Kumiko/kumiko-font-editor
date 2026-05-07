@@ -152,7 +152,8 @@ export const buildRotatedUpdates = (
   degrees: number,
   origin: TransformOrigin = { x: 'center', y: 'middle' }
 ): NodePositionUpdate[] => {
-  const angle = (degrees * Math.PI) / 180
+  // Positive UI rotation follows visual clockwise direction in the glyph editor.
+  const angle = (-degrees * Math.PI) / 180
   const cos = Math.cos(angle)
   const sin = Math.sin(angle)
   const { x: originX, y: originY } = getOriginPoint(bounds, origin)

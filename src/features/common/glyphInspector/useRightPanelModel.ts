@@ -3,7 +3,6 @@ import { saveDraftSnapshot } from '../../../lib/draftSave'
 import {
   getArchivedGlyphLayerEntries,
   getProjectArchiveMetadata,
-  getProjectArchiveRoundTripFormat,
 } from '../../../lib/projectArchive'
 import {
   getEffectiveNodeType,
@@ -210,8 +209,8 @@ export function useRightPanelModel() {
       })
       markDraftSaved()
       toast({
-        title: '已儲存草稿',
-        description: '目前變更已寫入本機草稿。',
+        title: '已儲存',
+        description: '目前變更已寫入本機專案。',
         status: 'success',
         duration: 2200,
         isClosable: true,
@@ -259,6 +258,5 @@ export function useRightPanelModel() {
     handleSaveProject,
     setSelectedLayerId,
     setWorkspaceView,
-    hasUfoSource: getProjectArchiveRoundTripFormat() === 'ufo',
   }
 }
