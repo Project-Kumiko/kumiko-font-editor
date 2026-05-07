@@ -56,6 +56,9 @@ export function FontOverviewScreen() {
   const pendingOverviewGridStateRef = useRef<GridStateSnapshot | null>(
     overviewGridState
   )
+  const storedOverviewGridStateRef = useRef<GridStateSnapshot | null>(
+    overviewGridState
+  )
 
   const overviewGlyphs = useMemo(
     () =>
@@ -108,7 +111,24 @@ export function FontOverviewScreen() {
   }, [sections, selectedSectionId, setOverviewSectionId])
 
   useEffect(() => {
+    storedOverviewGridStateRef.current = overviewGridState
+  }, [overviewGridState])
+
+  useEffect(() => {
     return () => {
+      const pendingScrollTop =
+        pendingOverviewGridStateRef.current?.scrollTop ?? null
+      const storedScrollTop =
+        storedOverviewGridStateRef.current?.scrollTop ?? null
+
+      if (
+        pendingScrollTop === 0 &&
+        storedScrollTop !== null &&
+        storedScrollTop > 0
+      ) {
+        return
+      }
+
       setOverviewGridState(pendingOverviewGridStateRef.current)
     }
   }, [setOverviewGridState])
@@ -193,6 +213,10 @@ export function FontOverviewScreen() {
   }
 
   const handleSectionSelect = (sectionId: string) => {
+    if (sectionId === selectedSectionId) {
+      return
+    }
+
     pendingOverviewGridStateRef.current = null
     setOverviewGridState(null)
     setOverviewSectionId(sectionId)

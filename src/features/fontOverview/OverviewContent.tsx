@@ -1,5 +1,5 @@
 import { Box, Heading, HStack, Stack, Tag, Text } from '@chakra-ui/react'
-import { useCallback, useMemo, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, type MouseEvent } from 'react'
 import {
   VirtuosoGrid,
   type GridStateSnapshot,
@@ -53,6 +53,8 @@ export function OverviewContent({
     }),
     []
   )
+  const restoreFrameRef = useRef<number | null>(null)
+  const restoredSnapshotRef = useRef<GridStateSnapshot | null>(null)
 
   const getItemKey = useCallback(
     (index: number) => activeSection.glyphs[index]?.id ?? index,
@@ -66,18 +68,56 @@ export function OverviewContent({
     [activeSection.glyphs, topGlyphId]
   )
 
+  useEffect(
+    () => () => {
+      if (restoreFrameRef.current !== null) {
+        window.cancelAnimationFrame(restoreFrameRef.current)
+        restoreFrameRef.current = null
+      }
+    },
+    []
+  )
+
+  const cancelPendingRestore = useCallback(() => {
+    if (restoreFrameRef.current !== null) {
+      window.cancelAnimationFrame(restoreFrameRef.current)
+      restoreFrameRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    restoredSnapshotRef.current = null
+  }, [restoreSnapshot])
+
   const handleReadyStateChange = useCallback(
     (ready: boolean) => {
-      if (!ready || restoreTopIndex < 0) {
+      if (!ready) {
         return
       }
 
+      if (restoreSnapshot && restoredSnapshotRef.current !== restoreSnapshot) {
+        restoredSnapshotRef.current = restoreSnapshot
+        cancelPendingRestore()
+        restoreFrameRef.current = window.requestAnimationFrame(() => {
+          restoreFrameRef.current = null
+          gridRef.current?.scrollTo({
+            top: restoreSnapshot.scrollTop,
+          })
+        })
+        return
+      }
+
+      if (restoreSnapshot || restoreTopIndex < 0) {
+        return
+      }
+
+      cancelPendingRestore()
       gridRef.current?.scrollToIndex({
         index: restoreTopIndex,
         align: 'start',
       })
     },
-    [gridRef, restoreTopIndex]
+    [cancelPendingRestore, gridRef, restoreSnapshot, restoreTopIndex]
   )
 
   return (
