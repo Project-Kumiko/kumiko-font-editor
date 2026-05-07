@@ -2,36 +2,28 @@ import {
   Box,
   Button,
   Divider,
-  Grid,
-  GridItem,
   Heading,
-  IconButton,
   HStack,
-  Input,
   Stack,
   Text,
   Tooltip,
 } from '@chakra-ui/react'
-import {
-  AlignBottomBox,
-  AlignHorizontalCenters,
-  AlignLeftBox,
-  AlignRightBox,
-  AlignTopBox,
-  AlignVerticalCenters,
-  Flip,
-  Intersect,
-  Cut,
-  Lock,
-  Refresh,
-  ScaleFrameEnlarge,
-  ScaleFrameReduce,
-  Substract,
-  Union,
-} from 'iconoir-react'
-import { useMemo, useState, type MouseEvent, type ReactElement } from 'react'
+import { Refresh } from 'iconoir-react'
+import { useMemo, useState } from 'react'
 import type { GlyphData } from '../../../store'
 import type { PathBooleanOperation } from '../../../lib/pathBooleanOperations'
+import {
+  ScaleActionGroup,
+  SkewIcon,
+  TransformActionRow,
+  type SkewAxis,
+} from './TransformActionControls'
+import {
+  AlignControls,
+  MirrorControls,
+  PathOpsControls,
+  TransformFrameControls,
+} from './TransformPanelSections'
 import {
   buildAlignUpdates,
   buildFieldCommitUpdates,
@@ -58,61 +50,6 @@ interface TransformCardProps {
 
 type TransformActionField = 'rotate' | 'scaleX' | 'scaleY' | 'skewX' | 'skewY'
 type ScaleAxis = 'x' | 'y'
-type SkewAxis = 'x' | 'y'
-
-interface SteppedNumberInputProps {
-  value: string
-  placeholder?: string
-  isDisabled?: boolean
-  step?: number
-  onChange: (value: string) => void
-  onFocus?: () => void
-  onBlur?: () => void
-  onStep: (delta: number) => void
-}
-
-interface ActionRowProps {
-  label: string
-  value: string
-  unit: string
-  isDisabled: boolean
-  leftLabel: string
-  rightLabel: string
-  leftIcon: ReactElement
-  rightIcon: ReactElement
-  onChange: (value: string) => void
-  onStep: (delta: number) => void
-  onLeft: () => void
-  onRight: () => void
-}
-
-interface ScaleActionGroupProps {
-  scaleX: string
-  scaleY: string
-  isDisabled: boolean
-  isScaleLocked: boolean
-  onScaleXChange: (value: string) => void
-  onScaleYChange: (value: string) => void
-  onScaleXStep: (delta: number) => void
-  onScaleYStep: (delta: number) => void
-  onScaleXDown: () => void
-  onScaleXUp: () => void
-  onScaleYDown: () => void
-  onScaleYUp: () => void
-  onToggleLock: () => void
-}
-
-interface ScaleActionLineProps {
-  label: string
-  value: string
-  isDisabled: boolean
-  leftLabel: string
-  rightLabel: string
-  onChange: (value: string) => void
-  onStep: (delta: number) => void
-  onLeft: () => void
-  onRight: () => void
-}
 
 export function TransformCard({
   glyph,
@@ -300,37 +237,7 @@ export function TransformCard({
   }
 
   const isDisabled = selectedNodes.length === 0
-  const alignButtons: Array<{
-    icon: typeof AlignLeftBox
-    label: string
-    target: AlignTarget
-  }> = [
-    { icon: AlignLeftBox, label: 'Align left', target: 'left' },
-    {
-      icon: AlignHorizontalCenters,
-      label: 'Align horizontal center',
-      target: 'centerX',
-    },
-    { icon: AlignRightBox, label: 'Align right', target: 'right' },
-    { icon: AlignTopBox, label: 'Align top', target: 'top' },
-    {
-      icon: AlignVerticalCenters,
-      label: 'Align vertical middle',
-      target: 'middleY',
-    },
-    { icon: AlignBottomBox, label: 'Align bottom', target: 'bottom' },
-  ]
   const canApplyPathOps = selectedClosedPathIds.length >= 2
-  const pathActions: Array<{
-    icon: typeof Union
-    label: string
-    operation: PathBooleanOperation
-  }> = [
-    { icon: Union, label: 'Union', operation: 'union' },
-    { icon: Substract, label: 'Subtract', operation: 'subtract' },
-    { icon: Intersect, label: 'Intersect', operation: 'intersect' },
-    { icon: Cut, label: 'Divide', operation: 'divide' },
-  ]
 
   return (
     <Box p={4} bg="field.panel" borderRadius="sm">
@@ -348,86 +255,21 @@ export function TransformCard({
       </HStack>
 
       <Stack spacing={4}>
-        <HStack align="start" spacing={4}>
-          <Box minW="72px">
-            <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              Origin
-            </Text>
-            <Grid templateColumns="repeat(3, 18px)" gap="3px">
-              {(
-                [
-                  ['left', 'top'],
-                  ['center', 'top'],
-                  ['right', 'top'],
-                  ['left', 'middle'],
-                  ['center', 'middle'],
-                  ['right', 'middle'],
-                  ['left', 'bottom'],
-                  ['center', 'bottom'],
-                  ['right', 'bottom'],
-                ] as const
-              ).map(([x, y]) => {
-                const isActive = origin.x === x && origin.y === y
-                return (
-                  <Tooltip key={`${x}-${y}`} label={`${x} ${y}`}>
-                    <Button
-                      aria-label={`${x} ${y} origin`}
-                      size="xs"
-                      minW="18px"
-                      h="18px"
-                      p={0}
-                      borderRadius="1px"
-                      variant={isActive ? 'solid' : 'outline'}
-                      isDisabled={isDisabled}
-                      onClick={() => setOrigin({ x, y })}
-                    >
-                      <Box
-                        w="5px"
-                        h="5px"
-                        bg={isActive ? 'field.ink' : 'field.muted'}
-                      />
-                    </Button>
-                  </Tooltip>
-                )
-              })}
-            </Grid>
-          </Box>
-
-          <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={3} flex="1">
-            {(
-              [
-                ['x', 'X'],
-                ['y', 'Y'],
-                ['width', 'W'],
-                ['height', 'H'],
-              ] as const
-            ).map(([field, label]) => (
-              <GridItem key={field}>
-                <Text
-                  fontSize="xs"
-                  color="field.muted"
-                  mb={1}
-                  fontFamily="mono"
-                >
-                  {label}
-                </Text>
-                <SteppedNumberInput
-                  value={
-                    focusedField === field ? draftValue : boundsValues[field]
-                  }
-                  isDisabled={isDisabled}
-                  onFocus={() => {
-                    setFocusedField(field)
-                    setDraftValue(boundsValues[field])
-                  }}
-                  onChange={(event) => handleFieldChange(field, event)}
-                  onBlur={() => handleFieldBlur(field)}
-                  onStep={(delta) => stepField(field, delta)}
-                />
-              </GridItem>
-            ))}
-          </Grid>
-        </HStack>
+        <TransformFrameControls
+          origin={origin}
+          isDisabled={isDisabled}
+          onOriginChange={setOrigin}
+          focusedField={focusedField}
+          draftValue={draftValue}
+          boundsValues={boundsValues}
+          onFocus={(field) => {
+            setFocusedField(field)
+            setDraftValue(boundsValues[field])
+          }}
+          onFieldChange={handleFieldChange}
+          onBlur={handleFieldBlur}
+          onStep={stepField}
+        />
 
         <Divider borderColor="field.panelMuted" />
 
@@ -453,7 +295,7 @@ export function TransformCard({
             onScaleYUp={() => applyScaleStep('y', 1)}
             onToggleLock={() => setIsScaleLocked((current) => !current)}
           />
-          <ActionRow
+          <TransformActionRow
             label="Rotate"
             value={actionDrafts.rotate}
             unit="deg"
@@ -473,7 +315,7 @@ export function TransformCard({
             onLeft={() => applyRotationStep(-1)}
             onRight={() => applyRotationStep(1)}
           />
-          <ActionRow
+          <TransformActionRow
             label="Skew X"
             value={actionDrafts.skewX}
             unit="deg"
@@ -487,7 +329,7 @@ export function TransformCard({
             onLeft={() => applySkewStep('x', -1)}
             onRight={() => applySkewStep('x', 1)}
           />
-          <ActionRow
+          <TransformActionRow
             label="Skew Y"
             value={actionDrafts.skewY}
             unit="deg"
@@ -501,468 +343,46 @@ export function TransformCard({
             onLeft={() => applySkewStep('y', -1)}
             onRight={() => applySkewStep('y', 1)}
           />
-        </Stack>
 
-        <Divider borderColor="field.panelMuted" />
-
-        <Stack spacing={2}>
-          <Text fontSize="xs" color="field.muted" fontFamily="mono">
-            Mirror
-          </Text>
-          <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-            <Tooltip label="Mirror horizontally">
+          <Box>
+            <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
+              Quick
+            </Text>
+            <Tooltip label="Rotate 90 degrees">
               <Button
+                aria-label="Rotate 90 degrees"
+                leftIcon={<Refresh width={16} height={16} />}
                 size="sm"
-                variant="outline"
-                leftIcon={
-                  <Flip width={16} height={16} transform="rotate(-90)" />
+                w="100%"
+                isDisabled={isDisabled}
+                onClick={() =>
+                  onMoveSelection(
+                    bounds
+                      ? buildRotatedUpdates(selectedNodes, bounds, 90, origin)
+                      : []
+                  )
                 }
-                isDisabled={isDisabled}
-                onClick={() => applyMirror('x')}
               >
-                X
+                Rotate 90°
               </Button>
             </Tooltip>
-            <Tooltip label="Mirror vertically">
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Flip width={16} height={16} />}
-                isDisabled={isDisabled}
-                onClick={() => applyMirror('y')}
-              >
-                Y
-              </Button>
-            </Tooltip>
-          </Grid>
-        </Stack>
-
-        <Stack spacing={2}>
-          <Text fontSize="xs" color="field.muted" fontFamily="mono">
-            Align
-          </Text>
-          <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap={2}>
-            {alignButtons.map(({ icon: Icon, label, target }) => (
-              <Tooltip key={target} label={label}>
-                <IconButton
-                  aria-label={label}
-                  size="sm"
-                  variant="outline"
-                  isDisabled={isDisabled}
-                  icon={<Icon width={16} height={16} />}
-                  onClick={() => applyAlign(target)}
-                />
-              </Tooltip>
-            ))}
-          </Grid>
+          </Box>
         </Stack>
 
         <Divider borderColor="field.panelMuted" />
 
-        <Stack spacing={2}>
-          <HStack justify="space-between">
-            <Text fontSize="xs" color="field.muted" fontFamily="mono">
-              Path ops
-            </Text>
-            <Text fontSize="10px" color="field.muted" fontFamily="mono">
-              {canApplyPathOps
-                ? `${selectedClosedPathIds.length} paths`
-                : 'select 2 closed paths'}
-            </Text>
-          </HStack>
-          <Grid templateColumns="repeat(4, minmax(0, 1fr))" gap={2}>
-            {pathActions.map(({ icon: Icon, label, operation }) => (
-              <Tooltip key={label} label={label}>
-                <IconButton
-                  aria-label={label}
-                  icon={<Icon width={16} height={16} />}
-                  size="sm"
-                  variant="outline"
-                  isDisabled={!canApplyPathOps}
-                  onClick={() =>
-                    onPathOperation(operation, selectedClosedPathIds)
-                  }
-                />
-              </Tooltip>
-            ))}
-          </Grid>
-        </Stack>
-      </Stack>
-    </Box>
-  )
-}
+        <MirrorControls isDisabled={isDisabled} onMirror={applyMirror} />
 
-function ActionRow({
-  label,
-  value,
-  unit,
-  isDisabled,
-  leftLabel,
-  rightLabel,
-  leftIcon,
-  rightIcon,
-  onChange,
-  onStep,
-  onLeft,
-  onRight,
-}: ActionRowProps) {
-  return (
-    <Box>
-      <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-        {label}
-      </Text>
-      <Grid templateColumns="32px 88px 32px" gap={1} justifyContent="center">
-        <Tooltip label={leftLabel}>
-          <IconButton
-            aria-label={leftLabel}
-            icon={leftIcon}
-            size="sm"
-            minW="32px"
-            variant="outline"
-            isDisabled={isDisabled}
-            onClick={onLeft}
-          />
-        </Tooltip>
-        <ActionValueInput
-          value={value}
-          unit={unit}
-          isDisabled={isDisabled}
-          onChange={onChange}
-          onStep={onStep}
-        />
-        <Tooltip label={rightLabel}>
-          <IconButton
-            aria-label={rightLabel}
-            icon={rightIcon}
-            size="sm"
-            minW="32px"
-            variant="outline"
-            isDisabled={isDisabled}
-            onClick={onRight}
-          />
-        </Tooltip>
-      </Grid>
-    </Box>
-  )
-}
+        <AlignControls isDisabled={isDisabled} onAlign={applyAlign} />
 
-function ScaleActionGroup({
-  scaleX,
-  scaleY,
-  isDisabled,
-  isScaleLocked,
-  onScaleXChange,
-  onScaleYChange,
-  onScaleXStep,
-  onScaleYStep,
-  onScaleXDown,
-  onScaleXUp,
-  onScaleYDown,
-  onScaleYUp,
-  onToggleLock,
-}: ScaleActionGroupProps) {
-  const isScaleYDisabled = isDisabled || isScaleLocked
+        <Divider borderColor="field.panelMuted" />
 
-  return (
-    <Box position="relative">
-      <Stack spacing={2}>
-        <ScaleActionLine
-          label="Scale X"
-          value={scaleX}
-          isDisabled={isDisabled}
-          leftLabel="Scale down X"
-          rightLabel="Scale up X"
-          onChange={onScaleXChange}
-          onStep={onScaleXStep}
-          onLeft={onScaleXDown}
-          onRight={onScaleXUp}
-        />
-        <ScaleActionLine
-          label="Scale Y"
-          value={scaleY}
-          isDisabled={isScaleYDisabled}
-          leftLabel="Scale down Y"
-          rightLabel="Scale up Y"
-          onChange={onScaleYChange}
-          onStep={onScaleYStep}
-          onLeft={onScaleYDown}
-          onRight={onScaleYUp}
+        <PathOpsControls
+          canApply={canApplyPathOps}
+          selectedClosedPathIds={selectedClosedPathIds}
+          onPathOperation={onPathOperation}
         />
       </Stack>
-      <Tooltip
-        label={
-          isScaleLocked
-            ? 'Unlock proportional scale'
-            : 'Lock proportional scale'
-        }
-      >
-        <IconButton
-          aria-label={
-            isScaleLocked
-              ? 'Unlock proportional scale'
-              : 'Lock proportional scale'
-          }
-          icon={<Lock width={16} height={16} />}
-          position="absolute"
-          right="0"
-          top="50%"
-          size="sm"
-          minW="32px"
-          variant={isScaleLocked ? 'solid' : 'outline'}
-          isDisabled={isDisabled}
-          onClick={onToggleLock}
-        />
-      </Tooltip>
-    </Box>
-  )
-}
-
-function ScaleActionLine({
-  label,
-  value,
-  isDisabled,
-  leftLabel,
-  rightLabel,
-  onChange,
-  onStep,
-  onLeft,
-  onRight,
-}: ScaleActionLineProps) {
-  return (
-    <Box>
-      <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-        {label}
-      </Text>
-      <Grid templateColumns="32px 88px 32px" gap={1} justifyContent="center">
-        <Tooltip label={leftLabel}>
-          <IconButton
-            aria-label={leftLabel}
-            icon={<ScaleFrameReduce width={16} height={16} />}
-            size="sm"
-            minW="32px"
-            variant="outline"
-            isDisabled={isDisabled}
-            onClick={onLeft}
-          />
-        </Tooltip>
-        <ActionValueInput
-          value={value}
-          unit="%"
-          isDisabled={isDisabled}
-          onChange={onChange}
-          onStep={onStep}
-        />
-        <Tooltip label={rightLabel}>
-          <IconButton
-            aria-label={rightLabel}
-            icon={<ScaleFrameEnlarge width={16} height={16} />}
-            size="sm"
-            minW="32px"
-            variant="outline"
-            isDisabled={isDisabled}
-            onClick={onRight}
-          />
-        </Tooltip>
-      </Grid>
-    </Box>
-  )
-}
-
-function ActionValueInput({
-  value,
-  unit,
-  isDisabled,
-  onChange,
-  onStep,
-}: {
-  value: string
-  unit: string
-  isDisabled: boolean
-  onChange: (value: string) => void
-  onStep: (delta: number) => void
-}) {
-  const handleStep = (direction: 1 | -1) => {
-    onStep(direction)
-  }
-
-  return (
-    <Box position="relative">
-      <Input
-        size="sm"
-        type="number"
-        textAlign="center"
-        pr="42px"
-        value={value}
-        isDisabled={isDisabled}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.currentTarget.blur()
-          }
-        }}
-      />
-      <Text
-        position="absolute"
-        top="50%"
-        right="25px"
-        transform="translateY(-50%)"
-        fontSize="10px"
-        color="field.muted"
-        pointerEvents="none"
-      >
-        {unit}
-      </Text>
-      <Box
-        position="absolute"
-        top="1px"
-        right="1px"
-        bottom="1px"
-        w="18px"
-        display="grid"
-        gridTemplateRows="1fr 1fr"
-        borderLeft="1px solid"
-        borderColor="field.panelMuted"
-        pointerEvents={isDisabled ? 'none' : 'auto'}
-        opacity={isDisabled ? 0.35 : 1}
-      >
-        <Box
-          as="button"
-          type="button"
-          aria-label="Increment action value"
-          fontSize="7px"
-          lineHeight="1"
-          color="field.muted"
-          borderTopRightRadius="3px"
-          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
-          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
-            event.preventDefault()
-          }
-          onClick={() => handleStep(1)}
-        >
-          ▲
-        </Box>
-        <Box
-          as="button"
-          type="button"
-          aria-label="Decrement action value"
-          fontSize="7px"
-          lineHeight="1"
-          color="field.muted"
-          borderBottomRightRadius="3px"
-          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
-          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
-            event.preventDefault()
-          }
-          onClick={() => handleStep(-1)}
-        >
-          ▼
-        </Box>
-      </Box>
-    </Box>
-  )
-}
-
-function SkewIcon({ axis, direction }: { axis: SkewAxis; direction: 1 | -1 }) {
-  const rotation = axis === 'y' ? 90 : 0
-  const scale = direction === -1 ? -1 : 1
-
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 1 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ transform: `rotate(${rotation}deg) scaleX(${scale})` }}
-      aria-hidden="true"
-    >
-      <path d="M5.5 3.5h6l-3 9h-6l3-9Z" />
-    </svg>
-  )
-}
-
-function SteppedNumberInput({
-  value,
-  placeholder,
-  isDisabled,
-  step = 1,
-  onChange,
-  onFocus,
-  onBlur,
-  onStep,
-}: SteppedNumberInputProps) {
-  const handleStep = (direction: 1 | -1) => {
-    onStep(step * direction)
-  }
-
-  return (
-    <Box position="relative">
-      <Input
-        size="sm"
-        type="number"
-        pr="24px"
-        step={step}
-        value={value}
-        placeholder={placeholder}
-        isDisabled={isDisabled}
-        onFocus={onFocus}
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={onBlur}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.currentTarget.blur()
-          }
-        }}
-      />
-      <Box
-        position="absolute"
-        top="1px"
-        right="1px"
-        bottom="1px"
-        w="20px"
-        display="grid"
-        gridTemplateRows="1fr 1fr"
-        borderLeft="1px solid"
-        borderColor="field.panelMuted"
-        pointerEvents={isDisabled ? 'none' : 'auto'}
-        opacity={isDisabled ? 0.35 : 1}
-      >
-        <Box
-          as="button"
-          type="button"
-          aria-label="Increment value"
-          fontSize="8px"
-          lineHeight="1"
-          color="field.muted"
-          borderTopRightRadius="3px"
-          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
-          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
-            event.preventDefault()
-          }
-          onClick={() => handleStep(1)}
-        >
-          ▲
-        </Box>
-        <Box
-          as="button"
-          type="button"
-          aria-label="Decrement value"
-          fontSize="8px"
-          lineHeight="1"
-          color="field.muted"
-          borderBottomRightRadius="3px"
-          _hover={{ bg: 'field.panelMuted', color: 'field.ink' }}
-          onMouseDown={(event: MouseEvent<HTMLButtonElement>) =>
-            event.preventDefault()
-          }
-          onClick={() => handleStep(-1)}
-        >
-          ▼
-        </Box>
-      </Box>
     </Box>
   )
 }
