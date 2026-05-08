@@ -69,6 +69,9 @@ export function FontSettingsModal({
   const [openTypeDraft, setOpenTypeDraft] = useState(() =>
     toOpenTypeDraft(fontInfo)
   )
+  const [localizedNames, setLocalizedNames] = useState(
+    () => fontInfo?.localizedNames ?? {}
+  )
   const [unitsPerEm, setUnitsPerEm] = useState(() =>
     String(fontData?.unitsPerEm ?? '')
   )
@@ -108,7 +111,12 @@ export function FontSettingsModal({
     }
 
     onSave({
-      fontInfo: buildFontInfoFromDrafts(fontInfo, generalDraft, openTypeDraft),
+      fontInfo: buildFontInfoFromDrafts(
+        fontInfo,
+        generalDraft,
+        openTypeDraft,
+        localizedNames
+      ),
       unitsPerEm: parseInteger(unitsPerEm),
       axes: {
         axes,
@@ -183,12 +191,14 @@ export function FontSettingsModal({
                   mappingsText={mappingsText}
                   openTypeDraft={openTypeDraft}
                   unitsPerEm={unitsPerEm}
+                  localizedNames={localizedNames}
                   onAxesChange={setAxes}
                   onCustomParametersTextChange={setCustomParametersText}
                   onGeneralDraftChange={setGeneralDraft}
                   onMappingsTextChange={setMappingsText}
                   onOpenTypeDraftChange={setOpenTypeDraft}
                   onUnitsPerEmChange={setUnitsPerEm}
+                  onLocalizedNamesChange={setLocalizedNames}
                 />
               </TabPanel>
               <TabPanel p={0} h="100%" overflow="auto">

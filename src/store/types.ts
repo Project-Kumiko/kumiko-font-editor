@@ -125,6 +125,8 @@ export interface FontInfo {
   licenseDescription?: string
   licenseInfoURL?: string
   vendorID?: string
+  localizedNames?: Record<string, Record<string, string>>
+  openTypeNameRecords?: Record<string, Record<string, Record<string, string>>>
   customData: Record<string, FontInfoCustomDataValue>
 }
 

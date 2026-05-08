@@ -17,6 +17,7 @@ import {
 } from 'src/lib/fontInfoSettings'
 import type { FontAxis } from 'src/store'
 import { NumberField } from 'src/features/common/projectControl/fontSettings/fields'
+import { LocalizedNamesEditor } from 'src/features/common/projectControl/fontSettings/LocalizedNamesEditor'
 import {
   parseNumber,
   toArrayDraftValue,
@@ -32,12 +33,16 @@ interface FontBasicsTabProps {
   mappingsText: string
   openTypeDraft: OpenTypeDraft
   unitsPerEm: string
+  localizedNames: Record<string, Record<string, string>>
   onAxesChange: (axes: FontAxis[]) => void
   onCustomParametersTextChange: (value: string) => void
   onGeneralDraftChange: (draft: FontInfoDraft) => void
   onMappingsTextChange: (value: string) => void
   onOpenTypeDraftChange: (draft: OpenTypeDraft) => void
   onUnitsPerEmChange: (value: string) => void
+  onLocalizedNamesChange: (
+    localizedNames: Record<string, Record<string, string>>
+  ) => void
 }
 
 export function FontBasicsTab({
@@ -47,12 +52,14 @@ export function FontBasicsTab({
   mappingsText,
   openTypeDraft,
   unitsPerEm,
+  localizedNames,
   onAxesChange,
   onCustomParametersTextChange,
   onGeneralDraftChange,
   onMappingsTextChange,
   onOpenTypeDraftChange,
   onUnitsPerEmChange,
+  onLocalizedNamesChange,
 }: FontBasicsTabProps) {
   const updateAxis = (index: number, update: Partial<FontAxis>) => {
     onAxesChange(
@@ -103,6 +110,16 @@ export function FontBasicsTab({
             onChange={onUnitsPerEmChange}
           />
         </SimpleGrid>
+      </Box>
+
+      <Box>
+        <Text fontWeight="semibold" mb={3}>
+          本地化名稱
+        </Text>
+        <LocalizedNamesEditor
+          localizedNames={localizedNames}
+          onChange={onLocalizedNamesChange}
+        />
       </Box>
 
       <Box>

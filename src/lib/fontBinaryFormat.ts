@@ -124,7 +124,26 @@ const getLocalizedName = (font: opentype.Font, ...keys: string[]) => {
   return undefined
 }
 
+const cloneNameRecords = (font: opentype.Font) =>
+  JSON.parse(JSON.stringify(font.names)) as OpenTypeNameTable
+
+const mergeLocalizedNames = (nameRecords: OpenTypeNameTable) => {
+  const merged: Record<string, Record<string, string>> = {}
+  for (const platform of ['macintosh', 'unicode', 'windows']) {
+    for (const [nameKey, localized] of Object.entries(
+      nameRecords[platform] ?? {}
+    )) {
+      merged[nameKey] = {
+        ...(merged[nameKey] ?? {}),
+        ...localized,
+      }
+    }
+  }
+  return merged
+}
+
 const buildFontInfoFromOpenTypeFont = (font: opentype.Font): FontInfo => {
+  const openTypeNameRecords = cloneNameRecords(font)
   const versionText = getLocalizedName(font, 'version')
   const versionMatch = versionText?.match(/(\d+)(?:\.(\d+))?/)
   const fullName = getLocalizedName(font, 'fullName')
@@ -146,6 +165,8 @@ const buildFontInfoFromOpenTypeFont = (font: opentype.Font): FontInfo => {
     versionMinor: versionMatch?.[2]
       ? Number.parseInt(versionMatch[2], 10)
       : undefined,
+    localizedNames: mergeLocalizedNames(openTypeNameRecords),
+    openTypeNameRecords,
     customData: {
       ...(versionText ? { openTypeNameVersion: versionText } : {}),
       ...(fullName ? { openTypeNameCompatibleFullName: fullName } : {}),

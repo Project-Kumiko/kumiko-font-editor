@@ -16,10 +16,17 @@ export const KUMIKO_EXPORT_INSTANCES_LIB_KEY =
   'com.kumiko.fontEditor.exportInstances'
 export const KUMIKO_SETTINGS_LIB_KEY = 'com.kumiko.fontEditor.settings'
 export const KUMIKO_NOTES_LIB_KEY = 'com.kumiko.fontEditor.notes'
+export const KUMIKO_OPENTYPE_NAME_RECORDS_LIB_KEY =
+  'com.kumiko.fontEditor.openTypeNameRecords'
+export const KUMIKO_LOCALIZED_NAMES_LIB_KEY =
+  'com.kumiko.fontEditor.localizedNames'
 export const FONTRA_STATUS_DEFINITIONS_KEY =
   'fontra.sourceStatusFieldDefinitions'
 
-export type FontInfoGeneralKey = Exclude<keyof FontInfo, 'customData'>
+export type FontInfoGeneralKey = Exclude<
+  keyof FontInfo,
+  'customData' | 'localizedNames' | 'openTypeNameRecords'
+>
 
 export interface FontInfoGeneralField {
   key: FontInfoGeneralKey
@@ -244,6 +251,12 @@ export const fontInfoFromUfoFontInfo = (
     }
   }
 
+  const nameRecords = ufoFontInfo[KUMIKO_OPENTYPE_NAME_RECORDS_LIB_KEY]
+  if (nameRecords && typeof nameRecords === 'object') {
+    fontInfo.openTypeNameRecords =
+      nameRecords as FontInfo['openTypeNameRecords']
+  }
+
   return fontInfo
 }
 
@@ -270,6 +283,10 @@ export const fontInfoToUfoFontInfo = (
     if (value !== undefined && value !== null && value !== '') {
       ufoFontInfo[setting.key] = value
     }
+  }
+  if (fontInfo?.openTypeNameRecords) {
+    ufoFontInfo[KUMIKO_OPENTYPE_NAME_RECORDS_LIB_KEY] =
+      fontInfo.openTypeNameRecords
   }
 
   return ufoFontInfo
@@ -495,6 +512,15 @@ export const buildUfoLibFromFontData = (
         [KUMIKO_SETTINGS_LIB_KEY]: fontData.settings,
         [KUMIKO_NOTES_LIB_KEY]: fontData.settings.notes ?? '',
       }
+    : {}),
+  ...(fontData.fontInfo?.openTypeNameRecords
+    ? {
+        [KUMIKO_OPENTYPE_NAME_RECORDS_LIB_KEY]:
+          fontData.fontInfo.openTypeNameRecords,
+      }
+    : {}),
+  ...(fontData.fontInfo?.localizedNames
+    ? { [KUMIKO_LOCALIZED_NAMES_LIB_KEY]: fontData.fontInfo.localizedNames }
     : {}),
   'public.glyphOrder': Object.keys(fontData.glyphs),
 })

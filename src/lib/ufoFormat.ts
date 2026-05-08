@@ -696,6 +696,26 @@ const buildFontDataFromUfoGlyphs = (
   const resolveBounds = buildBoundsResolver(glyphRecords)
 
   const axes = fontAxesFromLib(metadata.lib)
+  const fontInfo = fontInfoFromUfoFontInfo(metadata.fontinfo)
+  if (
+    fontInfo &&
+    metadata.lib?.['com.kumiko.fontEditor.openTypeNameRecords'] &&
+    typeof metadata.lib['com.kumiko.fontEditor.openTypeNameRecords'] ===
+      'object'
+  ) {
+    fontInfo.openTypeNameRecords = metadata.lib[
+      'com.kumiko.fontEditor.openTypeNameRecords'
+    ] as NonNullable<FontData['fontInfo']>['openTypeNameRecords']
+  }
+  if (
+    fontInfo &&
+    metadata.lib?.['com.kumiko.fontEditor.localizedNames'] &&
+    typeof metadata.lib['com.kumiko.fontEditor.localizedNames'] === 'object'
+  ) {
+    fontInfo.localizedNames = metadata.lib[
+      'com.kumiko.fontEditor.localizedNames'
+    ] as NonNullable<FontData['fontInfo']>['localizedNames']
+  }
   return {
     glyphs: Object.fromEntries(
       glyphRecords.map((record) => {
@@ -756,7 +776,7 @@ const buildFontDataFromUfoGlyphs = (
         ]
       })
     ),
-    fontInfo: fontInfoFromUfoFontInfo(metadata.fontinfo),
+    fontInfo,
     axes,
     sources: fontSourcesFromLib(metadata.lib) ?? {
       [metadata.ufoId]: defaultFontSource(

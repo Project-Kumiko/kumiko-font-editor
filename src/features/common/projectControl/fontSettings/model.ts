@@ -137,9 +137,12 @@ export const getInitialSettings = (
 export const buildFontInfoFromDrafts = (
   baseFontInfo: FontInfo | undefined,
   generalDraft: FontInfoDraft,
-  openTypeDraft: OpenTypeDraft
+  openTypeDraft: OpenTypeDraft,
+  localizedNames: Record<string, Record<string, string>>
 ): FontInfo => {
   const nextFontInfo: FontInfo = {
+    localizedNames,
+    openTypeNameRecords: baseFontInfo?.openTypeNameRecords,
     customData: { ...(baseFontInfo?.customData ?? {}) },
   }
 
