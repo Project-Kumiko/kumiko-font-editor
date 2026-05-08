@@ -100,7 +100,7 @@ const findUfoRoot = (relativePath: string) => {
   const normalized = normalizePath(relativePath).replace(/^\/+/, '')
   const segments = normalized.split('/').filter(Boolean)
   for (let index = 0; index < segments.length; index += 1) {
-    if (segments[index]?.endsWith('.ufo')) {
+    if (segments[index]?.toLowerCase().endsWith('.ufo')) {
       return {
         ufoId: segments.slice(0, index + 1).join('/'),
         relativePath: segments.slice(0, index + 1).join('/'),

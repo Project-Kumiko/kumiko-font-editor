@@ -64,11 +64,68 @@ export const useLocalImport = (input: {
     await handleFolderUpload(event)
   }
 
+  const getFilesFromDataTransfer = async (
+    dataTransfer: DataTransfer
+  ): Promise<File[]> => {
+    const files: File[] = []
+
+    const readEntry = async (entry: FileSystemEntry, path = '') => {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) => {
+          ;(entry as FileSystemFileEntry).file(resolve, reject)
+        })
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: path ? path + file.name : '',
+          writable: false,
+        })
+        files.push(file)
+      } else if (entry.isDirectory) {
+        const dirReader = (entry as FileSystemDirectoryEntry).createReader()
+        const entries = await new Promise<FileSystemEntry[]>(
+          (resolve, reject) => {
+            const readEntries = (accumulated: FileSystemEntry[]) => {
+              dirReader.readEntries((newEntries) => {
+                if (newEntries.length > 0) {
+                  readEntries(accumulated.concat(newEntries))
+                } else {
+                  resolve(accumulated)
+                }
+              }, reject)
+            }
+            readEntries([])
+          }
+        )
+
+        for (const child of entries) {
+          await readEntry(child, path + entry.name + '/')
+        }
+      }
+    }
+
+    if (dataTransfer.items) {
+      const promises: Promise<void>[] = []
+      for (let i = 0; i < dataTransfer.items.length; i++) {
+        const item = dataTransfer.items[i]
+        if (item?.kind === 'file') {
+          const entry = item.webkitGetAsEntry()
+          if (entry) {
+            promises.push(readEntry(entry))
+          }
+        }
+      }
+      await Promise.all(promises)
+    } else {
+      files.push(...Array.from(dataTransfer.files ?? []))
+    }
+
+    return files
+  }
+
   const handleDropUpload = async (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     localDragDepthRef.current = 0
     setIsDraggingLocal(false)
-    const files = Array.from(event.dataTransfer.files ?? [])
+    const files = await getFilesFromDataTransfer(event.dataTransfer)
     if (files.length === 0) {
       return
     }
