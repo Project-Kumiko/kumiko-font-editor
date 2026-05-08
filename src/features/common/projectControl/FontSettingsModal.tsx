@@ -149,7 +149,7 @@ export function FontSettingsModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent borderRadius="sm" h="860px">
+      <ModalContent borderRadius="sm" h="90vh">
         <ModalCloseButton zIndex={2} />
         <Tabs
           variant="enclosed"
