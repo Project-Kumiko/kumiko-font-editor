@@ -324,8 +324,6 @@ export const importBinaryFontFile = async (file: File) => {
       },
       layerOrder: [DEFAULT_LAYER_ID],
     }
-
-    if (idx > 5000) break
   }
 
   const sourceFormat: ProjectSourceFormat =
