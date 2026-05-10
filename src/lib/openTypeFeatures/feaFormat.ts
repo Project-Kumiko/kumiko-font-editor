@@ -1,4 +1,8 @@
-import type { GlyphSelector, ValueRecord } from 'src/lib/openTypeFeatures/types'
+import type {
+  LookupFlagIR,
+  ValueRecord,
+  GlyphSelector,
+} from 'src/lib/openTypeFeatures/types'
 
 export const formatGlyphSelector = (selector: GlyphSelector) =>
   selector.kind === 'class' ? selector.classId : selector.glyph
@@ -7,6 +11,29 @@ export const formatGlyphList = (glyphs: string[]) => `[${glyphs.join(' ')}]`
 
 export const formatAnchor = (anchor: { x: number; y: number }) =>
   `<anchor ${Math.round(anchor.x)} ${Math.round(anchor.y)}>`
+
+export const formatMarkAttachment = (attachment: {
+  markClassName: string
+  anchor: { x: number; y: number }
+}) => `${formatAnchor(attachment.anchor)} mark ${attachment.markClassName}`
+
+export const formatLookupFlags = (
+  flags: LookupFlagIR,
+  markFilteringSetName?: string
+) => {
+  const flagNames = [
+    flags.rightToLeft ? 'RightToLeft' : '',
+    flags.ignoreBaseGlyphs ? 'IgnoreBaseGlyphs' : '',
+    flags.ignoreLigatures ? 'IgnoreLigatures' : '',
+    flags.ignoreMarks ? 'IgnoreMarks' : '',
+  ].filter(Boolean)
+
+  if (flags.useMarkFilteringSet && markFilteringSetName) {
+    flagNames.push(`UseMarkFilteringSet ${markFilteringSetName}`)
+  }
+
+  return flagNames.length > 0 ? flagNames.join(' ') : '0'
+}
 
 export const formatValueRecord = (value: ValueRecord | undefined) => {
   if (!value) return ''

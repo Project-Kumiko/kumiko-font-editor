@@ -1,6 +1,7 @@
-import type { FeaNode } from 'src/lib/openTypeFeatures/feaAst'
+import type { FeaNode, MarkAttachment } from 'src/lib/openTypeFeatures/feaAst'
 import type {
   FeatureEntry,
+  LookupFlagIR,
   LookupRecord,
   OpenTypeFeaturesState,
   Rule,
@@ -12,7 +13,48 @@ const headerComments = [
   'It is not guaranteed to match any original feature source imported from a compiled font.',
 ]
 
-const ruleToNode = (rule: Rule): FeaNode | null => {
+const hasLookupFlags = (flags: LookupFlagIR) =>
+  Boolean(
+    flags.rightToLeft ||
+    flags.ignoreBaseGlyphs ||
+    flags.ignoreLigatures ||
+    flags.ignoreMarks ||
+    flags.useMarkFilteringSet
+  )
+
+const mapMarkAttachments = (
+  anchors: Record<string, { x: number; y: number }>,
+  markClassNameById: Map<string, string>
+): MarkAttachment[] =>
+  Object.entries(anchors)
+    .map(([markClassId, anchor]) => {
+      const markClassName = markClassNameById.get(markClassId)
+      return markClassName ? { markClassName, anchor } : null
+    })
+    .filter((entry): entry is MarkAttachment => Boolean(entry))
+
+const missingMarkClassIds = (
+  anchors: Record<string, { x: number; y: number }>,
+  markClassNameById: Map<string, string>
+) =>
+  Object.keys(anchors).filter(
+    (markClassId) => !markClassNameById.has(markClassId)
+  )
+
+const markRuleMissingClassComment = (rule: Rule, missingIds: string[]) => ({
+  kind: 'Comment' as const,
+  value: `Cannot serialize rule ${rule.id}: missing mark class ${missingIds.join(', ')}`,
+})
+
+const markRuleMissingAnchorsComment = (rule: Rule) => ({
+  kind: 'Comment' as const,
+  value: `Cannot serialize rule ${rule.id}: mark positioning rule has no mark anchors`,
+})
+
+const ruleToNode = (
+  rule: Rule,
+  markClassNameById: Map<string, string>
+): FeaNode | null => {
   switch (rule.kind) {
     case 'singleSubstitution':
       return {
@@ -59,6 +101,61 @@ const ruleToNode = (rule: Rule): FeaNode | null => {
         firstValue: rule.firstValue,
         secondValue: rule.secondValue,
       }
+    case 'markToBase': {
+      const missingIds = missingMarkClassIds(rule.anchors, markClassNameById)
+      if (missingIds.length > 0) {
+        return markRuleMissingClassComment(rule, missingIds)
+      }
+      const marks = mapMarkAttachments(rule.anchors, markClassNameById)
+      if (marks.length === 0) {
+        return markRuleMissingAnchorsComment(rule)
+      }
+      return {
+        kind: 'MarkToBase',
+        ruleId: rule.id,
+        base: rule.baseGlyphs,
+        marks,
+      }
+    }
+    case 'markToMark': {
+      const missingIds = missingMarkClassIds(rule.anchors, markClassNameById)
+      if (missingIds.length > 0) {
+        return markRuleMissingClassComment(rule, missingIds)
+      }
+      const marks = mapMarkAttachments(rule.anchors, markClassNameById)
+      if (marks.length === 0) {
+        return markRuleMissingAnchorsComment(rule)
+      }
+      return {
+        kind: 'MarkToMark',
+        ruleId: rule.id,
+        baseMark: rule.baseMarks,
+        marks,
+      }
+    }
+    case 'markToLigature': {
+      const missingIds = rule.componentAnchors.flatMap((componentAnchors) =>
+        missingMarkClassIds(componentAnchors, markClassNameById)
+      )
+      if (missingIds.length > 0) {
+        return markRuleMissingClassComment(rule, missingIds)
+      }
+      const componentMarks = rule.componentAnchors.map((componentAnchors) =>
+        mapMarkAttachments(componentAnchors, markClassNameById)
+      )
+      if (
+        componentMarks.length === 0 ||
+        componentMarks.some((marks) => marks.length === 0)
+      ) {
+        return markRuleMissingAnchorsComment(rule)
+      }
+      return {
+        kind: 'MarkToLigature',
+        ruleId: rule.id,
+        ligature: rule.ligatures,
+        componentMarks,
+      }
+    }
     default:
       return {
         kind: 'Comment',
@@ -67,14 +164,51 @@ const ruleToNode = (rule: Rule): FeaNode | null => {
   }
 }
 
-const lookupToBlock = (lookup: LookupRecord): FeaNode => ({
-  kind: 'LookupBlock',
-  name: lookup.name,
-  lookupId: lookup.id,
-  statements: lookup.rules
-    .map(ruleToNode)
-    .filter((node): node is FeaNode => Boolean(node)),
-})
+const lookupToBlock = (
+  lookup: LookupRecord,
+  markClassNameById: Map<string, string>,
+  glyphClassNameById: Map<string, string>
+): FeaNode => {
+  const markFilteringSetName = lookup.markFilteringSetClassId
+    ? glyphClassNameById.get(lookup.markFilteringSetClassId)
+    : undefined
+  const missingMarkFilteringSet =
+    lookup.lookupFlag.useMarkFilteringSet &&
+    lookup.markFilteringSetClassId &&
+    !markFilteringSetName
+  const serializableLookupFlag = missingMarkFilteringSet
+    ? { ...lookup.lookupFlag, useMarkFilteringSet: false }
+    : lookup.lookupFlag
+  const statements: FeaNode[] = [
+    ...(missingMarkFilteringSet
+      ? [
+          {
+            kind: 'Comment' as const,
+            value: `Cannot serialize UseMarkFilteringSet for lookup ${lookup.id}: missing glyph class ${lookup.markFilteringSetClassId}`,
+          },
+        ]
+      : []),
+    ...(hasLookupFlags(serializableLookupFlag)
+      ? [
+          {
+            kind: 'LookupFlag' as const,
+            flags: serializableLookupFlag,
+            markFilteringSetName,
+          },
+        ]
+      : []),
+    ...lookup.rules
+      .map((rule) => ruleToNode(rule, markClassNameById))
+      .filter((node): node is FeaNode => Boolean(node)),
+  ]
+
+  return {
+    kind: 'LookupBlock',
+    name: lookup.name,
+    lookupId: lookup.id,
+    statements,
+  }
+}
 
 const featureEntryStatements = (
   entry: FeatureEntry,
@@ -99,6 +233,12 @@ const featureEntryStatements = (
 
 export const buildFeaDocument = (state: OpenTypeFeaturesState) => {
   const lookupById = new Map(state.lookups.map((lookup) => [lookup.id, lookup]))
+  const glyphClassNameById = new Map(
+    state.glyphClasses.map((glyphClass) => [glyphClass.id, glyphClass.name])
+  )
+  const markClassNameById = new Map(
+    state.markClasses.map((markClass) => [markClass.id, markClass.name])
+  )
   const activeLookupIds = new Set(
     state.features
       .filter((feature) => feature.isActive)
@@ -131,7 +271,9 @@ export const buildFeaDocument = (state: OpenTypeFeaturesState) => {
     ),
     ...state.lookups
       .filter((lookup) => activeLookupIds.has(lookup.id))
-      .map(lookupToBlock),
+      .map((lookup) =>
+        lookupToBlock(lookup, markClassNameById, glyphClassNameById)
+      ),
     ...state.features
       .filter((feature) => feature.isActive)
       .map((feature) => ({

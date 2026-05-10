@@ -1,22 +1,13 @@
-import type { GlyphSelector, ValueRecord } from 'src/lib/openTypeFeatures/types'
+import type {
+  GlyphSelector,
+  LookupFlagIR,
+  ValueRecord,
+} from 'src/lib/openTypeFeatures/types'
 
 export interface FeaDocument {
   kind: 'Document'
   statements: FeaNode[]
 }
-
-export type FeaNode =
-  | LanguageSystemNode
-  | GlyphClassNode
-  | MarkClassNode
-  | LookupBlockNode
-  | FeatureBlockNode
-  | ScriptStatementNode
-  | LanguageStatementNode
-  | SubstitutionNode
-  | PositioningNode
-  | RawNode
-  | CommentNode
 
 export interface LanguageSystemNode {
   kind: 'LanguageSystem'
@@ -36,6 +27,12 @@ export interface MarkClassNode {
   glyph: string
   anchor: { x: number; y: number }
   className: string
+}
+
+export interface LookupFlagNode {
+  kind: 'LookupFlag'
+  flags: LookupFlagIR
+  markFilteringSetName?: string
 }
 
 export interface LookupBlockNode {
@@ -78,6 +75,49 @@ export interface PositioningNode {
   firstValue?: ValueRecord
   secondValue?: ValueRecord
 }
+
+export interface MarkAttachment {
+  markClassName: string
+  anchor: { x: number; y: number }
+}
+
+export interface MarkToBaseNode {
+  kind: 'MarkToBase'
+  ruleId?: string
+  base: GlyphSelector
+  marks: MarkAttachment[]
+}
+
+export interface MarkToMarkNode {
+  kind: 'MarkToMark'
+  ruleId?: string
+  baseMark: GlyphSelector
+  marks: MarkAttachment[]
+}
+
+export interface MarkToLigatureNode {
+  kind: 'MarkToLigature'
+  ruleId?: string
+  ligature: GlyphSelector
+  componentMarks: MarkAttachment[][]
+}
+
+export type FeaNode =
+  | LanguageSystemNode
+  | GlyphClassNode
+  | MarkClassNode
+  | LookupFlagNode
+  | LookupBlockNode
+  | FeatureBlockNode
+  | ScriptStatementNode
+  | LanguageStatementNode
+  | SubstitutionNode
+  | PositioningNode
+  | MarkToBaseNode
+  | MarkToMarkNode
+  | MarkToLigatureNode
+  | RawNode
+  | CommentNode
 
 export interface RawNode {
   kind: 'Raw'

@@ -100,6 +100,37 @@ const validateRuleShape = (
     }
   }
 
+  if (
+    (rule.kind === 'markToBase' || rule.kind === 'markToMark') &&
+    Object.keys(rule.anchors).length === 0
+  ) {
+    diagnostics.push(
+      makeDiagnostic(
+        'error',
+        'Mark positioning rules need at least one mark class anchor.',
+        { kind: 'rule', ruleId: rule.id },
+        [rule.id, 'missing-mark-anchors']
+      )
+    )
+  }
+
+  if (
+    rule.kind === 'markToLigature' &&
+    (rule.componentAnchors.length === 0 ||
+      rule.componentAnchors.some(
+        (componentAnchors) => Object.keys(componentAnchors).length === 0
+      ))
+  ) {
+    diagnostics.push(
+      makeDiagnostic(
+        'error',
+        'Mark-to-ligature rules need mark class anchors for every serialized component.',
+        { kind: 'rule', ruleId: rule.id },
+        [rule.id, 'missing-ligature-mark-anchors']
+      )
+    )
+  }
+
   for (const value of getRuleValueRecords(rule)) {
     for (const numberValue of Object.values(value)) {
       if (numberValue !== undefined && !Number.isFinite(numberValue)) {
@@ -127,6 +158,51 @@ const validateRuleShape = (
   }
 }
 
+const validateMarkAnchorMap = (
+  rule: Rule,
+  anchors: Record<string, { x: number; y: number }>,
+  markClassIds: Set<string>,
+  diagnostics: FeatureDiagnostic[]
+) => {
+  for (const [markClassId, anchor] of Object.entries(anchors)) {
+    if (!markClassIds.has(markClassId)) {
+      diagnostics.push(
+        makeDiagnostic(
+          'error',
+          `Rule references missing mark class "${markClassId}".`,
+          { kind: 'rule', ruleId: rule.id },
+          [rule.id, markClassId, 'missing-mark-class']
+        )
+      )
+    }
+    if (!Number.isFinite(anchor.x) || !Number.isFinite(anchor.y)) {
+      diagnostics.push(
+        makeDiagnostic(
+          'error',
+          `Rule ${rule.id} contains a non-finite mark anchor coordinate.`,
+          { kind: 'rule', ruleId: rule.id },
+          [rule.id, markClassId, 'invalid-mark-anchor']
+        )
+      )
+    }
+  }
+}
+
+const validateRuleMarkAnchors = (
+  rule: Rule,
+  markClassIds: Set<string>,
+  diagnostics: FeatureDiagnostic[]
+) => {
+  if (rule.kind === 'markToBase' || rule.kind === 'markToMark') {
+    validateMarkAnchorMap(rule, rule.anchors, markClassIds, diagnostics)
+  }
+  if (rule.kind === 'markToLigature') {
+    for (const anchors of rule.componentAnchors) {
+      validateMarkAnchorMap(rule, anchors, markClassIds, diagnostics)
+    }
+  }
+}
+
 export const validateFeatures = (
   state: OpenTypeFeaturesState,
   fontData: FontData
@@ -135,6 +211,9 @@ export const validateFeatures = (
   const glyphIds = new Set(Object.keys(fontData.glyphs))
   const classIds = new Set(
     state.glyphClasses.map((glyphClass) => glyphClass.id)
+  )
+  const markClassIds = new Set(
+    state.markClasses.map((markClass) => markClass.id)
   )
   const lookupIds = new Set(state.lookups.map((lookup) => lookup.id))
   const lookupNames = new Set<string>()
@@ -242,6 +321,7 @@ export const validateFeatures = (
 
     for (const rule of lookup.rules) {
       validateRuleShape(rule, lookup, diagnostics)
+      validateRuleMarkAnchors(rule, markClassIds, diagnostics)
 
       for (const glyphName of getRuleGlyphReferences(rule)) {
         if (!isValidGlyphName(glyphName) || !glyphIds.has(glyphName)) {
@@ -296,6 +376,16 @@ export const validateFeatures = (
   }
 
   for (const markClass of state.markClasses) {
+    if (!isValidGlyphClassName(markClass.name)) {
+      diagnostics.push(
+        makeDiagnostic(
+          'error',
+          `Mark class name "${markClass.name}" is not valid FEA syntax.`,
+          { kind: 'global' },
+          [markClass.id, 'invalid-name']
+        )
+      )
+    }
     for (const mark of markClass.marks) {
       if (!glyphIds.has(mark.glyph)) {
         diagnostics.push(

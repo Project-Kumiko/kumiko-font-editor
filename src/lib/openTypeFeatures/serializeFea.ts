@@ -4,8 +4,11 @@ import type {
   GeneratedFeaSourceMap,
 } from 'src/lib/openTypeFeatures/feaAst'
 import {
+  formatAnchor,
   formatGlyphList,
   formatGlyphSelector,
+  formatLookupFlags,
+  formatMarkAttachment,
   formatValueRecord,
 } from 'src/lib/openTypeFeatures/feaFormat'
 
@@ -123,6 +126,74 @@ const serializePositioning = (
   }
 }
 
+const recordRuleSource = (
+  context: SerializeContext,
+  ruleId: string | undefined,
+  lineStart: number,
+  lineEnd: number
+) => {
+  if (ruleId) {
+    context.sourceMap.entries.push({ ruleId, lineStart, lineEnd })
+  }
+}
+
+const serializeMarkToBase = (
+  node: Extract<FeaNode, { kind: 'MarkToBase' }>,
+  context: SerializeContext,
+  indent: string
+) => {
+  if (node.ruleId) {
+    pushLine(context, `${indent}# kumiko-rule-id: ${node.ruleId}`)
+  }
+  const lineStart = context.lines.length + 1
+  const marks = node.marks.map(formatMarkAttachment).join(' ')
+  pushLine(
+    context,
+    `${indent}pos base ${formatGlyphSelector(node.base)} ${marks};`
+  )
+  recordRuleSource(context, node.ruleId, lineStart, lineStart)
+}
+
+const serializeMarkToMark = (
+  node: Extract<FeaNode, { kind: 'MarkToMark' }>,
+  context: SerializeContext,
+  indent: string
+) => {
+  if (node.ruleId) {
+    pushLine(context, `${indent}# kumiko-rule-id: ${node.ruleId}`)
+  }
+  const lineStart = context.lines.length + 1
+  const marks = node.marks.map(formatMarkAttachment).join(' ')
+  pushLine(
+    context,
+    `${indent}pos mark ${formatGlyphSelector(node.baseMark)} ${marks};`
+  )
+  recordRuleSource(context, node.ruleId, lineStart, lineStart)
+}
+
+const formatLigatureComponent = (
+  marks: Extract<FeaNode, { kind: 'MarkToLigature' }>['componentMarks'][number],
+  index: number
+) =>
+  `${index === 0 ? '' : 'ligComponent '}${marks.map(formatMarkAttachment).join(' ')}`
+
+const serializeMarkToLigature = (
+  node: Extract<FeaNode, { kind: 'MarkToLigature' }>,
+  context: SerializeContext,
+  indent: string
+) => {
+  if (node.ruleId) {
+    pushLine(context, `${indent}# kumiko-rule-id: ${node.ruleId}`)
+  }
+  const lineStart = context.lines.length + 1
+  const components = node.componentMarks.map(formatLigatureComponent).join(' ')
+  pushLine(
+    context,
+    `${indent}pos ligature ${formatGlyphSelector(node.ligature)} ${components};`
+  )
+  recordRuleSource(context, node.ruleId, lineStart, lineStart)
+}
+
 function serializeNode(
   node: FeaNode,
   context: SerializeContext,
@@ -145,7 +216,13 @@ function serializeNode(
     case 'MarkClass':
       pushLine(
         context,
-        `${indent}markClass ${node.glyph} <anchor ${Math.round(node.anchor.x)} ${Math.round(node.anchor.y)}> ${node.className};`
+        `${indent}markClass ${node.glyph} ${formatAnchor(node.anchor)} ${node.className};`
+      )
+      return
+    case 'LookupFlag':
+      pushLine(
+        context,
+        `${indent}lookupflag ${formatLookupFlags(node.flags, node.markFilteringSetName)};`
       )
       return
     case 'LookupBlock':
@@ -165,6 +242,15 @@ function serializeNode(
       return
     case 'Positioning':
       serializePositioning(node, context, indent)
+      return
+    case 'MarkToBase':
+      serializeMarkToBase(node, context, indent)
+      return
+    case 'MarkToMark':
+      serializeMarkToMark(node, context, indent)
+      return
+    case 'MarkToLigature':
+      serializeMarkToLigature(node, context, indent)
       return
     case 'Raw':
       node.value.split(/\r?\n/).forEach((line) => pushLine(context, line))
