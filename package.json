@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "vite",
     "build": "pnpm lint && tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "format": "prettier --write .",
     "lint": "prettier --check . && eslint .",
     "preview": "vite preview",
@@ -51,6 +53,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
     "vite": "^8.0.4",
-    "vite-plugin-svgr": "5.2.0"
+    "vite-plugin-svgr": "5.2.0",
+    "vitest": "4.1.5"
   }
 }
