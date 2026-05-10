@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { applyAutoFeatureSuggestion } from 'src/lib/openTypeFeatures/applySuggestion'
 import { buildAutoFeatureSuggestions } from 'src/lib/openTypeFeatures/buildAutoFeatureSuggestions'
+import {
+  createCompilerRuntimeStatus,
+  makeRuntimeNotConfiguredResponse,
+} from 'src/lib/openTypeFeatures/compilerRuntimePlan'
 import { createEmptyOpenTypeFeaturesState } from 'src/lib/openTypeFeatures/defaults'
 import { generateFea } from 'src/lib/openTypeFeatures/generateFea'
 import type {
@@ -235,5 +239,31 @@ describe('OpenType FEA source maps', () => {
 
     expect(generated.text).toContain('sub f i by f_i;')
     expect(generated.sourceMap.entries.length > 0).toBe(true)
+  })
+})
+
+describe('OpenType compiler runtime scaffold', () => {
+  it('reports an explicit not-configured compiler status', () => {
+    expect(createCompilerRuntimeStatus()).toEqual({
+      backend: 'not-configured',
+      canCompile: false,
+      message:
+        'OpenType feature compilation is not configured yet. Generated FEA can be inspected, but binary layout compilation needs an offline WASM font compiler runtime.',
+      state: 'not-configured',
+    })
+  })
+
+  it('returns structured diagnostics when no compiler runtime is configured', () => {
+    const response = makeRuntimeNotConfiguredResponse()
+
+    expect(response.type).toBe('compile-error')
+    expect(response.payload.backend).toBe('not-configured')
+    expect(response.payload.runtimeStatus.canCompile).toBe(false)
+    expect(response.payload.diagnostics).toMatchObject([
+      {
+        severity: 'error',
+        target: { kind: 'global' },
+      },
+    ])
   })
 })

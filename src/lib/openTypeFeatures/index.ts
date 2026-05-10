@@ -20,6 +20,13 @@ export { buildAutoFeatureSuggestions } from 'src/lib/openTypeFeatures/buildAutoF
 export { buildKerningSuggestions } from 'src/lib/openTypeFeatures/buildKerningSuggestions'
 export { buildMarkSuggestions } from 'src/lib/openTypeFeatures/buildMarkSuggestions'
 export { compileFontWithFeatures } from 'src/lib/openTypeFeatures/compileFontWithFeatures'
+export {
+  AVAILABLE_OPEN_TYPE_COMPILER_BACKENDS,
+  DEFAULT_OPEN_TYPE_COMPILER_BACKEND,
+  createCompilerRuntimeStatus,
+  makeRuntimeNotConfiguredDiagnostic,
+  makeRuntimeNotConfiguredResponse,
+} from 'src/lib/openTypeFeatures/compilerRuntimePlan'
 export { extractBinaryFeatures } from 'src/lib/openTypeFeatures/extractBinaryFeatures'
 export { generateFea } from 'src/lib/openTypeFeatures/generateFea'
 export { parseLayoutTableInventory } from 'src/lib/openTypeFeatures/layoutTableInventory'

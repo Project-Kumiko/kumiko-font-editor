@@ -1,5 +1,23 @@
 import type { FeatureDiagnostic } from 'src/lib/openTypeFeatures/types'
 
+export type OpenTypeCompilerBackend =
+  | 'not-configured'
+  | 'pyodide-fonttools'
+  | 'wasm-fonttools'
+
+export type CompilerRuntimeState =
+  | 'not-configured'
+  | 'initializing'
+  | 'ready'
+  | 'error'
+
+export interface CompilerRuntimeStatus {
+  backend: OpenTypeCompilerBackend
+  canCompile: boolean
+  message: string
+  state: CompilerRuntimeState
+}
+
 export interface CompileOptions {
   affectedTables: Array<'GSUB' | 'GPOS' | 'GDEF'>
   debug?: boolean
@@ -28,9 +46,11 @@ export interface CompileSuccessMessage {
 export interface CompileErrorMessage {
   type: 'compile-error'
   payload: {
+    backend: OpenTypeCompilerBackend
     diagnostics: FeatureDiagnostic[]
     message: string
     rawCompilerOutput?: string
+    runtimeStatus: CompilerRuntimeStatus
   }
 }
 
