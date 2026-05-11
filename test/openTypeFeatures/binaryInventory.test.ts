@@ -199,6 +199,39 @@ const makeSingleSubstitutionSubtable = () =>
     writeUint16(view, 12, 1)
   })
 
+const makeMultipleSubstitutionSubtable = () =>
+  makeBytes(22, (view) => {
+    writeUint16(view, 0, 1)
+    writeUint16(view, 2, 8)
+    writeUint16(view, 4, 1)
+    writeUint16(view, 6, 14)
+
+    writeUint16(view, 8, 1)
+    writeUint16(view, 10, 1)
+    writeUint16(view, 12, 1)
+
+    writeUint16(view, 14, 3)
+    writeUint16(view, 16, 2)
+    writeUint16(view, 18, 3)
+    writeUint16(view, 20, 4)
+  })
+
+const makeAlternateSubstitutionSubtable = () =>
+  makeBytes(20, (view) => {
+    writeUint16(view, 0, 1)
+    writeUint16(view, 2, 8)
+    writeUint16(view, 4, 1)
+    writeUint16(view, 6, 14)
+
+    writeUint16(view, 8, 1)
+    writeUint16(view, 10, 1)
+    writeUint16(view, 12, 1)
+
+    writeUint16(view, 14, 2)
+    writeUint16(view, 16, 2)
+    writeUint16(view, 18, 3)
+  })
+
 const makeLigatureSubstitutionSubtable = () =>
   makeBytes(24, (view) => {
     writeUint16(view, 0, 1)
@@ -387,6 +420,86 @@ describe('SFNT binary inventory', () => {
                 lookupType: 1,
                 subtableIndex: 0,
                 subtableFormat: 2,
+              },
+            },
+          },
+        ],
+      },
+    ])
+  })
+
+  it('extracts editable GSUB MultipleSubst rules from straightforward subtables', () => {
+    const state = extractBinaryFeatures(
+      makeSfnt([
+        {
+          tag: 'GSUB',
+          data: makeGsubTable('frac', 2, makeMultipleSubstitutionSubtable()),
+        },
+      ]),
+      null,
+      ['.notdef', 'onehalf', 'one', 'slash', 'two']
+    )
+
+    expect(state.unsupportedLookups).toEqual([])
+    expect(state.lookups).toMatchObject([
+      {
+        id: 'lookup_gsub_0',
+        lookupType: 'multipleSubst',
+        editable: true,
+        origin: 'imported',
+        rules: [
+          {
+            kind: 'multipleSubstitution',
+            target: 'onehalf',
+            replacement: ['one', 'slash', 'two'],
+            meta: {
+              origin: 'imported',
+              provenance: {
+                table: 'GSUB',
+                lookupIndex: 0,
+                lookupType: 2,
+                subtableIndex: 0,
+                subtableFormat: 1,
+              },
+            },
+          },
+        ],
+      },
+    ])
+  })
+
+  it('extracts editable GSUB AlternateSubst rules from straightforward subtables', () => {
+    const state = extractBinaryFeatures(
+      makeSfnt([
+        {
+          tag: 'GSUB',
+          data: makeGsubTable('salt', 3, makeAlternateSubstitutionSubtable()),
+        },
+      ]),
+      null,
+      ['.notdef', 'a', 'a.salt', 'a.swash']
+    )
+
+    expect(state.unsupportedLookups).toEqual([])
+    expect(state.lookups).toMatchObject([
+      {
+        id: 'lookup_gsub_0',
+        lookupType: 'alternateSubst',
+        editable: true,
+        origin: 'imported',
+        rules: [
+          {
+            kind: 'alternateSubstitution',
+            target: 'a',
+            alternates: ['a.salt', 'a.swash'],
+            meta: {
+              origin: 'imported',
+              provenance: {
+                table: 'GSUB',
+                lookupIndex: 0,
+                lookupType: 3,
+                subtableIndex: 0,
+                subtableFormat: 1,
               },
             },
           },
