@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { exportFontAsBinary } from 'src/lib/fontAdapters/binary'
 import { exportFontDataAsUfoZip } from 'src/lib/fontUfoZipExport'
 import {
+  createCompilerRuntimeStatus,
   deriveOpenTypeExportWarnings,
   hasBlockingExportWarnings,
   hasManagedFeatureEdits,
+  needsOpenTypeFeatureCompilationForBinaryExport,
   validateFeatures,
 } from 'src/lib/openTypeFeatures'
 import { getProjectArchiveMetadata } from 'src/lib/projectArchive'
@@ -56,8 +58,10 @@ export function useFontExport() {
   const localDirtyGlyphIds = useStore((state) => state.localDirtyGlyphIds)
   const localDeletedGlyphIds = useStore((state) => state.localDeletedGlyphIds)
   const markLocalSaved = useStore((state) => state.markLocalSaved)
+  const compilerRuntimeStatus = createCompilerRuntimeStatus()
   const openTypeExportWarnings = fontData?.openTypeFeatures
     ? deriveOpenTypeExportWarnings(fontData.openTypeFeatures, {
+        compilerRuntimeStatus,
         diagnostics: validateFeatures(fontData.openTypeFeatures, fontData),
         hasGeneratedFeatureEdits: hasManagedFeatureEdits(
           fontData.openTypeFeatures
@@ -91,6 +95,25 @@ export function useFontExport() {
 
     try {
       setIsExporting(true)
+      const selectedBinaryFormats = selectedFormats.filter(
+        (format) => format !== 'zip'
+      )
+      if (
+        fontData.openTypeFeatures &&
+        selectedBinaryFormats.length > 0 &&
+        needsOpenTypeFeatureCompilationForBinaryExport(
+          fontData.openTypeFeatures,
+          {
+            hasGeneratedFeatureEdits: hasManagedFeatureEdits(
+              fontData.openTypeFeatures
+            ),
+          }
+        ) &&
+        !compilerRuntimeStatus.canCompile
+      ) {
+        throw new Error(compilerRuntimeStatus.message)
+      }
+
       const baseFileName = projectTitle || projectId
       const projectMetadata = getProjectArchiveMetadata() as {
         activeUfoId?: string | null

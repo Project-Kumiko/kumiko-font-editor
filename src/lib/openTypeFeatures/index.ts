@@ -41,6 +41,7 @@ export {
   deriveOpenTypeExportWarnings,
   hasBlockingExportWarnings,
   hasManagedFeatureEdits,
+  needsOpenTypeFeatureCompilationForBinaryExport,
 } from 'src/lib/openTypeFeatures/exportPolicy'
 export type * from 'src/lib/openTypeFeatures/feaAst'
 export type * from 'src/lib/openTypeFeatures/compilerTypes'

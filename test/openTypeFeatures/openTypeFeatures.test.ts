@@ -6,6 +6,10 @@ import {
   makeRuntimeNotConfiguredResponse,
 } from 'src/lib/openTypeFeatures/compilerRuntimePlan'
 import { createEmptyOpenTypeFeaturesState } from 'src/lib/openTypeFeatures/defaults'
+import {
+  deriveOpenTypeExportWarnings,
+  needsOpenTypeFeatureCompilationForBinaryExport,
+} from 'src/lib/openTypeFeatures/exportPolicy'
 import { generateFea } from 'src/lib/openTypeFeatures/generateFea'
 import type {
   AutoFeatureSuggestion,
@@ -265,5 +269,52 @@ describe('OpenType compiler runtime scaffold', () => {
         target: { kind: 'global' },
       },
     ])
+  })
+})
+
+describe('OpenType binary export compiler gate', () => {
+  it('requires compiler runtime for managed binary feature edits', () => {
+    const state = makeStateWithRule({
+      id: 'rule_f_i',
+      kind: 'ligatureSubstitution',
+      components: ['f', 'i'],
+      replacement: 'f_i',
+      meta: { origin: 'manual' },
+    })
+
+    expect(needsOpenTypeFeatureCompilationForBinaryExport(state)).toBe(true)
+    expect(
+      needsOpenTypeFeatureCompilationForBinaryExport({
+        ...state,
+        exportPolicy: 'preserve-compiled-layout-tables',
+      })
+    ).toBe(false)
+    expect(
+      needsOpenTypeFeatureCompilationForBinaryExport(
+        createEmptyOpenTypeFeaturesState()
+      )
+    ).toBe(false)
+  })
+
+  it('warns when binary feature compilation would need an unavailable runtime', () => {
+    const warnings = deriveOpenTypeExportWarnings(
+      makeStateWithRule({
+        id: 'rule_f_i',
+        kind: 'ligatureSubstitution',
+        components: ['f', 'i'],
+        replacement: 'f_i',
+        meta: { origin: 'manual' },
+      }),
+      {
+        compilerRuntimeStatus: createCompilerRuntimeStatus(),
+        diagnostics: [],
+      }
+    )
+
+    expect(
+      warnings.some(
+        (warning) => warning.code === 'compiler-runtime-not-configured'
+      )
+    ).toBe(true)
   })
 })

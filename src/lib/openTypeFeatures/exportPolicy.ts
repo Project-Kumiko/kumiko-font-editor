@@ -1,3 +1,4 @@
+import type { CompilerRuntimeStatus } from 'src/lib/openTypeFeatures/compilerTypes'
 import type {
   ExportPolicy,
   FeatureDiagnostic,
@@ -8,6 +9,7 @@ export type OpenTypeExportWarningSeverity = 'info' | 'warning' | 'error'
 
 export type OpenTypeExportWarningCode =
   | 'validation-errors'
+  | 'compiler-runtime-not-configured'
   | 'unsupported-lookups'
   | 'preserve-ignores-edits'
   | 'rebuild-replaces-tables'
@@ -22,6 +24,7 @@ export interface OpenTypeExportWarning {
 }
 
 interface DeriveExportWarningsOptions {
+  compilerRuntimeStatus?: CompilerRuntimeStatus
   diagnostics: FeatureDiagnostic[]
   hasGeneratedFeatureEdits?: boolean
 }
@@ -54,6 +57,13 @@ const getManagedEdits = (
   state: OpenTypeFeaturesState,
   hasGeneratedFeatureEdits?: boolean
 ) => hasGeneratedFeatureEdits ?? hasManagedFeatureEdits(state)
+
+export const needsOpenTypeFeatureCompilationForBinaryExport = (
+  state: OpenTypeFeaturesState,
+  options: { hasGeneratedFeatureEdits?: boolean } = {}
+) =>
+  state.exportPolicy !== 'preserve-compiled-layout-tables' &&
+  getManagedEdits(state, options.hasGeneratedFeatureEdits)
 
 const getValidationWarning = (
   diagnostics: FeatureDiagnostic[]
@@ -89,6 +99,31 @@ const getPreservePolicyWarning = (
     title: 'Feature edits will not be exported',
     message:
       'Compiled OpenType layout tables will be preserved, so current Kumiko feature edits are not included in the exported font.',
+  }
+}
+
+const getCompilerRuntimeWarning = (
+  state: OpenTypeFeaturesState,
+  hasEdits: boolean,
+  compilerRuntimeStatus?: CompilerRuntimeStatus
+): OpenTypeExportWarning | null => {
+  if (
+    !compilerRuntimeStatus ||
+    compilerRuntimeStatus.canCompile ||
+    !needsOpenTypeFeatureCompilationForBinaryExport(state, {
+      hasGeneratedFeatureEdits: hasEdits,
+    })
+  ) {
+    return null
+  }
+
+  return {
+    id: 'open-type-export-compiler-runtime-not-configured',
+    code: 'compiler-runtime-not-configured',
+    severity: 'warning',
+    title: 'Feature compilation is not configured',
+    message:
+      'Binary font export cannot include current Kumiko OpenType feature edits until an offline feature compiler runtime is configured. Export UFO ZIP or preserve compiled tables to continue without compiling generated FEA.',
   }
 }
 
@@ -161,6 +196,7 @@ export const deriveOpenTypeExportWarnings = (
   const hasEdits = getManagedEdits(state, options.hasGeneratedFeatureEdits)
   return [
     getValidationWarning(options.diagnostics),
+    getCompilerRuntimeWarning(state, hasEdits, options.compilerRuntimeStatus),
     getPreservePolicyWarning(state.exportPolicy, hasEdits),
     getRebuildPolicyWarning(state, hasEdits),
     getUnsupportedWarning(state),
