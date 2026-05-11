@@ -351,7 +351,8 @@ export const importBinaryFontFile = async (file: File) => {
 
   fontData.openTypeFeatures = extractBinaryFeatures(
     buffer,
-    createFontFingerprint(fontData)
+    createFontFingerprint(fontData),
+    glyphOrder
   )
 
   return {

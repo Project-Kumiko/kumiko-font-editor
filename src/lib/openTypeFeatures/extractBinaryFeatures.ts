@@ -11,6 +11,10 @@ import {
   type LayoutLookupInventory,
   type LayoutTableInventory,
 } from 'src/lib/openTypeFeatures/layoutTableInventory'
+import {
+  parseGsubLookupRules,
+  type GsubRuleParseResult,
+} from 'src/lib/openTypeFeatures/gsubRuleParser'
 import { toStableIdPart } from 'src/lib/openTypeFeatures/ids'
 import type {
   FeatureDiagnostic,
@@ -25,6 +29,11 @@ import type {
   OpenTypeFeaturesState,
   UnsupportedLookup,
 } from 'src/lib/openTypeFeatures/types'
+
+interface ParsedLookupState {
+  lookup: LayoutLookupInventory
+  parseResult: GsubRuleParseResult | null
+}
 
 const GSUB_LOOKUP_TYPES: Record<number, GsubLookupType> = {
   1: 'singleSubst',
@@ -186,60 +195,90 @@ const toFeatureRecords = (
 
 const toLookupRecord = (
   table: 'GSUB' | 'GPOS',
-  lookup: LayoutLookupInventory
-): LookupRecord => ({
-  id: makeLookupId(table, lookup.lookupIndex),
-  name: `${table}_lookup_${lookup.lookupIndex}`,
-  table,
-  lookupType: getLookupTypeName(table, lookup.lookupType),
-  lookupFlag: toLookupFlagIr(lookup.lookupFlag),
-  markFilteringSetClassId:
-    lookup.markFilteringSet === undefined
-      ? undefined
-      : `mark_filtering_set_${lookup.markFilteringSet}`,
-  rules: [],
-  editable: false,
-  origin: 'unsupported',
-  provenance: createLookupProvenance(table, lookup),
-  meta: {
-    importedFromCompiledLayout: true,
-    lookupTypeNumber: lookup.lookupType,
-    lookupFlagNumber: lookup.lookupFlag,
-    subtableFormats: lookup.subtableFormats,
-  },
-  diagnostics: [
-    {
-      id: `feature-diagnostic-warning-${table}-lookup-${lookup.lookupIndex}-readonly`,
-      severity: 'warning',
-      message:
-        'This compiled lookup was inventoried from the binary font but is not visually editable yet.',
-      target: {
-        kind: 'lookup',
-        lookupId: makeLookupId(table, lookup.lookupIndex),
-      },
+  parsedLookup: ParsedLookupState
+): LookupRecord => {
+  const { lookup, parseResult } = parsedLookup
+  const lookupId = makeLookupId(table, lookup.lookupIndex)
+  const isEditable = Boolean(parseResult && !parseResult.unsupportedReason)
+  const readonlyDiagnostic: FeatureDiagnostic = {
+    id: `feature-diagnostic-warning-${table}-lookup-${lookup.lookupIndex}-readonly`,
+    severity: 'warning',
+    message:
+      'This compiled lookup was inventoried from the binary font but is not visually editable yet.',
+    target: {
+      kind: 'lookup',
+      lookupId,
     },
-  ],
-})
+  }
+
+  return {
+    id: lookupId,
+    name: `${table}_lookup_${lookup.lookupIndex}`,
+    table,
+    lookupType: getLookupTypeName(table, lookup.lookupType),
+    lookupFlag: toLookupFlagIr(lookup.lookupFlag),
+    markFilteringSetClassId:
+      lookup.markFilteringSet === undefined
+        ? undefined
+        : `mark_filtering_set_${lookup.markFilteringSet}`,
+    rules: isEditable && parseResult ? parseResult.rules : [],
+    editable: isEditable,
+    origin: isEditable ? 'imported' : 'unsupported',
+    provenance: createLookupProvenance(table, lookup),
+    meta: {
+      importedFromCompiledLayout: true,
+      lookupTypeNumber: lookup.lookupType,
+      lookupFlagNumber: lookup.lookupFlag,
+      subtableFormats: lookup.subtableFormats,
+      reconstructedEditableRules: isEditable,
+    },
+    diagnostics: isEditable
+      ? (parseResult?.diagnostics ?? [])
+      : [readonlyDiagnostic, ...(parseResult?.diagnostics ?? [])],
+  }
+}
 
 const toUnsupportedLookup = (
   table: 'GSUB' | 'GPOS',
-  lookup: LayoutLookupInventory
+  parsedLookup: ParsedLookupState
 ): UnsupportedLookup => ({
-  id: `unsupported_${table.toLowerCase()}_${lookup.lookupIndex}`,
+  id: `unsupported_${table.toLowerCase()}_${parsedLookup.lookup.lookupIndex}`,
   table,
-  lookupIndex: lookup.lookupIndex,
-  lookupType: lookup.lookupType,
-  subtableFormats: lookup.subtableFormats,
+  lookupIndex: parsedLookup.lookup.lookupIndex,
+  lookupType: parsedLookup.lookup.lookupType,
+  subtableFormats: parsedLookup.lookup.subtableFormats,
   reason:
+    parsedLookup.parseResult?.unsupportedReason ??
     'Binary OpenType layout lookup reconstruction is not implemented for this lookup yet.',
-  rawSummary: `${table} lookup ${lookup.lookupIndex}, type ${lookup.lookupType}, formats ${
-    lookup.subtableFormats.length > 0
-      ? lookup.subtableFormats.join(', ')
+  rawSummary: `${table} lookup ${parsedLookup.lookup.lookupIndex}, type ${parsedLookup.lookup.lookupType}, formats ${
+    parsedLookup.lookup.subtableFormats.length > 0
+      ? parsedLookup.lookup.subtableFormats.join(', ')
       : 'unknown'
   }`,
   preserveMode: 'preserve-if-unchanged',
-  provenance: createLookupProvenance(table, lookup),
+  provenance: createLookupProvenance(table, parsedLookup.lookup),
 })
+
+const parseInventoryLookups = (
+  buffer: ArrayBuffer,
+  inventory: LayoutTableInventory,
+  glyphOrder: string[]
+): ParsedLookupState[] =>
+  inventory.lookups.map((lookup) => {
+    const lookupId = makeLookupId(inventory.table, lookup.lookupIndex)
+    const parseResult =
+      inventory.table === 'GSUB'
+        ? parseGsubLookupRules(
+            buffer,
+            inventory.tableOffset,
+            lookup,
+            glyphOrder,
+            lookupId
+          )
+        : null
+
+    return { lookup, parseResult }
+  })
 
 const mergeFeatureRecords = (records: FeatureRecord[]) => {
   const merged = new Map<string, FeatureRecord>()
@@ -270,7 +309,8 @@ const mergeFeatureRecords = (records: FeatureRecord[]) => {
 
 export const extractBinaryFeatures = (
   buffer: ArrayBuffer,
-  fontFingerprint: FontFingerprint | null
+  fontFingerprint: FontFingerprint | null,
+  glyphOrder: string[] = []
 ): OpenTypeFeaturesState => {
   const directory = readSfntTableDirectory(buffer)
   const layoutTableRecords = directory.tables.filter(
@@ -285,6 +325,15 @@ export const extractBinaryFeatures = (
     ...directory.diagnostics,
     ...inventories.flatMap((inventory) => inventory.diagnostics),
   ]
+  const parsedLookupEntries = inventories.map((inventory) => ({
+    inventory,
+    lookups: parseInventoryLookups(buffer, inventory, glyphOrder),
+  }))
+  diagnostics.push(
+    ...parsedLookupEntries.flatMap((entry) =>
+      entry.lookups.flatMap((lookup) => lookup.parseResult?.diagnostics ?? [])
+    )
+  )
 
   if (findSfntTable(directory, 'GDEF')) {
     diagnostics.push(
@@ -311,13 +360,17 @@ export const extractBinaryFeatures = (
   state.features = mergeFeatureRecords(
     inventories.flatMap((inventory) => toFeatureRecords(inventory, diagnostics))
   )
-  state.lookups = inventories.flatMap((inventory) =>
-    inventory.lookups.map((lookup) => toLookupRecord(inventory.table, lookup))
+  state.lookups = parsedLookupEntries.flatMap((entry) =>
+    entry.lookups.map((lookup) => toLookupRecord(entry.inventory.table, lookup))
   )
-  state.unsupportedLookups = inventories.flatMap((inventory) =>
-    inventory.lookups.map((lookup) =>
-      toUnsupportedLookup(inventory.table, lookup)
-    )
+  state.unsupportedLookups = parsedLookupEntries.flatMap((entry) =>
+    entry.lookups
+      .filter(
+        (lookup) =>
+          lookup.parseResult === null ||
+          Boolean(lookup.parseResult.unsupportedReason)
+      )
+      .map((lookup) => toUnsupportedLookup(entry.inventory.table, lookup))
   )
   state.gdef = findSfntTable(directory, 'GDEF') ? {} : null
   state.diagnostics = diagnostics

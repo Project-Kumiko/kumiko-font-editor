@@ -97,6 +97,82 @@ const makeMinimalGsubTable = () =>
     writeUint16(view, 56, 3)
   })
 
+const makeGsubTable = (
+  featureTag: string,
+  lookupType: number,
+  subtable: Uint8Array
+) => {
+  const tableLength = 56 + subtable.byteLength
+  const bytes = makeBytes(tableLength, (view) => {
+    writeUint16(view, 0, 1)
+    writeUint16(view, 2, 0)
+    writeUint16(view, 4, 10)
+    writeUint16(view, 6, 30)
+    writeUint16(view, 8, 44)
+
+    writeUint16(view, 10, 1)
+    writeTag(view, 12, 'latn')
+    writeUint16(view, 16, 8)
+
+    writeUint16(view, 18, 4)
+    writeUint16(view, 20, 0)
+
+    writeUint16(view, 22, 0)
+    writeUint16(view, 24, 0xffff)
+    writeUint16(view, 26, 1)
+    writeUint16(view, 28, 0)
+
+    writeUint16(view, 30, 1)
+    writeTag(view, 32, featureTag)
+    writeUint16(view, 36, 8)
+
+    writeUint16(view, 38, 0)
+    writeUint16(view, 40, 1)
+    writeUint16(view, 42, 0)
+
+    writeUint16(view, 44, 1)
+    writeUint16(view, 46, 4)
+
+    writeUint16(view, 48, lookupType)
+    writeUint16(view, 50, 0)
+    writeUint16(view, 52, 1)
+    writeUint16(view, 54, 8)
+  })
+  bytes.set(subtable, 56)
+  return bytes
+}
+
+const makeSingleSubstitutionSubtable = () =>
+  makeBytes(14, (view) => {
+    writeUint16(view, 0, 2)
+    writeUint16(view, 2, 8)
+    writeUint16(view, 4, 1)
+    writeUint16(view, 6, 2)
+
+    writeUint16(view, 8, 1)
+    writeUint16(view, 10, 1)
+    writeUint16(view, 12, 1)
+  })
+
+const makeLigatureSubstitutionSubtable = () =>
+  makeBytes(24, (view) => {
+    writeUint16(view, 0, 1)
+    writeUint16(view, 2, 8)
+    writeUint16(view, 4, 1)
+    writeUint16(view, 6, 14)
+
+    writeUint16(view, 8, 1)
+    writeUint16(view, 10, 1)
+    writeUint16(view, 12, 1)
+
+    writeUint16(view, 14, 1)
+    writeUint16(view, 16, 4)
+
+    writeUint16(view, 18, 3)
+    writeUint16(view, 20, 2)
+    writeUint16(view, 22, 2)
+  })
+
 const makeDummyTable = (length = 4) => new Uint8Array(length)
 
 describe('SFNT binary inventory', () => {
@@ -153,6 +229,7 @@ describe('SFNT binary inventory', () => {
         lookupType: 6,
         lookupFlag: 0x0008,
         subtableFormats: [3],
+        subtableOffsets: [56],
       },
     ])
     expect(inventory.diagnostics).toEqual([])
@@ -199,6 +276,86 @@ describe('SFNT binary inventory', () => {
         lookupType: 6,
         subtableFormats: [3],
         preserveMode: 'preserve-if-unchanged',
+      },
+    ])
+  })
+
+  it('extracts editable GSUB SingleSubst rules from straightforward subtables', () => {
+    const state = extractBinaryFeatures(
+      makeSfnt([
+        {
+          tag: 'GSUB',
+          data: makeGsubTable('salt', 1, makeSingleSubstitutionSubtable()),
+        },
+      ]),
+      null,
+      ['.notdef', 'b', 'b.salt']
+    )
+
+    expect(state.unsupportedLookups).toEqual([])
+    expect(state.lookups).toMatchObject([
+      {
+        id: 'lookup_gsub_0',
+        lookupType: 'singleSubst',
+        editable: true,
+        origin: 'imported',
+        rules: [
+          {
+            kind: 'singleSubstitution',
+            target: { kind: 'glyph', glyph: 'b' },
+            replacement: 'b.salt',
+            meta: {
+              origin: 'imported',
+              provenance: {
+                table: 'GSUB',
+                lookupIndex: 0,
+                lookupType: 1,
+                subtableIndex: 0,
+                subtableFormat: 2,
+              },
+            },
+          },
+        ],
+      },
+    ])
+  })
+
+  it('extracts editable GSUB LigatureSubst rules from straightforward subtables', () => {
+    const state = extractBinaryFeatures(
+      makeSfnt([
+        {
+          tag: 'GSUB',
+          data: makeGsubTable('liga', 4, makeLigatureSubstitutionSubtable()),
+        },
+      ]),
+      null,
+      ['.notdef', 'f', 'i', 'f_i']
+    )
+
+    expect(state.unsupportedLookups).toEqual([])
+    expect(state.lookups).toMatchObject([
+      {
+        id: 'lookup_gsub_0',
+        lookupType: 'ligatureSubst',
+        editable: true,
+        origin: 'imported',
+        rules: [
+          {
+            kind: 'ligatureSubstitution',
+            components: ['f', 'i'],
+            replacement: 'f_i',
+            meta: {
+              origin: 'imported',
+              provenance: {
+                table: 'GSUB',
+                lookupIndex: 0,
+                lookupType: 4,
+                subtableIndex: 0,
+                subtableFormat: 1,
+              },
+            },
+          },
+        ],
       },
     ])
   })

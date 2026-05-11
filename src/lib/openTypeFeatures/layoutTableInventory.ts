@@ -25,11 +25,13 @@ export interface LayoutLookupInventory {
   lookupType: number
   lookupFlag: number
   subtableFormats: number[]
+  subtableOffsets: number[]
   markFilteringSet?: number
 }
 
 export interface LayoutTableInventory {
   table: 'GSUB' | 'GPOS'
+  tableOffset: number
   languages: LayoutLanguageInventory[]
   features: LayoutFeatureInventory[]
   lookups: LayoutLookupInventory[]
@@ -286,6 +288,7 @@ const parseLookupList = (
     }
 
     const subtableFormats: number[] = []
+    const subtableOffsets: number[] = []
     for (
       let subtableIndex = 0;
       subtableIndex < subtableCount;
@@ -295,7 +298,11 @@ const parseLookupList = (
       const subtableReader =
         subtableOffset !== null ? lookupReader.at(subtableOffset) : null
       const subtableFormat = subtableReader?.uint16(0)
-      if (subtableFormat === null || subtableFormat === undefined) {
+      if (
+        subtableOffset === null ||
+        subtableFormat === null ||
+        subtableFormat === undefined
+      ) {
         diagnostics.push(
           makeInventoryDiagnostic(
             'warning',
@@ -307,6 +314,7 @@ const parseLookupList = (
         continue
       }
       subtableFormats.push(subtableFormat)
+      subtableOffsets.push(lookupListOffset + lookupOffset + subtableOffset)
     }
 
     const markFilteringSet =
@@ -320,6 +328,7 @@ const parseLookupList = (
         lookupType,
         lookupFlag,
         subtableFormats,
+        subtableOffsets,
         markFilteringSet,
       },
     ]
@@ -337,6 +346,7 @@ export const parseLayoutTableInventory = (
   if (!reader) {
     return {
       table,
+      tableOffset: tableRecord.offset,
       languages: [],
       features: [],
       lookups: [],
@@ -367,11 +377,19 @@ export const parseLayoutTableInventory = (
         'header-malformed'
       )
     )
-    return { table, languages: [], features: [], lookups: [], diagnostics }
+    return {
+      table,
+      tableOffset: tableRecord.offset,
+      languages: [],
+      features: [],
+      lookups: [],
+      diagnostics,
+    }
   }
 
   return {
     table,
+    tableOffset: tableRecord.offset,
     languages: parseScriptList(reader, scriptListOffset, table, diagnostics),
     features: parseFeatureList(reader, featureListOffset, table, diagnostics),
     lookups: parseLookupList(reader, lookupListOffset, table, diagnostics),
