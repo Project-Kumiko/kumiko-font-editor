@@ -844,7 +844,7 @@ describe('SFNT binary inventory', () => {
     expect(
       (state.diagnostics ?? []).map((diagnostic) => diagnostic.id)
     ).toEqual([
-      'feature-diagnostic-info-binary-extractor-gdef-present',
+      'feature-diagnostic-warning-gdef-parser-version-unsupported',
       'feature-diagnostic-warning-binary-extractor-legacy-kern-present',
     ])
   })

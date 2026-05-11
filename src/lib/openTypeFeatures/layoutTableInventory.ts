@@ -32,6 +32,7 @@ export interface LayoutLookupInventory {
 export interface LayoutTableInventory {
   table: 'GSUB' | 'GPOS'
   tableOffset: number
+  featureVariationsOffset?: number
   languages: LayoutLanguageInventory[]
   features: LayoutFeatureInventory[]
   lookups: LayoutLookupInventory[]
@@ -364,6 +365,11 @@ export const parseLayoutTableInventory = (
   const scriptListOffset = reader.uint16(4)
   const featureListOffset = reader.uint16(6)
   const lookupListOffset = reader.uint16(8)
+  const minorVersion = reader.uint16(2)
+  const featureVariationsOffset =
+    minorVersion !== null && minorVersion >= 1
+      ? (reader.uint32(10) ?? undefined)
+      : undefined
   if (
     scriptListOffset === null ||
     featureListOffset === null ||
@@ -380,6 +386,7 @@ export const parseLayoutTableInventory = (
     return {
       table,
       tableOffset: tableRecord.offset,
+      featureVariationsOffset,
       languages: [],
       features: [],
       lookups: [],
@@ -390,6 +397,10 @@ export const parseLayoutTableInventory = (
   return {
     table,
     tableOffset: tableRecord.offset,
+    featureVariationsOffset:
+      featureVariationsOffset && featureVariationsOffset > 0
+        ? featureVariationsOffset
+        : undefined,
     languages: parseScriptList(reader, scriptListOffset, table, diagnostics),
     features: parseFeatureList(reader, featureListOffset, table, diagnostics),
     lookups: parseLookupList(reader, lookupListOffset, table, diagnostics),

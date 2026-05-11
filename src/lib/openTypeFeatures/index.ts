@@ -53,6 +53,7 @@ export {
   selectUfoFeatureText,
 } from 'src/lib/openTypeFeatures/legacyFeatureText'
 export { parseLayoutTableInventory } from 'src/lib/openTypeFeatures/layoutTableInventory'
+export { parseGdefTable } from 'src/lib/openTypeFeatures/gdefParser'
 export { readSfntTableDirectory } from 'src/lib/openTypeFeatures/binaryReader'
 export { serializeFeaDocument } from 'src/lib/openTypeFeatures/serializeFea'
 export { shapeTextWithHarfBuzz } from 'src/lib/openTypeFeatures/shapeTextWithHarfBuzz'

@@ -19,6 +19,7 @@ import {
   parseGposLookupRules,
   type GposRuleParseResult,
 } from 'src/lib/openTypeFeatures/gposRuleParser'
+import { parseGdefTable } from 'src/lib/openTypeFeatures/gdefParser'
 import { toStableIdPart } from 'src/lib/openTypeFeatures/ids'
 import type {
   FeatureDiagnostic,
@@ -335,6 +336,17 @@ export const extractBinaryFeatures = (
     ...directory.diagnostics,
     ...inventories.flatMap((inventory) => inventory.diagnostics),
   ]
+  diagnostics.push(
+    ...inventories
+      .filter((inventory) => inventory.featureVariationsOffset !== undefined)
+      .map((inventory) =>
+        makeExtractorDiagnostic(
+          'warning',
+          `${inventory.table} FeatureVariations table is present. Kumiko preserves this as explicit unsupported compiled layout data; feature variation reconstruction is not implemented yet.`,
+          `${inventory.table.toLowerCase()}-feature-variations-present`
+        )
+      )
+  )
   const parsedLookupEntries = inventories.map((inventory) => ({
     inventory,
     lookups: parseInventoryLookups(buffer, inventory, glyphOrder),
@@ -345,15 +357,11 @@ export const extractBinaryFeatures = (
     )
   )
 
-  if (findSfntTable(directory, 'GDEF')) {
-    diagnostics.push(
-      makeExtractorDiagnostic(
-        'info',
-        'GDEF table is present. Kumiko records its presence, but detailed GDEF extraction is staged.',
-        'gdef-present'
-      )
-    )
-  }
+  const gdefRecord = findSfntTable(directory, 'GDEF')
+  const parsedGdef = gdefRecord
+    ? parseGdefTable(buffer, gdefRecord.offset, glyphOrder)
+    : null
+  if (parsedGdef) diagnostics.push(...parsedGdef.diagnostics)
 
   if (findSfntTable(directory, 'kern')) {
     diagnostics.push(
@@ -382,7 +390,7 @@ export const extractBinaryFeatures = (
       )
       .map((lookup) => toUnsupportedLookup(entry.inventory.table, lookup))
   )
-  state.gdef = findSfntTable(directory, 'GDEF') ? {} : null
+  state.gdef = parsedGdef?.gdef ?? null
   state.diagnostics = diagnostics
 
   return state
