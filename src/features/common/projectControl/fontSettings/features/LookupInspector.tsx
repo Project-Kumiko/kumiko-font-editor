@@ -19,29 +19,35 @@ import { RuleListSummary } from 'src/features/common/projectControl/fontSettings
 interface LookupInspectorProps {
   state: OpenTypeFeaturesState
   diagnostics: FeatureDiagnostic[]
+  lookups?: LookupRecord[]
+  title?: string
+  emptyMessage?: string
   onRuleChange: (lookupId: string, rule: Rule) => void
 }
 
 export function LookupInspector({
   state,
   diagnostics,
+  lookups = state.lookups,
+  title = 'Lookups',
+  emptyMessage = 'No lookups in the canonical feature model yet.',
   onRuleChange,
 }: LookupInspectorProps) {
   const [selectedLookupId, setSelectedLookupId] = useState<string | null>(null)
   const selectedLookup = useMemo(
     () =>
-      state.lookups.find((lookup) => lookup.id === selectedLookupId) ??
-      state.lookups[0] ??
+      lookups.find((lookup) => lookup.id === selectedLookupId) ??
+      lookups[0] ??
       null,
-    [selectedLookupId, state.lookups]
+    [lookups, selectedLookupId]
   )
 
-  if (state.lookups.length === 0) {
+  if (lookups.length === 0) {
     return (
       <Stack spacing={2}>
-        <Text fontWeight="semibold">Lookups</Text>
+        <Text fontWeight="semibold">{title}</Text>
         <Text fontSize="sm" color="field.muted">
-          No lookups in the canonical feature model yet.
+          {emptyMessage}
         </Text>
       </Stack>
     )
@@ -49,10 +55,10 @@ export function LookupInspector({
 
   return (
     <Stack spacing={3}>
-      <Text fontWeight="semibold">Lookups</Text>
+      <Text fontWeight="semibold">{title}</Text>
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={3}>
         <LookupList
-          lookups={state.lookups}
+          lookups={lookups}
           selectedLookupId={selectedLookup?.id ?? null}
           diagnostics={diagnostics}
           onSelect={setSelectedLookupId}

@@ -1,18 +1,17 @@
-import {
-  Divider,
-  FormControl,
-  FormLabel,
-  Stack,
-  Textarea,
-} from '@chakra-ui/react'
-import { useMemo } from 'react'
+import { Divider, Grid, GridItem, Stack } from '@chakra-ui/react'
+import { useMemo, useState } from 'react'
 import { AutoFeatureSuggestions } from 'src/features/common/projectControl/fontSettings/features/AutoFeatureSuggestions'
 import { ExportPolicyControl } from 'src/features/common/projectControl/fontSettings/features/ExportPolicyControl'
+import { FeatureClassesPanel } from 'src/features/common/projectControl/fontSettings/features/FeatureClassesPanel'
+import { FeatureDetailPanel } from 'src/features/common/projectControl/fontSettings/features/FeatureDetailPanel'
 import { FeatureDiagnosticsList } from 'src/features/common/projectControl/fontSettings/features/FeatureDiagnosticsList'
-import { FeatureList } from 'src/features/common/projectControl/fontSettings/features/FeatureList'
+import { FeaturePreludePanel } from 'src/features/common/projectControl/fontSettings/features/FeaturePreludePanel'
 import { FeatureSummary } from 'src/features/common/projectControl/fontSettings/features/FeatureSummary'
+import {
+  FeatureWorkbenchSidebar,
+  type FeatureWorkbenchSelection,
+} from 'src/features/common/projectControl/fontSettings/features/FeatureWorkbenchSidebar'
 import { GeneratedFeaPreview } from 'src/features/common/projectControl/fontSettings/features/GeneratedFeaPreview'
-import { LookupInspector } from 'src/features/common/projectControl/fontSettings/features/LookupInspector'
 import { updateLookupRule } from 'src/features/common/projectControl/fontSettings/features/ruleEditorState'
 import { UnsupportedLookupList } from 'src/features/common/projectControl/fontSettings/features/UnsupportedLookupList'
 import {
@@ -43,6 +42,9 @@ export function FontFeaturesTab({
   onFeaturesTextChange,
   onOpenTypeFeaturesChange,
 }: FontFeaturesTabProps) {
+  const [selected, setSelected] = useState<FeatureWorkbenchSelection>({
+    kind: 'prelude',
+  })
   const diagnostics = useMemo(
     () => (fontData ? validateFeatures(openTypeFeatures, fontData) : []),
     [fontData, openTypeFeatures]
@@ -77,50 +79,83 @@ export function FontFeaturesTab({
     onOpenTypeFeaturesChange(updateLookupRule(openTypeFeatures, lookupId, rule))
   }
 
+  const selectedFeature =
+    selected.kind === 'feature'
+      ? (openTypeFeatures.features.find(
+          (feature) => feature.id === selected.featureId
+        ) ?? null)
+      : null
+  const activeSelection =
+    selected.kind === 'feature' && !selectedFeature
+      ? ({ kind: 'prelude' } as const)
+      : selected
+
   return (
     <Stack spacing={5}>
       <FeatureSummary state={openTypeFeatures} diagnostics={diagnostics} />
-      <ExportPolicyControl
-        state={openTypeFeatures}
-        onChange={updateExportPolicy}
-      />
-      <Divider />
-      <AutoFeatureSuggestions
-        suggestions={suggestions}
-        onAccept={acceptSuggestion}
-        onIgnore={ignoreSuggestion}
-        onScan={() => onOpenTypeFeaturesChange({ ...openTypeFeatures })}
-      />
-      <Divider />
-      <FeatureList state={openTypeFeatures} />
-      <Divider />
-      <LookupInspector
-        state={openTypeFeatures}
-        diagnostics={diagnostics}
-        onRuleChange={updateRule}
-      />
-      <Divider />
-      <UnsupportedLookupList
-        unsupportedLookups={openTypeFeatures.unsupportedLookups}
-      />
-      <Divider />
-      <FeatureDiagnosticsList diagnostics={diagnostics} />
-      <Divider />
-      <GeneratedFeaPreview
-        feaText={generatedFea.text}
-        sourceMap={generatedFea.sourceMap}
-      />
-      <Divider />
-      <FormControl>
-        <FormLabel fontSize="sm">Imported or legacy feature text</FormLabel>
-        <Textarea
-          minH="220px"
-          fontFamily="mono"
-          value={featuresText}
-          onChange={(event) => onFeaturesTextChange(event.target.value)}
-          placeholder={`languagesystem DFLT dflt;\n\nfeature liga {\n  sub f i by fi;\n} liga;`}
-        />
-      </FormControl>
+      <Grid
+        gap={5}
+        templateColumns={{ base: '1fr', lg: '280px minmax(0, 1fr)' }}
+      >
+        <GridItem>
+          <FeatureWorkbenchSidebar
+            diagnostics={diagnostics}
+            selected={activeSelection}
+            state={openTypeFeatures}
+            onSelect={setSelected}
+          />
+        </GridItem>
+        <GridItem minW={0}>
+          <Stack spacing={5}>
+            {activeSelection.kind === 'classes' ? (
+              <FeatureClassesPanel state={openTypeFeatures} />
+            ) : selectedFeature ? (
+              <FeatureDetailPanel
+                diagnostics={diagnostics}
+                feature={selectedFeature}
+                state={openTypeFeatures}
+                onRuleChange={updateRule}
+              />
+            ) : (
+              <FeaturePreludePanel
+                featuresText={featuresText}
+                state={openTypeFeatures}
+                onFeaturesTextChange={onFeaturesTextChange}
+              />
+            )}
+
+            {activeSelection.kind === 'prelude' ? (
+              <>
+                <Divider />
+                <ExportPolicyControl
+                  state={openTypeFeatures}
+                  onChange={updateExportPolicy}
+                />
+                <Divider />
+                <AutoFeatureSuggestions
+                  suggestions={suggestions}
+                  onAccept={acceptSuggestion}
+                  onIgnore={ignoreSuggestion}
+                  onScan={() =>
+                    onOpenTypeFeaturesChange({ ...openTypeFeatures })
+                  }
+                />
+                <Divider />
+                <UnsupportedLookupList
+                  unsupportedLookups={openTypeFeatures.unsupportedLookups}
+                />
+                <Divider />
+                <FeatureDiagnosticsList diagnostics={diagnostics} />
+                <Divider />
+                <GeneratedFeaPreview
+                  feaText={generatedFea.text}
+                  sourceMap={generatedFea.sourceMap}
+                />
+              </>
+            ) : null}
+          </Stack>
+        </GridItem>
+      </Grid>
     </Stack>
   )
 }
