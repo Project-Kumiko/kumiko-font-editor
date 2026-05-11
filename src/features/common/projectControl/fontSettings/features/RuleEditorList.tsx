@@ -2,6 +2,8 @@ import { Badge, HStack, Stack, Text } from '@chakra-ui/react'
 import type { LookupRecord, Rule } from 'src/lib/openTypeFeatures'
 import { formatRuleSummary } from 'src/features/common/projectControl/fontSettings/features/featureRuleText'
 import { LigatureSubstitutionRuleEditor } from 'src/features/common/projectControl/fontSettings/features/LigatureSubstitutionRuleEditor'
+import { PairPositioningRuleEditor } from 'src/features/common/projectControl/fontSettings/features/PairPositioningRuleEditor'
+import { SinglePositioningRuleEditor } from 'src/features/common/projectControl/fontSettings/features/SinglePositioningRuleEditor'
 import { SingleSubstitutionRuleEditor } from 'src/features/common/projectControl/fontSettings/features/SingleSubstitutionRuleEditor'
 
 interface RuleEditorListProps {
@@ -73,6 +75,10 @@ function RuleEditor({
       return <SingleSubstitutionRuleEditor rule={rule} onChange={onChange} />
     case 'ligatureSubstitution':
       return <LigatureSubstitutionRuleEditor rule={rule} onChange={onChange} />
+    case 'pairPositioning':
+      return <PairPositioningRuleEditor rule={rule} onChange={onChange} />
+    case 'singlePositioning':
+      return <SinglePositioningRuleEditor rule={rule} onChange={onChange} />
     default:
       return null
   }
@@ -80,6 +86,9 @@ function RuleEditor({
 
 function isRuleEditorSupported(rule: Rule) {
   return (
-    rule.kind === 'singleSubstitution' || rule.kind === 'ligatureSubstitution'
+    rule.kind === 'singleSubstitution' ||
+    rule.kind === 'ligatureSubstitution' ||
+    rule.kind === 'pairPositioning' ||
+    rule.kind === 'singlePositioning'
   )
 }

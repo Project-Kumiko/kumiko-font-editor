@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { updateLookupRule } from 'src/features/common/projectControl/fontSettings/features/ruleEditorState'
 import type { OpenTypeFeaturesState } from 'src/lib/openTypeFeatures'
+import {
+  getValueRecordFieldText,
+  updateValueRecordField,
+} from 'src/features/common/projectControl/fontSettings/features/valueRecordState'
 
 describe('rule editor state helpers', () => {
   it('marks edited auto substitution rules as manual user overrides', () => {
@@ -28,6 +32,39 @@ describe('rule editor state helpers', () => {
       },
     })
   })
+
+  it('marks edited positioning rules as manual user overrides', () => {
+    const state = makeState()
+    const rule = state.lookups[1].rules[0]
+
+    if (rule.kind !== 'pairPositioning') {
+      throw new Error('Expected a pair positioning fixture.')
+    }
+
+    const nextState = updateLookupRule(state, 'lookup_kern', {
+      ...rule,
+      firstValue: { xAdvance: -100 },
+    })
+
+    expect(nextState.features[1].origin).toBe('mixed')
+    expect(nextState.lookups[1].origin).toBe('manual')
+    expect(nextState.lookups[1].rules[0]).toMatchObject({
+      firstValue: { xAdvance: -100 },
+      meta: {
+        origin: 'manual',
+        userOverridden: true,
+        dirty: true,
+      },
+    })
+  })
+
+  it('updates optional value record fields from input text', () => {
+    const value = updateValueRecordField(undefined, 'xAdvance', '-80')
+
+    expect(value).toEqual({ xAdvance: -80 })
+    expect(getValueRecordFieldText(value, 'xAdvance')).toBe('-80')
+    expect(updateValueRecordField(value, 'xAdvance', '')).toBeUndefined()
+  })
 })
 
 function makeState(): OpenTypeFeaturesState {
@@ -50,6 +87,20 @@ function makeState(): OpenTypeFeaturesState {
           },
         ],
       },
+      {
+        id: 'feature_kern',
+        tag: 'kern',
+        isActive: true,
+        origin: 'auto',
+        entries: [
+          {
+            id: 'entry_kern',
+            script: 'DFLT',
+            language: 'dflt',
+            lookupIds: ['lookup_kern'],
+          },
+        ],
+      },
     ],
     lookups: [
       {
@@ -69,6 +120,28 @@ function makeState(): OpenTypeFeaturesState {
             meta: {
               origin: 'auto',
               generator: 'glyph-suffix',
+            },
+          },
+        ],
+      },
+      {
+        id: 'lookup_kern',
+        name: 'lookup_kern',
+        table: 'GPOS',
+        lookupType: 'pairPos',
+        lookupFlag: {},
+        editable: true,
+        origin: 'auto',
+        rules: [
+          {
+            id: 'rule_t_o',
+            kind: 'pairPositioning',
+            left: { kind: 'glyph', glyph: 'T' },
+            right: { kind: 'glyph', glyph: 'o' },
+            firstValue: { xAdvance: -80 },
+            meta: {
+              origin: 'auto',
+              generator: 'kerning-groups',
             },
           },
         ],
