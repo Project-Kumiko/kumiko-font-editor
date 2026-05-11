@@ -19,6 +19,7 @@ import { ProjectControlActions } from 'src/features/common/projectControl/Projec
 import { MetricsCard } from 'src/features/editor/rightPanel/MetricsCard'
 import { NodeInspectorCard } from 'src/features/editor/rightPanel/NodeInspectorCard'
 import { TransformCard } from 'src/features/editor/rightPanel/TransformCard'
+import { BehaviorsPanel } from 'src/features/editor/rightPanel/behaviors/BehaviorsPanel'
 import { useStore } from 'src/store'
 
 export function EditorRightPanel() {
@@ -70,6 +71,7 @@ export function EditorRightPanel() {
             <TabList>
               <Tab>Inspect</Tab>
               <Tab>Transform</Tab>
+              <Tab>Behaviors</Tab>
             </TabList>
             <TabPanels>
               <TabPanel px={0} pb={0}>
@@ -115,6 +117,9 @@ export function EditorRightPanel() {
                     onPathOperation={panel.handlePathOperation}
                   />
                 </Stack>
+              </TabPanel>
+              <TabPanel px={0} pb={0}>
+                <BehaviorsPanel fontData={panel.fontData} glyph={panel.glyph} />
               </TabPanel>
             </TabPanels>
           </Tabs>

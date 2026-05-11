@@ -5,6 +5,8 @@ import type {
 import type { PathBooleanOperation } from 'src/lib/pathBooleanOperations'
 import type { GlyphEditTimes } from 'src/lib/glyphEditTimes'
 import type {
+  AlternateBehaviorDraft,
+  CombinationBehaviorDraft,
   GlyphSelector,
   OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
@@ -298,6 +300,14 @@ export interface GlobalState {
       width?: number
     }>
   ) => string[]
+  upsertCombinationBehavior: (draft: CombinationBehaviorDraft) => void
+  deleteCombinationBehavior: (lookupId: string, ruleId: string) => void
+  upsertAlternateBehavior: (draft: AlternateBehaviorDraft) => void
+  deleteAlternateBehavior: (
+    lookupId: string,
+    ruleId: string,
+    alternate: string
+  ) => void
   setSelectedNodeIds: (ids: string[]) => void
   setSelectedSegment: (segment: SelectedSegmentState | null) => void
   setSelectedLayerId: (id: string | null) => void

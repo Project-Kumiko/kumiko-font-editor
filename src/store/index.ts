@@ -8,6 +8,7 @@ import { buildUiActions } from 'src/store/actions/uiActions'
 import { buildGlyphActions } from 'src/store/actions/glyphActions'
 import { buildPathActions } from 'src/store/actions/pathActions'
 import { buildProjectActions } from 'src/store/actions/projectActions'
+import { buildBehaviorActions } from 'src/store/actions/behaviorActions'
 
 export { getGlyphLayer } from 'src/store/glyphLayer'
 export {
@@ -88,6 +89,7 @@ export const useStore = create<GlobalState>()(
 
       // ── Glyph-level actions ──────────────────────────────────────────────
       ...buildGlyphActions(set),
+      ...buildBehaviorActions(set),
 
       // setSelectedLayerId needs access to temporal store, so wire it here
       setSelectedLayerId: (id: string | null) => {

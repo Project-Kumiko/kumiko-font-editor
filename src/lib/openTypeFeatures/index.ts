@@ -63,6 +63,27 @@ export {
   ignoreAutoFeatureSuggestion,
 } from 'src/lib/openTypeFeatures/applySuggestion'
 export {
+  ALTERNATE_BEHAVIOR_TYPE_LABELS,
+  ALTERNATE_BEHAVIOR_TYPES,
+  COMBINATION_BEHAVIOR_TYPE_LABELS,
+  COMBINATION_BEHAVIOR_TYPES,
+  canCommitAlternateBehavior,
+  canCommitCombinationBehavior,
+  deleteAlternateBehavior,
+  deleteCombinationBehavior,
+  deriveGlyphAlternateBehaviors,
+  deriveGlyphCombinationBehaviors,
+  makeCompositeGlyphFromComponents,
+  makeEditableGlyphCopy,
+  parseCombinationInput,
+  resolveAlternateFeatureTag,
+  resolveCombinationFeatureTag,
+  suggestAlternateGlyphName,
+  suggestCombinationOutput,
+  upsertAlternateBehavior,
+  upsertCombinationBehavior,
+} from 'src/lib/openTypeFeatures/behaviorFacade'
+export {
   deriveOpenTypeExportWarnings,
   hasBlockingExportWarnings,
   hasManagedFeatureEdits,
@@ -72,4 +93,5 @@ export type * from 'src/lib/openTypeFeatures/feaAst'
 export type * from 'src/lib/openTypeFeatures/harfbuzzTypes'
 export type * from 'src/lib/openTypeFeatures/compilerTypes'
 export type * from 'src/lib/openTypeFeatures/exportPolicy'
+export type * from 'src/lib/openTypeFeatures/behaviorFacade'
 export type * from 'src/lib/openTypeFeatures/types'

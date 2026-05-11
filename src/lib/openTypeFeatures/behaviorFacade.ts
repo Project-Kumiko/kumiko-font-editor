@@ -1,0 +1,996 @@
+import {
+  makeFeatureId,
+  makeLookupId,
+  makeRuleId,
+} from 'src/lib/openTypeFeatures/ids'
+import {
+  isFourCharTag,
+  isValidGlyphName,
+} from 'src/lib/openTypeFeatures/validationNames'
+import type {
+  AlternateSubstitutionRule,
+  FeatureRecord,
+  LigatureSubstitutionRule,
+  LookupRecord,
+  OpenTypeFeaturesState,
+  Rule,
+  SingleSubstitutionRule,
+} from 'src/lib/openTypeFeatures/types'
+import type { FontData, GlyphData } from 'src/store/types'
+
+export type CombinationBehaviorType =
+  | 'standardLigature'
+  | 'decorativeLigature'
+  | 'requiredLigature'
+  | 'fraction'
+  | 'numerator'
+  | 'denominator'
+  | 'customFeature'
+
+export interface CombinationBehaviorRow {
+  id: string
+  lookupId: string
+  ruleId: string
+  input: string
+  output: string
+  type: CombinationBehaviorType
+  featureTag: string
+  origin: Rule['meta']['origin']
+  sourceLabel: string
+  status: CombinationBehaviorStatus[]
+}
+
+export type CombinationBehaviorStatus =
+  | 'Duplicate'
+  | 'Conflict'
+  | 'Missing Glyph'
+  | 'Invalid Input'
+
+export interface CombinationBehaviorDraft {
+  lookupId?: string
+  ruleId?: string
+  input: string
+  output: string
+  type: CombinationBehaviorType
+  customFeatureTag?: string
+}
+
+export type AlternateBehaviorType =
+  | 'stylisticAlternate'
+  | 'swash'
+  | 'stylisticSet01'
+  | 'stylisticSet02'
+  | 'stylisticSet03'
+  | 'stylisticSet04'
+  | 'stylisticSet05'
+  | 'customFeature'
+
+export interface AlternateBehaviorRow {
+  id: string
+  lookupId: string
+  ruleId: string
+  source: string
+  alternate: string
+  type: AlternateBehaviorType
+  featureTag: string
+  origin: Rule['meta']['origin']
+  sourceLabel: string
+  status: AlternateBehaviorStatus[]
+}
+
+export type AlternateBehaviorStatus =
+  | 'Duplicate'
+  | 'Conflict'
+  | 'Missing Glyph'
+  | 'Invalid Input'
+
+export interface AlternateBehaviorDraft {
+  lookupId?: string
+  ruleId?: string
+  source: string
+  alternate: string
+  type: AlternateBehaviorType
+  customFeatureTag?: string
+}
+
+const BEHAVIOR_TYPE_TO_FEATURE_TAG: Record<
+  Exclude<CombinationBehaviorType, 'customFeature'>,
+  string
+> = {
+  standardLigature: 'liga',
+  decorativeLigature: 'dlig',
+  requiredLigature: 'rlig',
+  fraction: 'frac',
+  numerator: 'numr',
+  denominator: 'dnom',
+}
+
+const FEATURE_TAG_TO_BEHAVIOR_TYPE: Record<string, CombinationBehaviorType> = {
+  liga: 'standardLigature',
+  dlig: 'decorativeLigature',
+  rlig: 'requiredLigature',
+  frac: 'fraction',
+  numr: 'numerator',
+  dnom: 'denominator',
+}
+
+export const COMBINATION_BEHAVIOR_TYPE_LABELS: Record<
+  CombinationBehaviorType,
+  string
+> = {
+  standardLigature: 'Standard Ligature',
+  decorativeLigature: 'Decorative Ligature',
+  requiredLigature: 'Required Ligature',
+  fraction: 'Fraction',
+  numerator: 'Numerator',
+  denominator: 'Denominator',
+  customFeature: 'Custom Feature',
+}
+
+export const COMBINATION_BEHAVIOR_TYPES: CombinationBehaviorType[] = [
+  'standardLigature',
+  'decorativeLigature',
+  'requiredLigature',
+  'fraction',
+  'numerator',
+  'denominator',
+  'customFeature',
+]
+
+const ALTERNATE_TYPE_TO_FEATURE_TAG: Record<
+  Exclude<AlternateBehaviorType, 'customFeature'>,
+  string
+> = {
+  stylisticAlternate: 'salt',
+  swash: 'swsh',
+  stylisticSet01: 'ss01',
+  stylisticSet02: 'ss02',
+  stylisticSet03: 'ss03',
+  stylisticSet04: 'ss04',
+  stylisticSet05: 'ss05',
+}
+
+const FEATURE_TAG_TO_ALTERNATE_TYPE: Record<string, AlternateBehaviorType> = {
+  salt: 'stylisticAlternate',
+  swsh: 'swash',
+  ss01: 'stylisticSet01',
+  ss02: 'stylisticSet02',
+  ss03: 'stylisticSet03',
+  ss04: 'stylisticSet04',
+  ss05: 'stylisticSet05',
+}
+
+export const ALTERNATE_BEHAVIOR_TYPE_LABELS: Record<
+  AlternateBehaviorType,
+  string
+> = {
+  stylisticAlternate: 'Stylistic Alternate',
+  swash: 'Swash',
+  stylisticSet01: 'Stylistic Set 01',
+  stylisticSet02: 'Stylistic Set 02',
+  stylisticSet03: 'Stylistic Set 03',
+  stylisticSet04: 'Stylistic Set 04',
+  stylisticSet05: 'Stylistic Set 05',
+  customFeature: 'Custom Feature',
+}
+
+export const ALTERNATE_BEHAVIOR_TYPES: AlternateBehaviorType[] = [
+  'stylisticAlternate',
+  'swash',
+  'stylisticSet01',
+  'stylisticSet02',
+  'stylisticSet03',
+  'stylisticSet04',
+  'stylisticSet05',
+  'customFeature',
+]
+
+export function deriveGlyphCombinationBehaviors(
+  fontData: FontData,
+  glyphId: string
+): CombinationBehaviorRow[] {
+  const state = fontData.openTypeFeatures
+  if (!state) return []
+
+  const featureTagsByLookupId = mapFeatureTagsByLookupId(state.features)
+  const duplicateKeys = countLigatureKeys(state.lookups)
+  const inputKeys = countLigatureInputs(state.lookups)
+
+  return state.lookups.flatMap((lookup) => {
+    if (lookup.table !== 'GSUB' || lookup.lookupType !== 'ligatureSubst') {
+      return []
+    }
+
+    const featureTag = featureTagsByLookupId.get(lookup.id)?.[0] ?? 'liga'
+    const type = FEATURE_TAG_TO_BEHAVIOR_TYPE[featureTag] ?? 'customFeature'
+
+    return lookup.rules
+      .filter(isLigatureRule)
+      .filter(
+        (rule) =>
+          rule.components.includes(glyphId) || rule.replacement === glyphId
+      )
+      .map((rule) => {
+        const input = formatCombinationInput(rule.components)
+        const output = rule.replacement
+        const status = getCombinationStatus({
+          fontData,
+          input,
+          output,
+          duplicateCount:
+            duplicateKeys.get(makeLigatureKey(rule.components, output)) ?? 0,
+          inputCount: inputKeys.get(rule.components.join('+')) ?? 0,
+        })
+
+        return {
+          id: `${lookup.id}:${rule.id}`,
+          lookupId: lookup.id,
+          ruleId: rule.id,
+          input,
+          output,
+          type,
+          featureTag,
+          origin: rule.meta.origin,
+          sourceLabel: formatSourceLabel(rule.meta.origin, featureTag),
+          status,
+        }
+      })
+  })
+}
+
+export function deriveGlyphAlternateBehaviors(
+  fontData: FontData,
+  glyphId: string
+): AlternateBehaviorRow[] {
+  const state = fontData.openTypeFeatures
+  if (!state) return []
+
+  const featureTagsByLookupId = mapFeatureTagsByLookupId(state.features)
+  const duplicateKeys = countAlternateKeys(state.lookups)
+  const inputKeys = countAlternateSources(state.lookups)
+
+  return state.lookups.flatMap((lookup) => {
+    if (
+      lookup.table !== 'GSUB' ||
+      (lookup.lookupType !== 'singleSubst' &&
+        lookup.lookupType !== 'alternateSubst')
+    ) {
+      return []
+    }
+
+    const featureTag = featureTagsByLookupId.get(lookup.id)?.[0] ?? 'salt'
+    const type = FEATURE_TAG_TO_ALTERNATE_TYPE[featureTag] ?? 'customFeature'
+
+    return lookup.rules.flatMap((rule) => {
+      if (isSingleSubstitutionRule(rule)) {
+        if (
+          rule.target.kind !== 'glyph' ||
+          (rule.target.glyph !== glyphId && rule.replacement !== glyphId)
+        ) {
+          return []
+        }
+        return [
+          makeAlternateRow({
+            fontData,
+            lookup,
+            rule,
+            source: rule.target.glyph,
+            alternate: rule.replacement,
+            featureTag,
+            type,
+            duplicateCount:
+              duplicateKeys.get(
+                makeAlternateKey(rule.target.glyph, rule.replacement)
+              ) ?? 0,
+            inputCount: inputKeys.get(rule.target.glyph) ?? 0,
+          }),
+        ]
+      }
+
+      if (isAlternateSubstitutionRule(rule)) {
+        if (rule.target !== glyphId && !rule.alternates.includes(glyphId)) {
+          return []
+        }
+        return rule.alternates.map((alternate) =>
+          makeAlternateRow({
+            fontData,
+            lookup,
+            rule,
+            source: rule.target,
+            alternate,
+            featureTag,
+            type,
+            duplicateCount:
+              duplicateKeys.get(makeAlternateKey(rule.target, alternate)) ?? 0,
+            inputCount: inputKeys.get(rule.target) ?? 0,
+          })
+        )
+      }
+
+      return []
+    })
+  })
+}
+
+export function parseCombinationInput(input: string) {
+  return input
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+export function suggestCombinationOutput(input: string) {
+  return parseCombinationInput(input).join('_')
+}
+
+export function suggestAlternateGlyphName(source: string) {
+  return source ? `${source}.alt` : ''
+}
+
+export function resolveCombinationFeatureTag(draft: CombinationBehaviorDraft) {
+  if (draft.type === 'customFeature') {
+    return draft.customFeatureTag?.trim() ?? ''
+  }
+
+  return BEHAVIOR_TYPE_TO_FEATURE_TAG[draft.type]
+}
+
+export function resolveAlternateFeatureTag(draft: AlternateBehaviorDraft) {
+  if (draft.type === 'customFeature') {
+    return draft.customFeatureTag?.trim() ?? ''
+  }
+
+  return ALTERNATE_TYPE_TO_FEATURE_TAG[draft.type]
+}
+
+export function canCommitCombinationBehavior(draft: CombinationBehaviorDraft) {
+  const components = parseCombinationInput(draft.input)
+  const featureTag = resolveCombinationFeatureTag(draft)
+  return (
+    components.length > 0 &&
+    components.every(isValidGlyphName) &&
+    isValidGlyphName(draft.output.trim()) &&
+    isFourCharTag(featureTag)
+  )
+}
+
+export function canCommitAlternateBehavior(draft: AlternateBehaviorDraft) {
+  const featureTag = resolveAlternateFeatureTag(draft)
+  return (
+    isValidGlyphName(draft.source.trim()) &&
+    isValidGlyphName(draft.alternate.trim()) &&
+    isFourCharTag(featureTag)
+  )
+}
+
+export function upsertCombinationBehavior(
+  state: OpenTypeFeaturesState,
+  draft: CombinationBehaviorDraft
+): OpenTypeFeaturesState {
+  const components = parseCombinationInput(draft.input)
+  const replacement = draft.output.trim()
+  const featureTag = resolveCombinationFeatureTag(draft)
+  if (
+    components.length === 0 ||
+    !replacement ||
+    !components.every(isValidGlyphName) ||
+    !isValidGlyphName(replacement) ||
+    !isFourCharTag(featureTag)
+  ) {
+    return state
+  }
+
+  const nextState = deleteCombinationBehavior(state, draft)
+  const lookupId = findWritableLigatureLookupId(nextState, featureTag)
+  const rule = makeCombinationRule(featureTag, components, replacement)
+
+  if (lookupId) {
+    return {
+      ...nextState,
+      features: ensureFeatureReferencesLookup(
+        nextState.features,
+        featureTag,
+        lookupId
+      ),
+      lookups: nextState.lookups.map((lookup) =>
+        lookup.id === lookupId
+          ? {
+              ...lookup,
+              origin: markLookupOriginAsEdited(lookup.origin),
+              rules: [...lookup.rules, rule],
+            }
+          : lookup
+      ),
+    }
+  }
+
+  const nextLookupId = makeLookupId(featureTag, 'behavior_combinations')
+  const lookup: LookupRecord = {
+    id: nextLookupId,
+    name: nextLookupId,
+    table: 'GSUB',
+    lookupType: 'ligatureSubst',
+    lookupFlag: {},
+    rules: [rule],
+    editable: true,
+    origin: 'manual',
+  }
+
+  return {
+    ...nextState,
+    features: ensureFeatureReferencesLookup(
+      nextState.features,
+      featureTag,
+      nextLookupId
+    ),
+    lookups: [...nextState.lookups, lookup],
+  }
+}
+
+export function deleteCombinationBehavior(
+  state: OpenTypeFeaturesState,
+  target: Pick<CombinationBehaviorDraft, 'lookupId' | 'ruleId'>
+): OpenTypeFeaturesState {
+  if (!target.lookupId || !target.ruleId) return state
+
+  return {
+    ...state,
+    features: state.features.map((feature) =>
+      feature.entries.some((entry) =>
+        entry.lookupIds.includes(target.lookupId ?? '')
+      )
+        ? { ...feature, origin: markFeatureOriginAsEdited(feature.origin) }
+        : feature
+    ),
+    lookups: state.lookups.map((lookup) =>
+      lookup.id === target.lookupId
+        ? {
+            ...lookup,
+            origin: markLookupOriginAsEdited(lookup.origin),
+            rules: lookup.rules.filter((rule) => rule.id !== target.ruleId),
+          }
+        : lookup
+    ),
+  }
+}
+
+export function upsertAlternateBehavior(
+  state: OpenTypeFeaturesState,
+  draft: AlternateBehaviorDraft
+): OpenTypeFeaturesState {
+  const source = draft.source.trim()
+  const alternate = draft.alternate.trim()
+  const featureTag = resolveAlternateFeatureTag(draft)
+  if (
+    !isValidGlyphName(source) ||
+    !isValidGlyphName(alternate) ||
+    !isFourCharTag(featureTag)
+  ) {
+    return state
+  }
+
+  const nextState = deleteAlternateBehavior(state, draft)
+  const lookupId = findWritableSingleSubstitutionLookupId(nextState, featureTag)
+  const rule = makeSingleSubstitutionRule(featureTag, source, alternate)
+
+  if (lookupId) {
+    return {
+      ...nextState,
+      features: ensureFeatureReferencesLookup(
+        nextState.features,
+        featureTag,
+        lookupId
+      ),
+      lookups: nextState.lookups.map((lookup) =>
+        lookup.id === lookupId
+          ? {
+              ...lookup,
+              origin: markLookupOriginAsEdited(lookup.origin),
+              rules: [...lookup.rules, rule],
+            }
+          : lookup
+      ),
+    }
+  }
+
+  const nextLookupId = makeLookupId(featureTag, 'behavior_alternates')
+  const lookup: LookupRecord = {
+    id: nextLookupId,
+    name: nextLookupId,
+    table: 'GSUB',
+    lookupType: 'singleSubst',
+    lookupFlag: {},
+    rules: [rule],
+    editable: true,
+    origin: 'manual',
+  }
+
+  return {
+    ...nextState,
+    features: ensureFeatureReferencesLookup(
+      nextState.features,
+      featureTag,
+      nextLookupId
+    ),
+    lookups: [...nextState.lookups, lookup],
+  }
+}
+
+export function deleteAlternateBehavior(
+  state: OpenTypeFeaturesState,
+  target: Pick<AlternateBehaviorDraft, 'lookupId' | 'ruleId' | 'alternate'>
+): OpenTypeFeaturesState {
+  if (!target.lookupId || !target.ruleId) return state
+
+  return {
+    ...state,
+    features: state.features.map((feature) =>
+      feature.entries.some((entry) =>
+        entry.lookupIds.includes(target.lookupId ?? '')
+      )
+        ? { ...feature, origin: markFeatureOriginAsEdited(feature.origin) }
+        : feature
+    ),
+    lookups: state.lookups.map((lookup) => {
+      if (lookup.id !== target.lookupId) return lookup
+
+      return {
+        ...lookup,
+        origin: markLookupOriginAsEdited(lookup.origin),
+        rules: lookup.rules.flatMap((rule) => {
+          if (rule.id !== target.ruleId) return [rule]
+          if (!isAlternateSubstitutionRule(rule)) return []
+
+          const alternates = rule.alternates.filter(
+            (alternate) => alternate !== target.alternate
+          )
+          return alternates.length > 0 ? [{ ...rule, alternates }] : []
+        }),
+      }
+    }),
+  }
+}
+
+export function makeCompositeGlyphFromComponents(
+  fontData: FontData,
+  glyphId: string,
+  componentGlyphIds: string[]
+): GlyphData | null {
+  if (!isValidGlyphName(glyphId) || fontData.glyphs[glyphId]) return null
+  if (componentGlyphIds.some((componentId) => !fontData.glyphs[componentId])) {
+    return null
+  }
+
+  let cursorX = 0
+  const paths: GlyphData['paths'] = []
+  const componentRefs = componentGlyphIds.map((componentId, index) => {
+    const sourceGlyph = fontData.glyphs[componentId]
+    const ref = {
+      id: `component_${index}_${componentId.replace(/[^A-Za-z0-9_.-]+/g, '_')}`,
+      glyphId: componentId,
+      x: cursorX,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    }
+    for (const path of sourceGlyph?.paths ?? []) {
+      paths.push({
+        id: `${componentId}_${index}_${path.id}`,
+        closed: path.closed,
+        nodes: path.nodes.map((node) => ({
+          ...node,
+          id: `${componentId}_${index}_${node.id}`,
+          x: Math.round(node.x + cursorX),
+        })),
+      })
+    }
+    cursorX += sourceGlyph?.metrics.width ?? 0
+    return ref
+  })
+
+  const width =
+    cursorX || Object.values(fontData.glyphs)[0]?.metrics.width || 1000
+
+  return {
+    id: glyphId,
+    name: glyphId,
+    unicode: null,
+    export: true,
+    activeLayerId:
+      Object.values(fontData.glyphs)[0]?.activeLayerId ?? 'public.default',
+    paths,
+    components: paths.length === 0 ? componentGlyphIds : [],
+    componentRefs: paths.length === 0 ? componentRefs : [],
+    anchors: [],
+    guidelines: [],
+    metrics: {
+      width,
+      lsb: 0,
+      rsb: width,
+    },
+  }
+}
+
+export function makeEditableGlyphCopy(
+  fontData: FontData,
+  glyphId: string,
+  sourceGlyphId: string
+): GlyphData | null {
+  if (!isValidGlyphName(glyphId) || fontData.glyphs[glyphId]) return null
+  const sourceGlyph = fontData.glyphs[sourceGlyphId]
+  if (!sourceGlyph) return null
+
+  return {
+    ...sourceGlyph,
+    id: glyphId,
+    name: glyphId,
+    unicode: null,
+    paths: sourceGlyph.paths.map((path) => ({
+      ...path,
+      id: `${glyphId}_${path.id}`,
+      nodes: path.nodes.map((node) => ({
+        ...node,
+        id: `${glyphId}_${node.id}`,
+      })),
+    })),
+    components: [...sourceGlyph.components],
+    componentRefs: sourceGlyph.componentRefs.map((componentRef) => ({
+      ...componentRef,
+      id: `${glyphId}_${componentRef.id}`,
+    })),
+    anchors: (sourceGlyph.anchors ?? []).map((anchor) => ({
+      ...anchor,
+      id: `${glyphId}_${anchor.id}`,
+    })),
+    guidelines: (sourceGlyph.guidelines ?? []).map((guideline) => ({
+      ...guideline,
+      id: `${glyphId}_${guideline.id}`,
+    })),
+    layers: undefined,
+    layerOrder: undefined,
+  }
+}
+
+function mapFeatureTagsByLookupId(features: FeatureRecord[]) {
+  const tagsByLookupId = new Map<string, string[]>()
+  for (const feature of features) {
+    for (const lookupId of feature.entries.flatMap(
+      (entry) => entry.lookupIds
+    )) {
+      tagsByLookupId.set(lookupId, [
+        ...(tagsByLookupId.get(lookupId) ?? []),
+        feature.tag,
+      ])
+    }
+  }
+  return tagsByLookupId
+}
+
+function countLigatureKeys(lookups: LookupRecord[]) {
+  const counts = new Map<string, number>()
+  for (const lookup of lookups) {
+    if (lookup.table !== 'GSUB' || lookup.lookupType !== 'ligatureSubst') {
+      continue
+    }
+    for (const rule of lookup.rules) {
+      if (!isLigatureRule(rule)) continue
+      const key = makeLigatureKey(rule.components, rule.replacement)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+function countLigatureInputs(lookups: LookupRecord[]) {
+  const counts = new Map<string, number>()
+  for (const lookup of lookups) {
+    if (lookup.table !== 'GSUB' || lookup.lookupType !== 'ligatureSubst') {
+      continue
+    }
+    for (const rule of lookup.rules) {
+      if (!isLigatureRule(rule)) continue
+      const key = rule.components.join('+')
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+function getCombinationStatus(input: {
+  fontData: FontData
+  input: string
+  output: string
+  duplicateCount: number
+  inputCount: number
+}): CombinationBehaviorStatus[] {
+  const components = parseCombinationInput(input.input)
+  const status: CombinationBehaviorStatus[] = []
+  if (
+    components.length === 0 ||
+    !components.every(isValidGlyphName) ||
+    !isValidGlyphName(input.output)
+  ) {
+    status.push('Invalid Input')
+  }
+  if (
+    components.some((component) => !input.fontData.glyphs[component]) ||
+    !input.fontData.glyphs[input.output]
+  ) {
+    status.push('Missing Glyph')
+  }
+  if (input.duplicateCount > 1) {
+    status.push('Duplicate')
+  }
+  if (input.inputCount > 1 && input.duplicateCount === 1) {
+    status.push('Conflict')
+  }
+  return status
+}
+
+function makeAlternateRow(input: {
+  fontData: FontData
+  lookup: LookupRecord
+  rule: SingleSubstitutionRule | AlternateSubstitutionRule
+  source: string
+  alternate: string
+  featureTag: string
+  type: AlternateBehaviorType
+  duplicateCount: number
+  inputCount: number
+}): AlternateBehaviorRow {
+  return {
+    id: `${input.lookup.id}:${input.rule.id}:${input.alternate}`,
+    lookupId: input.lookup.id,
+    ruleId: input.rule.id,
+    source: input.source,
+    alternate: input.alternate,
+    type: input.type,
+    featureTag: input.featureTag,
+    origin: input.rule.meta.origin,
+    sourceLabel: formatSourceLabel(input.rule.meta.origin, input.featureTag),
+    status: getAlternateStatus(input),
+  }
+}
+
+function getAlternateStatus(input: {
+  fontData: FontData
+  source: string
+  alternate: string
+  duplicateCount: number
+  inputCount: number
+}): AlternateBehaviorStatus[] {
+  const status: AlternateBehaviorStatus[] = []
+  if (!isValidGlyphName(input.source) || !isValidGlyphName(input.alternate)) {
+    status.push('Invalid Input')
+  }
+  if (
+    !input.fontData.glyphs[input.source] ||
+    !input.fontData.glyphs[input.alternate]
+  ) {
+    status.push('Missing Glyph')
+  }
+  if (input.duplicateCount > 1) {
+    status.push('Duplicate')
+  }
+  if (input.inputCount > 1 && input.duplicateCount === 1) {
+    status.push('Conflict')
+  }
+  return status
+}
+
+function countAlternateKeys(lookups: LookupRecord[]) {
+  const counts = new Map<string, number>()
+  for (const lookup of lookups) {
+    if (lookup.table !== 'GSUB') continue
+    for (const rule of lookup.rules) {
+      if (isSingleSubstitutionRule(rule) && rule.target.kind === 'glyph') {
+        const key = makeAlternateKey(rule.target.glyph, rule.replacement)
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+      }
+      if (isAlternateSubstitutionRule(rule)) {
+        for (const alternate of rule.alternates) {
+          const key = makeAlternateKey(rule.target, alternate)
+          counts.set(key, (counts.get(key) ?? 0) + 1)
+        }
+      }
+    }
+  }
+  return counts
+}
+
+function countAlternateSources(lookups: LookupRecord[]) {
+  const counts = new Map<string, number>()
+  for (const lookup of lookups) {
+    if (lookup.table !== 'GSUB') continue
+    for (const rule of lookup.rules) {
+      if (isSingleSubstitutionRule(rule) && rule.target.kind === 'glyph') {
+        counts.set(rule.target.glyph, (counts.get(rule.target.glyph) ?? 0) + 1)
+      }
+      if (isAlternateSubstitutionRule(rule)) {
+        counts.set(
+          rule.target,
+          (counts.get(rule.target) ?? 0) + rule.alternates.length
+        )
+      }
+    }
+  }
+  return counts
+}
+
+function makeAlternateKey(source: string, alternate: string) {
+  return `${source}=>${alternate}`
+}
+
+function formatCombinationInput(components: string[]) {
+  return components.join('+')
+}
+
+function makeLigatureKey(components: string[], replacement: string) {
+  return `${components.join('+')}=>${replacement}`
+}
+
+function formatSourceLabel(origin: Rule['meta']['origin'], featureTag: string) {
+  const source =
+    origin === 'imported'
+      ? 'Imported'
+      : origin === 'auto'
+        ? 'Generated'
+        : 'Manual'
+  return `${source} · ${featureTag}`
+}
+
+function isLigatureRule(rule: Rule): rule is LigatureSubstitutionRule {
+  return rule.kind === 'ligatureSubstitution'
+}
+
+function isSingleSubstitutionRule(rule: Rule): rule is SingleSubstitutionRule {
+  return rule.kind === 'singleSubstitution'
+}
+
+function isAlternateSubstitutionRule(
+  rule: Rule
+): rule is AlternateSubstitutionRule {
+  return rule.kind === 'alternateSubstitution'
+}
+
+function findWritableLigatureLookupId(
+  state: OpenTypeFeaturesState,
+  featureTag: string
+) {
+  const feature = state.features.find((item) => item.tag === featureTag)
+  const lookupIds = new Set(
+    feature?.entries.flatMap((entry) => entry.lookupIds)
+  )
+
+  return state.lookups.find(
+    (lookup) =>
+      lookupIds.has(lookup.id) &&
+      lookup.table === 'GSUB' &&
+      lookup.lookupType === 'ligatureSubst' &&
+      lookup.editable
+  )?.id
+}
+
+function findWritableSingleSubstitutionLookupId(
+  state: OpenTypeFeaturesState,
+  featureTag: string
+) {
+  const feature = state.features.find((item) => item.tag === featureTag)
+  const lookupIds = new Set(
+    feature?.entries.flatMap((entry) => entry.lookupIds)
+  )
+
+  return state.lookups.find(
+    (lookup) =>
+      lookupIds.has(lookup.id) &&
+      lookup.table === 'GSUB' &&
+      lookup.lookupType === 'singleSubst' &&
+      lookup.editable
+  )?.id
+}
+
+function ensureFeatureReferencesLookup(
+  features: FeatureRecord[],
+  featureTag: string,
+  lookupId: string
+): FeatureRecord[] {
+  const feature = features.find((item) => item.tag === featureTag)
+  if (!feature) {
+    return [
+      ...features,
+      {
+        id: makeFeatureId(featureTag),
+        tag: featureTag,
+        isActive: true,
+        entries: [
+          {
+            id: `entry_${featureTag}_DFLT_dflt`,
+            script: 'DFLT',
+            language: 'dflt',
+            lookupIds: [lookupId],
+          },
+        ],
+        origin: 'manual',
+      },
+    ]
+  }
+
+  return features.map((item) => {
+    if (item.id !== feature.id) return item
+    if (item.entries.some((entry) => entry.lookupIds.includes(lookupId))) {
+      return {
+        ...item,
+        origin: markFeatureOriginAsEdited(item.origin),
+      }
+    }
+
+    const [firstEntry, ...restEntries] = item.entries
+    const entries = firstEntry
+      ? [
+          {
+            ...firstEntry,
+            lookupIds: [...firstEntry.lookupIds, lookupId],
+          },
+          ...restEntries,
+        ]
+      : [
+          {
+            id: `entry_${featureTag}_${lookupId}`,
+            script: 'DFLT',
+            language: 'dflt',
+            lookupIds: [lookupId],
+          },
+        ]
+
+    return {
+      ...item,
+      origin: markFeatureOriginAsEdited(item.origin),
+      entries,
+    }
+  })
+}
+
+function makeCombinationRule(
+  featureTag: string,
+  components: string[],
+  replacement: string
+): LigatureSubstitutionRule {
+  return {
+    id: makeRuleId([featureTag, ...components, replacement]),
+    kind: 'ligatureSubstitution',
+    components,
+    replacement,
+    meta: {
+      origin: 'manual',
+      userOverridden: true,
+      dirty: true,
+    },
+  }
+}
+
+function makeSingleSubstitutionRule(
+  featureTag: string,
+  source: string,
+  alternate: string
+): SingleSubstitutionRule {
+  return {
+    id: makeRuleId([featureTag, source, alternate]),
+    kind: 'singleSubstitution',
+    target: { kind: 'glyph', glyph: source },
+    replacement: alternate,
+    meta: {
+      origin: 'manual',
+      userOverridden: true,
+      dirty: true,
+    },
+  }
+}
+
+function markLookupOriginAsEdited(origin: LookupRecord['origin']) {
+  return origin === 'unsupported' ? origin : 'manual'
+}
+
+function markFeatureOriginAsEdited(origin: FeatureRecord['origin']) {
+  return origin === 'manual' ? 'manual' : 'mixed'
+}
