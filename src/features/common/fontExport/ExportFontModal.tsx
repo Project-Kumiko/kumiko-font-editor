@@ -18,6 +18,7 @@ import {
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import type { OpenTypeExportWarning } from 'src/lib/openTypeFeatures'
+import { requiresDropUnsupportedConfirmation } from 'src/lib/openTypeFeatures/exportPolicy'
 
 export type FontExportFormat = 'zip' | 'ttf' | 'otf' | 'woff' | 'woff2'
 
@@ -96,10 +97,40 @@ function OpenTypeExportWarnings({
           <Stack spacing={0}>
             <AlertTitle fontSize="sm">{warning.title}</AlertTitle>
             <AlertDescription fontSize="sm">{warning.message}</AlertDescription>
+            {warning.details && warning.details.length > 0 && (
+              <Stack as="ul" spacing={1} mt={2} pl={4}>
+                {warning.details.map((detail) => (
+                  <Text key={detail} as="li" fontSize="sm">
+                    {detail}
+                  </Text>
+                ))}
+              </Stack>
+            )}
           </Stack>
         </Alert>
       ))}
     </Stack>
+  )
+}
+
+function DropUnsupportedConfirmation({
+  isChecked,
+  onChange,
+}: {
+  isChecked: boolean
+  onChange: (isChecked: boolean) => void
+}) {
+  return (
+    <Checkbox
+      colorScheme="red"
+      isChecked={isChecked}
+      onChange={(event) => onChange(event.target.checked)}
+    >
+      <Text as="span" fontSize="sm">
+        I understand unsupported imported OpenType lookups will be removed from
+        rebuilt layout tables.
+      </Text>
+    </Checkbox>
   )
 }
 
@@ -115,7 +146,20 @@ export function ExportFontModal({
   const [selectedFormats, setSelectedFormats] = useState<FontExportFormat[]>([
     'zip',
   ])
-  const canSubmit = canExport && selectedFormats.length > 0 && !isExporting
+  const [confirmedDropUnsupported, setConfirmedDropUnsupported] =
+    useState(false)
+  const needsDropUnsupportedConfirmation =
+    requiresDropUnsupportedConfirmation(openTypeWarnings)
+  const canSubmit =
+    canExport &&
+    selectedFormats.length > 0 &&
+    !isExporting &&
+    (!needsDropUnsupportedConfirmation || confirmedDropUnsupported)
+
+  const closeModal = () => {
+    setConfirmedDropUnsupported(false)
+    onClose()
+  }
 
   const toggleFormat = (format: FontExportFormat) => {
     setSelectedFormats((current) =>
@@ -126,7 +170,7 @@ export function ExportFontModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={closeModal} size="lg">
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>匯出字型</ModalHeader>
@@ -134,6 +178,12 @@ export function ExportFontModal({
         <ModalBody>
           <Stack spacing={3}>
             <OpenTypeExportWarnings warnings={openTypeWarnings} />
+            {needsDropUnsupportedConfirmation && (
+              <DropUnsupportedConfirmation
+                isChecked={confirmedDropUnsupported}
+                onChange={setConfirmedDropUnsupported}
+              />
+            )}
             {exportOptions.map((option) => (
               <Button
                 key={option.format}
@@ -169,7 +219,7 @@ export function ExportFontModal({
           </Stack>
         </ModalBody>
         <ModalFooter>
-          <Button variant="ghost" onClick={onClose} isDisabled={isExporting}>
+          <Button variant="ghost" onClick={closeModal} isDisabled={isExporting}>
             關閉
           </Button>
           <Button

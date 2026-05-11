@@ -9,6 +9,7 @@ import { createEmptyOpenTypeFeaturesState } from 'src/lib/openTypeFeatures/defau
 import {
   deriveOpenTypeExportWarnings,
   needsOpenTypeFeatureCompilationForBinaryExport,
+  requiresDropUnsupportedConfirmation,
 } from 'src/lib/openTypeFeatures/exportPolicy'
 import { generateFea } from 'src/lib/openTypeFeatures/generateFea'
 import type {
@@ -316,5 +317,44 @@ describe('OpenType binary export compiler gate', () => {
         (warning) => warning.code === 'compiler-runtime-not-configured'
       )
     ).toBe(true)
+  })
+
+  it('marks drop-unsupported rebuilds as requiring explicit confirmation', () => {
+    const warnings = deriveOpenTypeExportWarnings(
+      {
+        ...createEmptyOpenTypeFeaturesState(),
+        exportPolicy: 'drop-unsupported-and-rebuild',
+        unsupportedLookups: [
+          {
+            id: 'unsupported_gsub_0',
+            table: 'GSUB',
+            lookupIndex: 0,
+            lookupType: 6,
+            subtableFormats: [3],
+            reason: 'Chaining contextual substitution is not editable yet.',
+            rawSummary: 'GSUB type 6 formats 3',
+            preserveMode: 'drop-on-rebuild',
+            provenance: {
+              table: 'GSUB',
+              lookupIndex: 0,
+              lookupType: 6,
+            },
+          },
+        ],
+      },
+      {
+        compilerRuntimeStatus: createCompilerRuntimeStatus(),
+        diagnostics: [],
+      }
+    )
+
+    expect(requiresDropUnsupportedConfirmation(warnings)).toBe(true)
+    expect(
+      warnings.find(
+        (warning) => warning.code === 'drop-unsupported-requires-confirmation'
+      )?.details
+    ).toEqual([
+      'GSUB lookup 0: Chaining contextual substitution is not editable yet. (GSUB type 6 formats 3)',
+    ])
   })
 })

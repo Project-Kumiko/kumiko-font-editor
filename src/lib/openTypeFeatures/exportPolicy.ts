@@ -21,6 +21,7 @@ export interface OpenTypeExportWarning {
   severity: OpenTypeExportWarningSeverity
   title: string
   message: string
+  details?: string[]
 }
 
 interface DeriveExportWarningsOptions {
@@ -52,6 +53,13 @@ export const hasManagedFeatureEdits = (state: OpenTypeFeaturesState) =>
 
 export const hasBlockingExportWarnings = (warnings: OpenTypeExportWarning[]) =>
   warnings.some((warning) => warning.severity === 'error')
+
+export const requiresDropUnsupportedConfirmation = (
+  warnings: OpenTypeExportWarning[]
+) =>
+  warnings.some(
+    (warning) => warning.code === 'drop-unsupported-requires-confirmation'
+  )
 
 const getManagedEdits = (
   state: OpenTypeFeaturesState,
@@ -186,6 +194,10 @@ const getDropUnsupportedWarning = (
     message: `${state.unsupportedLookups.length} unsupported lookup${
       state.unsupportedLookups.length === 1 ? '' : 's'
     } will be removed when layout tables are rebuilt. This should require explicit user confirmation before compiler integration is enabled.`,
+    details: state.unsupportedLookups.map(
+      (lookup) =>
+        `${lookup.table} lookup ${lookup.lookupIndex}: ${lookup.reason} (${lookup.rawSummary})`
+    ),
   }
 }
 
