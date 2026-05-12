@@ -214,13 +214,27 @@ export function CanvasWorkspace() {
 
   const getCursorX = useCallback(
     (cursorIndex: number) => {
-      const cursorGlyph = positionedGlyphs[cursorIndex]
-      const previousGlyph = positionedGlyphs[cursorIndex - 1]
-      return cursorGlyph
-        ? cursorGlyph.x
-        : previousGlyph
-          ? previousGlyph.x + previousGlyph.glyph.xAdvance
-          : 0
+      for (const positionedGlyph of positionedGlyphs) {
+        const startIndex = positionedGlyph.sourceStartIndex ?? 0
+        const length = positionedGlyph.sourceLength ?? 1
+        const endIndex = startIndex + length
+        if (cursorIndex === startIndex) {
+          return positionedGlyph.x
+        }
+        if (cursorIndex > startIndex && cursorIndex < endIndex) {
+          return (
+            positionedGlyph.x +
+            positionedGlyph.glyph.xAdvance *
+              ((cursorIndex - startIndex) / length)
+          )
+        }
+        if (cursorIndex === endIndex) {
+          return positionedGlyph.x + positionedGlyph.glyph.xAdvance
+        }
+      }
+
+      const previousGlyph = positionedGlyphs.at(-1)
+      return previousGlyph ? previousGlyph.x + previousGlyph.glyph.xAdvance : 0
     },
     [positionedGlyphs]
   )
@@ -497,9 +511,13 @@ export function CanvasWorkspace() {
         event.preventDefault()
         event.stopPropagation()
         const midpoint = (hit.xMin + hit.xMax) / 2
-        setEditorActiveGlyphIndex(hit.glyphIndex)
+        const cursorIndex =
+          localPoint.x < midpoint ? hit.glyphIndex : hit.glyphCursorEndIndex
+        setEditorActiveGlyphIndex(
+          Math.max(0, Math.min(cursorIndex - 1, editorGlyphIds.length - 1))
+        )
         setEditorTextCursorIndex(
-          localPoint.x < midpoint ? hit.glyphIndex : hit.glyphIndex + 1
+          Math.max(0, Math.min(cursorIndex, editorGlyphIds.length))
         )
         hiddenTextInputRef.current?.focus()
         return
@@ -541,6 +559,7 @@ export function CanvasWorkspace() {
   }, [
     activeEditorGlyphId,
     activeToolId,
+    editorGlyphIds.length,
     handleToolSelect,
     resolveGlyphFrameAtPoint,
     setEditorActiveGlyphIndex,

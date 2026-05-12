@@ -82,6 +82,9 @@ export interface PositionedGlyph {
   isEmpty?: boolean
   isHovered?: boolean
   isSelected?: boolean
+  sourceGlyphIds?: string[]
+  sourceStartIndex?: number
+  sourceLength?: number
 }
 
 export interface GlyphData {

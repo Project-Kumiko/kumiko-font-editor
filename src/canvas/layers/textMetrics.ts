@@ -62,24 +62,8 @@ function getLabelY(
   )
 }
 
-function getSideBearingLabelPositions(positionedGlyph: PositionedGlyph) {
-  const glyph = positionedGlyph.glyph
-  const metrics = glyph.metrics
-  const inkBounds = glyph.inkBounds
-
-  if (!metrics || !inkBounds) {
-    return {
-      lsbX: 0,
-      widthX: glyph.xAdvance / 2,
-      rsbX: glyph.xAdvance,
-    }
-  }
-
-  return {
-    lsbX: inkBounds.xMin / 2,
-    widthX: glyph.xAdvance / 2,
-    rsbX: inkBounds.xMax + metrics.rsb / 2,
-  }
+function getWidthLabelX(positionedGlyph: PositionedGlyph) {
+  return positionedGlyph.glyph.xAdvance / 2
 }
 
 registerVisualizationLayerDefinition({
@@ -132,21 +116,6 @@ registerVisualizationLayerDefinition({
 
     const labelY = getLabelY(canvasController, model, parameters)
     const metrics = glyph.metrics
-    const labelPositions = getSideBearingLabelPositions(positionedGlyph)
-    drawLabel(
-      canvasController,
-      labelPositions.lsbX,
-      labelY,
-      `LSB ${formatMetric(metrics?.lsb ?? 0)}`,
-      parameters
-    )
-    drawLabel(
-      canvasController,
-      labelPositions.rsbX,
-      labelY,
-      `RSB ${formatMetric(metrics?.rsb ?? 0)}`,
-      parameters
-    )
 
     const kernValue = positionedGlyph.glyph.kerningWithPrevious ?? 0
     if (kernValue < 0) {
@@ -162,12 +131,11 @@ registerVisualizationLayerDefinition({
           labelColor: parameters.kernColor,
         }
       )
-      return
     }
 
     drawLabel(
       canvasController,
-      labelPositions.widthX,
+      getWidthLabelX(positionedGlyph),
       labelY,
       formatMetric(metrics?.width ?? glyph.xAdvance),
       parameters

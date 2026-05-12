@@ -11,6 +11,7 @@ import {
   getGlyphInkBounds,
   getTextKerningValue,
 } from 'src/features/editor/canvas/workspace/textKerning'
+import { shapeGlyphRuns } from 'src/features/editor/canvas/workspace/textShaping'
 
 export interface LayerGeometryCacheEntry {
   layerRef: object
@@ -120,12 +121,22 @@ export const buildPositionedGlyphs = ({
     return []
   }
 
+  const glyphRuns =
+    activeToolId === 'text'
+      ? shapeGlyphRuns(fontData, editorGlyphIds)
+      : editorGlyphIds.map((glyphId, index) => ({
+          glyphId,
+          sourceGlyphIds: [glyphId],
+          sourceStartIndex: index,
+          sourceLength: 1,
+        }))
+
   let cursorX = 0
   let previousGlyphId: string | null = null
   let previousAdvanceEndX = 0
-  return editorGlyphIds
-    .map((glyphId) => {
-      const glyph = fontData.glyphs[glyphId]
+  return glyphRuns
+    .map((run) => {
+      const glyph = fontData.glyphs[run.glyphId]
       const activeLayer = getGlyphLayer(glyph, selectedLayerId)
       if (!glyph || !activeLayer) {
         return null
@@ -222,10 +233,16 @@ export const buildPositionedGlyphs = ({
         x: cursorX,
         y: 0,
         pointRefs,
+        sourceGlyphIds: run.sourceGlyphIds,
+        sourceStartIndex: run.sourceStartIndex,
+        sourceLength: run.sourceLength,
         isEditing:
           activeToolId !== 'text' &&
-          glyph.id === editorGlyphIds[editorActiveGlyphIndex],
-        isSelected: glyph.id === editorGlyphIds[editorActiveGlyphIndex],
+          run.sourceStartIndex <= editorActiveGlyphIndex &&
+          editorActiveGlyphIndex < run.sourceStartIndex + run.sourceLength,
+        isSelected:
+          run.sourceStartIndex <= editorActiveGlyphIndex &&
+          editorActiveGlyphIndex < run.sourceStartIndex + run.sourceLength,
         isEmpty: activeLayer.paths.length === 0,
       }
       previousGlyphId = glyph.id
@@ -259,7 +276,10 @@ export const getGlyphFrameAtPoint = (
     ) {
       return {
         glyphId: positionedGlyph.glyphId ?? null,
-        glyphIndex: index,
+        glyphIndex: positionedGlyph.sourceStartIndex ?? index,
+        glyphCursorEndIndex:
+          (positionedGlyph.sourceStartIndex ?? index) +
+          (positionedGlyph.sourceLength ?? 1),
         xMin,
         xMax,
       }
