@@ -103,11 +103,24 @@ export interface SpacingBehaviorRow {
   ruleId: string
   left: string
   right: string
+  leftSelector?: PairPositioningRule['left']
+  rightSelector?: PairPositioningRule['right']
+  leftLabel?: string
+  rightLabel?: string
+  leftClass?: SpacingBehaviorClassSummary
+  rightClass?: SpacingBehaviorClassSummary
   value: number
   featureTag: 'kern'
   origin: Rule['meta']['origin']
   sourceLabel: string
+  scope?: 'glyphPair' | 'classPair'
   status: SpacingBehaviorStatus[]
+}
+
+export interface SpacingBehaviorClassSummary {
+  id: string
+  name: string
+  glyphs: string[]
 }
 
 export type SpacingBehaviorStatus =
@@ -121,6 +134,8 @@ export interface SpacingBehaviorDraft {
   ruleId?: string
   left: string
   right: string
+  leftSelector?: PairPositioningRule['left']
+  rightSelector?: PairPositioningRule['right']
   value: number
 }
 
@@ -406,6 +421,9 @@ export function deriveGlyphSpacingBehaviors(
 
   const featureTagsByLookupId = mapFeatureTagsByLookupId(state.features)
   const duplicateKeys = countSpacingKeys(state.lookups)
+  const glyphClassesById = new Map(
+    state.glyphClasses.map((glyphClass) => [glyphClass.id, glyphClass])
+  )
 
   return state.lookups.flatMap((lookup) => {
     if (lookup.table !== 'GPOS' || lookup.lookupType !== 'pairPos') {
@@ -416,37 +434,62 @@ export function deriveGlyphSpacingBehaviors(
     if (featureTag !== 'kern') return []
 
     return lookup.rules.flatMap((rule) => {
-      if (
-        rule.kind !== 'pairPositioning' ||
-        rule.left.kind !== 'glyph' ||
-        rule.right.kind !== 'glyph'
-      ) {
+      if (rule.kind !== 'pairPositioning') {
         return []
       }
-      if (rule.left.glyph !== glyphId && rule.right.glyph !== glyphId) {
+      const leftContainsGlyph = selectorContainsGlyph(
+        rule.left,
+        glyphId,
+        glyphClassesById
+      )
+      const rightContainsGlyph = selectorContainsGlyph(
+        rule.right,
+        glyphId,
+        glyphClassesById
+      )
+      if (!leftContainsGlyph && !rightContainsGlyph) {
         return []
       }
 
       const value = rule.firstValue?.xAdvance ?? 0
+      const left = spacingSelectorRepresentativeGlyph(
+        rule.left,
+        glyphId,
+        glyphClassesById
+      )
+      const right = spacingSelectorRepresentativeGlyph(
+        rule.right,
+        glyphId,
+        glyphClassesById
+      )
+      if (!left || !right) return []
       const duplicateCount =
-        duplicateKeys.get(makeSpacingKey(rule.left.glyph, rule.right.glyph)) ??
-        0
+        duplicateKeys.get(makeSpacingSelectorKey(rule.left, rule.right)) ?? 0
+      const isClassBased =
+        rule.left.kind === 'class' || rule.right.kind === 'class'
 
       return [
         {
           id: `${lookup.id}:${rule.id}`,
           lookupId: lookup.id,
           ruleId: rule.id,
-          left: rule.left.glyph,
-          right: rule.right.glyph,
+          left,
+          right,
+          leftSelector: rule.left,
+          rightSelector: rule.right,
+          leftLabel: spacingSelectorLabel(rule.left, glyphClassesById),
+          rightLabel: spacingSelectorLabel(rule.right, glyphClassesById),
+          leftClass: spacingSelectorClassSummary(rule.left, glyphClassesById),
+          rightClass: spacingSelectorClassSummary(rule.right, glyphClassesById),
           value,
           featureTag,
           origin: rule.meta.origin,
           sourceLabel: formatSourceLabel(rule.meta.origin, featureTag),
+          scope: isClassBased ? 'classPair' : 'glyphPair',
           status: getSpacingStatus({
             fontData,
-            left: rule.left.glyph,
-            right: rule.right.glyph,
+            left,
+            right,
             value,
             duplicateCount,
           }),
@@ -839,13 +882,26 @@ export function upsertSpacingBehavior(
     isUnchangedSpacingBehavior(state, draft.lookupId, draft.ruleId, {
       left,
       right,
+      leftSelector: draft.leftSelector,
+      rightSelector: draft.rightSelector,
       value,
     })
   ) {
     return state
   }
 
-  const rule = makePairPositioningRule(left, right, value)
+  const leftSelector = draft.leftSelector ?? {
+    kind: 'glyph' as const,
+    glyph: left,
+  }
+  const rightSelector = draft.rightSelector ?? {
+    kind: 'glyph' as const,
+    glyph: right,
+  }
+  const rule = makePairPositioningRule(left, right, value, {
+    left: leftSelector,
+    right: rightSelector,
+  })
   const replacedState =
     draft.lookupId && draft.ruleId
       ? replaceSpacingBehaviorInPlace(state, draft.lookupId, draft.ruleId, rule)
@@ -904,16 +960,26 @@ function isUnchangedSpacingBehavior(
   state: OpenTypeFeaturesState,
   lookupId: string,
   ruleId: string,
-  next: { left: string; right: string; value: number }
+  next: {
+    left: string
+    right: string
+    value: number
+    leftSelector?: PairPositioningRule['left']
+    rightSelector?: PairPositioningRule['right']
+  }
 ) {
   const lookup = state.lookups.find((item) => item.id === lookupId)
   const rule = lookup?.rules.find((item) => item.id === ruleId)
   return (
     rule?.kind === 'pairPositioning' &&
-    rule.left.kind === 'glyph' &&
-    rule.right.kind === 'glyph' &&
-    rule.left.glyph === next.left &&
-    rule.right.glyph === next.right &&
+    spacingSelectorEquals(
+      rule.left,
+      next.leftSelector ?? { kind: 'glyph', glyph: next.left }
+    ) &&
+    spacingSelectorEquals(
+      rule.right,
+      next.rightSelector ?? { kind: 'glyph', glyph: next.right }
+    ) &&
     (rule.firstValue?.xAdvance ?? 0) === next.value
   )
 }
@@ -950,7 +1016,9 @@ function replaceSpacingBehaviorInPlace(
             ...item,
             origin: markLookupOriginAsEdited(item.origin),
             rules: item.rules.map((existingRule) =>
-              existingRule.id === ruleId ? rule : existingRule
+              existingRule.id === ruleId
+                ? { ...rule, id: existingRule.id }
+                : existingRule
             ),
           }
         : item
@@ -981,6 +1049,89 @@ export function deleteSpacingBehavior(
             rules: lookup.rules.filter((rule) => rule.id !== target.ruleId),
           }
         : lookup
+    ),
+  }
+}
+
+export function splitSpacingClassMember(
+  state: OpenTypeFeaturesState,
+  input: {
+    lookupId: string
+    ruleId: string
+    side: 'left' | 'right'
+    glyphId: string
+    counterpartGlyphId: string
+    value: number
+  }
+): OpenTypeFeaturesState {
+  const glyphId = input.glyphId.trim()
+  const counterpartGlyphId = input.counterpartGlyphId.trim()
+  const value = Math.round(input.value)
+  if (
+    !isValidGlyphName(glyphId) ||
+    !isValidGlyphName(counterpartGlyphId) ||
+    !Number.isFinite(value)
+  ) {
+    return state
+  }
+
+  const lookup = state.lookups.find((item) => item.id === input.lookupId)
+  const rule = lookup?.rules.find((item) => item.id === input.ruleId)
+  if (
+    lookup?.table !== 'GPOS' ||
+    lookup.lookupType !== 'pairPos' ||
+    rule?.kind !== 'pairPositioning'
+  ) {
+    return state
+  }
+
+  const selectorToSplit = input.side === 'left' ? rule.left : rule.right
+  if (selectorToSplit.kind !== 'class') {
+    return state
+  }
+
+  const nextGlyphClasses = state.glyphClasses.map((glyphClass) =>
+    glyphClass.id === selectorToSplit.classId
+      ? {
+          ...glyphClass,
+          origin: markFeatureOriginAsEdited(
+            glyphClass.origin
+          ) as Rule['meta']['origin'],
+          meta: {
+            ...glyphClass.meta,
+            userOverridden: true,
+          },
+          glyphs: glyphClass.glyphs.filter((item) => item !== glyphId),
+        }
+      : glyphClass
+  )
+  const overrideRule =
+    input.side === 'left'
+      ? makePairPositioningRule(glyphId, counterpartGlyphId, value)
+      : makePairPositioningRule(counterpartGlyphId, glyphId, value)
+
+  return {
+    ...state,
+    glyphClasses: nextGlyphClasses,
+    features: ensureFeatureReferencesLookup(
+      state.features.map((feature) =>
+        feature.entries.some((entry) =>
+          entry.lookupIds.includes(input.lookupId)
+        )
+          ? { ...feature, origin: markFeatureOriginAsEdited(feature.origin) }
+          : feature
+      ),
+      'kern',
+      input.lookupId
+    ),
+    lookups: state.lookups.map((item) =>
+      item.id === input.lookupId
+        ? {
+            ...item,
+            origin: markLookupOriginAsEdited(item.origin),
+            rules: [...item.rules, overrideRule],
+          }
+        : item
     ),
   }
 }
@@ -1441,22 +1592,92 @@ function countSpacingKeys(lookups: LookupRecord[]) {
   for (const lookup of lookups) {
     if (lookup.table !== 'GPOS' || lookup.lookupType !== 'pairPos') continue
     for (const rule of lookup.rules) {
-      if (
-        rule.kind !== 'pairPositioning' ||
-        rule.left.kind !== 'glyph' ||
-        rule.right.kind !== 'glyph'
-      ) {
+      if (rule.kind !== 'pairPositioning') {
         continue
       }
-      const key = makeSpacingKey(rule.left.glyph, rule.right.glyph)
+      const key = makeSpacingSelectorKey(rule.left, rule.right)
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
   }
   return counts
 }
 
-function makeSpacingKey(left: string, right: string) {
-  return `${left}+${right}`
+function makeSpacingSelectorKey(
+  left: PairPositioningRule['left'],
+  right: PairPositioningRule['right']
+) {
+  return `${spacingSelectorKeyPart(left)}+${spacingSelectorKeyPart(right)}`
+}
+
+function spacingSelectorEquals(
+  left: PairPositioningRule['left'],
+  right: PairPositioningRule['left']
+) {
+  if (left.kind !== right.kind) return false
+  return left.kind === 'glyph'
+    ? right.kind === 'glyph' && left.glyph === right.glyph
+    : right.kind === 'class' && left.classId === right.classId
+}
+
+function spacingSelectorKeyPart(selector: PairPositioningRule['left']) {
+  return selector.kind === 'glyph'
+    ? `glyph:${selector.glyph}`
+    : `class:${selector.classId}`
+}
+
+function selectorContainsGlyph(
+  selector: PairPositioningRule['left'],
+  glyphId: string,
+  glyphClassesById: Map<string, { glyphs: string[] }>
+) {
+  if (selector.kind === 'glyph') {
+    return selector.glyph === glyphId
+  }
+  return (
+    glyphClassesById.get(selector.classId)?.glyphs.includes(glyphId) ?? false
+  )
+}
+
+function spacingSelectorRepresentativeGlyph(
+  selector: PairPositioningRule['left'],
+  glyphId: string,
+  glyphClassesById: Map<string, { glyphs: string[] }>
+) {
+  if (selector.kind === 'glyph') {
+    return selector.glyph
+  }
+  const glyphs = glyphClassesById.get(selector.classId)?.glyphs ?? []
+  return glyphs.includes(glyphId) ? glyphId : (glyphs[0] ?? null)
+}
+
+function spacingSelectorLabel(
+  selector: PairPositioningRule['left'],
+  glyphClassesById: Map<string, { name: string; glyphs: string[] }>
+) {
+  if (selector.kind === 'glyph') {
+    return selector.glyph
+  }
+  const glyphClass = glyphClassesById.get(selector.classId)
+  return glyphClass
+    ? `${glyphClass.name} (${glyphClass.glyphs.length})`
+    : selector.classId
+}
+
+function spacingSelectorClassSummary(
+  selector: PairPositioningRule['left'],
+  glyphClassesById: Map<string, { id: string; name: string; glyphs: string[] }>
+) {
+  if (selector.kind !== 'class') {
+    return undefined
+  }
+  const glyphClass = glyphClassesById.get(selector.classId)
+  return glyphClass
+    ? {
+        id: glyphClass.id,
+        name: glyphClass.name,
+        glyphs: glyphClass.glyphs,
+      }
+    : undefined
 }
 
 function getSpacingStatus(input: {
@@ -1833,13 +2054,26 @@ function makeSingleSubstitutionRule(
 function makePairPositioningRule(
   left: string,
   right: string,
-  value: number
+  value: number,
+  selectors: {
+    left?: PairPositioningRule['left']
+    right?: PairPositioningRule['right']
+  } = {}
 ): Extract<Rule, { kind: 'pairPositioning' }> {
+  const leftSelector = selectors.left ?? { kind: 'glyph' as const, glyph: left }
+  const rightSelector = selectors.right ?? {
+    kind: 'glyph' as const,
+    glyph: right,
+  }
   return {
-    id: makeRuleId(['kern', left, right]),
+    id: makeRuleId([
+      'kern',
+      spacingSelectorKeyPart(leftSelector),
+      spacingSelectorKeyPart(rightSelector),
+    ]),
     kind: 'pairPositioning',
-    left: { kind: 'glyph', glyph: left },
-    right: { kind: 'glyph', glyph: right },
+    left: leftSelector,
+    right: rightSelector,
     firstValue: { xAdvance: value },
     meta: {
       origin: 'manual',

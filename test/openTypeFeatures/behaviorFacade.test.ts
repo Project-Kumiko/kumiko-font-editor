@@ -8,6 +8,7 @@ import {
   deriveGlyphSpacingBehaviors,
   makeEditableGlyphCopy,
   makeCompositeGlyphFromComponents,
+  splitSpacingClassMember,
   upsertAlternateBehavior,
   upsertAnchorBehavior,
   upsertCombinationBehavior,
@@ -206,6 +207,107 @@ describe('OpenType behavior facade', () => {
     expect(nextState.lookups[0]?.rules[0]?.meta.origin).toBe('imported')
   })
 
+  it('derives class kerning rows involving the selected glyph', () => {
+    const state = makeImportedClassKerningState()
+    const fontData = makeFontData(state)
+    fontData.glyphs.A = makeGlyph('A', 700)
+    fontData.glyphs.V = makeGlyph('V', 700)
+    fontData.glyphs.W = makeGlyph('W', 800)
+
+    expect(deriveGlyphSpacingBehaviors(fontData, 'A')).toMatchObject([
+      {
+        left: 'A',
+        right: 'V',
+        leftLabel: '@Left_A (1)',
+        rightLabel: '@Right_VW (2)',
+        value: -80,
+        scope: 'classPair',
+        sourceLabel: 'Imported · kern',
+      },
+    ])
+    expect(deriveGlyphSpacingBehaviors(fontData, 'W')).toMatchObject([
+      {
+        left: 'A',
+        right: 'W',
+        leftLabel: '@Left_A (1)',
+        rightLabel: '@Right_VW (2)',
+        value: -80,
+        scope: 'classPair',
+      },
+    ])
+  })
+
+  it('edits imported class kerning values in place', () => {
+    const state = makeImportedClassKerningState()
+    const fontData = makeFontData(state)
+    fontData.glyphs.A = makeGlyph('A', 700)
+    fontData.glyphs.V = makeGlyph('V', 700)
+    fontData.glyphs.W = makeGlyph('W', 800)
+    const classRow = deriveGlyphSpacingBehaviors(fontData, 'A')[0]
+
+    const nextState = upsertSpacingBehavior(state, {
+      lookupId: classRow?.lookupId,
+      ruleId: classRow?.ruleId,
+      left: classRow?.left ?? '',
+      right: classRow?.right ?? '',
+      leftSelector: classRow?.leftSelector,
+      rightSelector: classRow?.rightSelector,
+      value: -100,
+    })
+
+    expect(nextState.lookups[0]).toMatchObject({
+      origin: 'manual',
+      rules: [
+        {
+          id: 'rule_class_A_VW',
+          kind: 'pairPositioning',
+          left: { kind: 'class', classId: 'class_left_A' },
+          right: { kind: 'class', classId: 'class_right_VW' },
+          firstValue: { xAdvance: -100 },
+          meta: {
+            origin: 'manual',
+            dirty: true,
+            userOverridden: true,
+          },
+        },
+      ],
+    })
+  })
+
+  it('splits a class kerning member into an independent pair', () => {
+    const state = makeImportedClassKerningState()
+    const nextState = splitSpacingClassMember(state, {
+      lookupId: 'lookup_kern_imported',
+      ruleId: 'rule_class_A_VW',
+      side: 'right',
+      glyphId: 'W',
+      counterpartGlyphId: 'A',
+      value: -70,
+    })
+
+    expect(nextState.glyphClasses).toContainEqual(
+      expect.objectContaining({
+        id: 'class_right_VW',
+        glyphs: ['V'],
+        origin: 'mixed',
+        meta: expect.objectContaining({ userOverridden: true }),
+      })
+    )
+    expect(nextState.lookups[0]?.rules).toMatchObject([
+      {
+        id: 'rule_class_A_VW',
+        left: { kind: 'class', classId: 'class_left_A' },
+        right: { kind: 'class', classId: 'class_right_VW' },
+      },
+      {
+        kind: 'pairPositioning',
+        left: { kind: 'glyph', glyph: 'A' },
+        right: { kind: 'glyph', glyph: 'W' },
+        firstValue: { xAdvance: -70 },
+      },
+    ])
+  })
+
   it('preserves spacing row order when editing a pair value', () => {
     const firstState = upsertSpacingBehavior(
       createEmptyOpenTypeFeaturesState(),
@@ -384,6 +486,47 @@ function makeImportedKerningState(): OpenTypeFeaturesState {
             kind: 'pairPositioning',
             left: { kind: 'glyph', glyph: 'A' },
             right: { kind: 'glyph', glyph: 'V' },
+            firstValue: { xAdvance: -80 },
+            meta: { origin: 'imported' },
+          },
+        ],
+      },
+    ],
+  }
+}
+
+function makeImportedClassKerningState(): OpenTypeFeaturesState {
+  return {
+    ...makeImportedKerningState(),
+    glyphClasses: [
+      {
+        id: 'class_left_A',
+        name: '@Left_A',
+        glyphs: ['A'],
+        origin: 'imported',
+      },
+      {
+        id: 'class_right_VW',
+        name: '@Right_VW',
+        glyphs: ['V', 'W'],
+        origin: 'imported',
+      },
+    ],
+    lookups: [
+      {
+        id: 'lookup_kern_imported',
+        name: 'lookup_kern_imported',
+        table: 'GPOS',
+        lookupType: 'pairPos',
+        lookupFlag: {},
+        editable: true,
+        origin: 'imported',
+        rules: [
+          {
+            id: 'rule_class_A_VW',
+            kind: 'pairPositioning',
+            left: { kind: 'class', classId: 'class_left_A' },
+            right: { kind: 'class', classId: 'class_right_VW' },
             firstValue: { xAdvance: -80 },
             meta: { origin: 'imported' },
           },

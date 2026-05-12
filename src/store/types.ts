@@ -317,6 +317,14 @@ export interface GlobalState {
   ) => void
   upsertSpacingBehavior: (draft: SpacingBehaviorDraft) => void
   deleteSpacingBehavior: (lookupId: string, ruleId: string) => void
+  splitSpacingClassMember: (input: {
+    lookupId: string
+    ruleId: string
+    side: 'left' | 'right'
+    glyphId: string
+    counterpartGlyphId: string
+    value: number
+  }) => void
   upsertContextualBehavior: (draft: ContextualBehaviorDraft) => void
   deleteContextualBehavior: (lookupId: string, ruleId: string) => void
   upsertAnchorBehavior: (draft: AnchorBehaviorDraft) => void

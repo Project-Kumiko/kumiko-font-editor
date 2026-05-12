@@ -2,9 +2,11 @@ import type {
   KumikoProjectDraft,
   KumikoProjectSummary,
 } from 'src/lib/projectTypes'
+import { toProjectSummary } from 'src/lib/projectTypes'
 
 const DB_NAME = 'kumiko-font-editor'
 const STORE_NAME = 'projects'
+const PROJECT_SUMMARIES_STORE = 'project_summaries'
 export const UFO_PROJECTS_STORE = 'ufo_projects'
 export const UFO_METADATA_STORE = 'ufo_metadata'
 export const UFO_GLYPHS_STORE = 'ufo_glyphs'
@@ -15,7 +17,7 @@ export type ProjectSummary = KumikoProjectSummary
 
 export const openDatabase = async () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = globalThis.indexedDB.open(DB_NAME, 4)
+    const request = globalThis.indexedDB.open(DB_NAME, 5)
 
     request.onupgradeneeded = () => {
       const database = request.result
@@ -24,6 +26,9 @@ export const openDatabase = async () => {
       }
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME, { keyPath: 'id' })
+      }
+      if (!database.objectStoreNames.contains(PROJECT_SUMMARIES_STORE)) {
+        database.createObjectStore(PROJECT_SUMMARIES_STORE, { keyPath: 'id' })
       }
       if (!database.objectStoreNames.contains(UFO_PROJECTS_STORE)) {
         database.createObjectStore(UFO_PROJECTS_STORE, { keyPath: 'projectId' })
@@ -77,6 +82,47 @@ export const openDatabase = async () => {
   })
 }
 
+const ensureProjectSummaries = async (database: IDBDatabase) => {
+  if (!database.objectStoreNames.contains(PROJECT_SUMMARIES_STORE)) {
+    return
+  }
+
+  const summaryCount = await new Promise<number>((resolve, reject) => {
+    const transaction = database.transaction(
+      PROJECT_SUMMARIES_STORE,
+      'readonly'
+    )
+    const store = transaction.objectStore(PROJECT_SUMMARIES_STORE)
+    const request = store.count()
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  if (summaryCount > 0) {
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(
+      [STORE_NAME, PROJECT_SUMMARIES_STORE],
+      'readwrite'
+    )
+    const projectsStore = transaction.objectStore(STORE_NAME)
+    const summariesStore = transaction.objectStore(PROJECT_SUMMARIES_STORE)
+    const request = projectsStore.openCursor()
+    request.onsuccess = () => {
+      const cursor = request.result
+      if (!cursor) {
+        return
+      }
+      summariesStore.put(toProjectSummary(cursor.value as ProjectDraft))
+      cursor.continue()
+    }
+    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+  })
+}
+
 export const loadProject = async (id: string) => {
   const database = await openDatabase()
   return new Promise<ProjectDraft | null>((resolve, reject) => {
@@ -90,41 +136,55 @@ export const loadProject = async (id: string) => {
   })
 }
 
+export const loadProjectSummary = async (id: string) => {
+  const database = await openDatabase()
+  return new Promise<ProjectSummary | null>((resolve, reject) => {
+    const transaction = database.transaction(
+      PROJECT_SUMMARIES_STORE,
+      'readonly'
+    )
+    const store = transaction.objectStore(PROJECT_SUMMARIES_STORE)
+    const request = store.get(id)
+
+    request.onsuccess = () =>
+      resolve((request.result as ProjectSummary | undefined) ?? null)
+    request.onerror = () => reject(request.error)
+  })
+}
+
 export const saveProject = async (draft: ProjectDraft) => {
   const database = await openDatabase()
   return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite')
-    const store = transaction.objectStore(STORE_NAME)
-    const request = store.put(draft)
+    const transaction = database.transaction(
+      [STORE_NAME, PROJECT_SUMMARIES_STORE],
+      'readwrite'
+    )
+    transaction.objectStore(STORE_NAME).put(draft)
+    transaction
+      .objectStore(PROJECT_SUMMARIES_STORE)
+      .put(toProjectSummary(draft))
 
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
   })
 }
 
 export const getAllProjects = async () => {
   const database = await openDatabase()
+  await ensureProjectSummaries(database)
   return new Promise<ProjectSummary[]>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readonly')
-    const store = transaction.objectStore(STORE_NAME)
+    const transaction = database.transaction(
+      PROJECT_SUMMARIES_STORE,
+      'readonly'
+    )
+    const store = transaction.objectStore(PROJECT_SUMMARIES_STORE)
     const request = store.getAll()
 
     request.onsuccess = () =>
       resolve(
-        (request.result as ProjectDraft[])
-          .map((project) => ({
-            id: project.id,
-            title: project.title,
-            lastModified: project.lastModified,
-            createdAt: project.createdAt ?? project.lastModified,
-            updatedAt: project.updatedAt ?? project.lastModified,
-            sourceName: project.sourceName ?? null,
-            sourceType: project.sourceType ?? 'local',
-            githubSource: project.githubSource ?? null,
-            projectSourceFormat: project.projectSourceFormat ?? null,
-            projectRoundTripFormat: project.projectRoundTripFormat ?? null,
-          }))
-          .sort((a, b) => b.updatedAt - a.updatedAt)
+        (request.result as ProjectSummary[]).sort(
+          (a, b) => b.updatedAt - a.updatedAt
+        )
       )
     request.onerror = () => reject(request.error)
   })
@@ -133,11 +193,14 @@ export const getAllProjects = async () => {
 export const deleteProject = async (id: string) => {
   const database = await openDatabase()
   return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite')
-    const store = transaction.objectStore(STORE_NAME)
-    const request = store.delete(id)
+    const transaction = database.transaction(
+      [STORE_NAME, PROJECT_SUMMARIES_STORE],
+      'readwrite'
+    )
+    transaction.objectStore(STORE_NAME).delete(id)
+    transaction.objectStore(PROJECT_SUMMARIES_STORE).delete(id)
 
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
   })
 }

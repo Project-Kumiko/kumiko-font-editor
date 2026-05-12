@@ -23,6 +23,7 @@ interface SpacingBehaviorListProps {
   onAddRightDraftRow: () => void
   onCommit: (draft: SpacingBehaviorDraft) => void
   onDelete: (row: SpacingBehaviorRow) => void
+  onSplitClassMember: (input: SplitSpacingClassMemberInput) => void
   onLeftDraftCommitted: (rowId: string) => void
   onRightDraftCommitted: (rowId: string) => void
   onOpenPair: (left: string, right: string) => void
@@ -37,6 +38,7 @@ export function SpacingBehaviorList({
   onAddRightDraftRow,
   onCommit,
   onDelete,
+  onSplitClassMember,
   onLeftDraftCommitted,
   onRightDraftCommitted,
   onOpenPair,
@@ -65,6 +67,7 @@ export function SpacingBehaviorList({
         onAddDraftRow={onAddLeftDraftRow}
         onCommit={onCommit}
         onDelete={onDelete}
+        onSplitClassMember={onSplitClassMember}
         onDraftCommitted={onLeftDraftCommitted}
         onOpenPair={onOpenPair}
       />
@@ -78,6 +81,7 @@ export function SpacingBehaviorList({
         onAddDraftRow={onAddRightDraftRow}
         onCommit={onCommit}
         onDelete={onDelete}
+        onSplitClassMember={onSplitClassMember}
         onDraftCommitted={onRightDraftCommitted}
         onOpenPair={onOpenPair}
       />
@@ -95,6 +99,7 @@ interface SpacingBehaviorGroupProps {
   onAddDraftRow: () => void
   onCommit: (draft: SpacingBehaviorDraft) => void
   onDelete: (row: SpacingBehaviorRow) => void
+  onSplitClassMember: (input: SplitSpacingClassMemberInput) => void
   onDraftCommitted: (rowId: string) => void
   onOpenPair: (left: string, right: string) => void
 }
@@ -109,6 +114,7 @@ function SpacingBehaviorGroup({
   onAddDraftRow,
   onCommit,
   onDelete,
+  onSplitClassMember,
   onDraftCommitted,
   onOpenPair,
 }: SpacingBehaviorGroupProps) {
@@ -164,6 +170,7 @@ function SpacingBehaviorGroup({
           currentGlyphId={currentGlyphId}
           onCommit={onCommit}
           onDelete={() => onDelete(row)}
+          onSplitClassMember={onSplitClassMember}
           onOpenPair={onOpenPair}
         />
       ))}
@@ -175,12 +182,22 @@ function SpacingBehaviorGroup({
           currentGlyphId={currentGlyphId}
           onCommit={onCommit}
           onDelete={() => onDraftCommitted(rowId)}
+          onSplitClassMember={onSplitClassMember}
           onDraftCommitted={() => onDraftCommitted(rowId)}
           onOpenPair={onOpenPair}
         />
       ))}
     </Box>
   )
+}
+
+interface SplitSpacingClassMemberInput {
+  lookupId: string
+  ruleId: string
+  side: 'left' | 'right'
+  glyphId: string
+  counterpartGlyphId: string
+  value: number
 }
 
 function getSpacingRowKey(row: SpacingBehaviorRow) {

@@ -4,7 +4,11 @@ import {
   getProjectArchiveRoundTripFormat,
   getProjectArchiveSourceFormat,
 } from 'src/lib/projectArchive'
-import { loadProjectDraft, saveProjectDraft } from 'src/lib/projectRepository'
+import {
+  loadProjectDraft,
+  loadProjectDraftSummary,
+  saveProjectDraft,
+} from 'src/lib/projectRepository'
 import {
   loadUfoProject,
   saveUfoProject,
@@ -96,7 +100,8 @@ export const saveDraftSnapshot = async (input: {
     return
   }
 
-  const persistedProject = await loadProjectDraft(input.projectId)
+  const persistedProject = await loadProjectDraftSummary(input.projectId)
+  const projectMetadata = getProjectArchiveMetadata()
   const now = Date.now()
   await saveProjectDraft({
     id: input.projectId,
@@ -109,13 +114,13 @@ export const saveDraftSnapshot = async (input: {
     githubSource: persistedProject?.githubSource ?? null,
     fontData: hydrateProjectFontData(input.fontData),
     projectMetadata: withProjectGlyphEditTimes(
-      persistedProject?.projectMetadata,
+      projectMetadata,
       input.glyphEditTimes
     ),
     projectSourceFormat,
     projectRoundTripFormat,
-    projectGlyphsText: persistedProject?.projectGlyphsText ?? null,
-    projectGlyphsDocument: persistedProject?.projectGlyphsDocument ?? null,
-    projectGlyphsPackage: persistedProject?.projectGlyphsPackage ?? null,
+    projectGlyphsText: null,
+    projectGlyphsDocument: null,
+    projectGlyphsPackage: null,
   })
 }

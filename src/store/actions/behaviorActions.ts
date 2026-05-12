@@ -18,6 +18,7 @@ import {
   makeEditableGlyphCopy,
   makeCompositeGlyphFromComponents,
   parseCombinationInput,
+  splitSpacingClassMember,
   upsertAlternateBehavior,
   upsertAnchorBehavior,
   upsertCombinationBehavior,
@@ -165,6 +166,25 @@ export const buildBehaviorActions = (set: ImmerSet) => ({
       state.fontData.openTypeFeatures = deleteSpacingBehavior(
         state.fontData.openTypeFeatures,
         { lookupId, ruleId }
+      )
+      state.isDirty = true
+      state.hasLocalChanges = true
+    }),
+
+  splitSpacingClassMember: (input: {
+    lookupId: string
+    ruleId: string
+    side: 'left' | 'right'
+    glyphId: string
+    counterpartGlyphId: string
+    value: number
+  }) =>
+    set((state) => {
+      if (!state.fontData?.openTypeFeatures) return
+
+      state.fontData.openTypeFeatures = splitSpacingClassMember(
+        state.fontData.openTypeFeatures,
+        input
       )
       state.isDirty = true
       state.hasLocalChanges = true

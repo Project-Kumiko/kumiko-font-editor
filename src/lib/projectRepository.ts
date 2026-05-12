@@ -2,6 +2,7 @@ import {
   deleteProject,
   getAllProjects,
   loadProject,
+  loadProjectSummary,
   saveProject,
   type ProjectDraft,
 } from 'src/lib/persistence'
@@ -14,6 +15,8 @@ export const listProjectSummaries = async () => {
 }
 
 export const loadProjectDraft = loadProject
+
+export const loadProjectDraftSummary = loadProjectSummary
 
 export const saveProjectDraft = async (draft: ProjectDraft) => {
   await saveProject(draft)

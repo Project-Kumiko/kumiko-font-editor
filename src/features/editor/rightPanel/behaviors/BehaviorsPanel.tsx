@@ -66,6 +66,9 @@ export function BehaviorsPanel({ fontData, glyph }: BehaviorsPanelProps) {
   )
   const upsertSpacingBehavior = useStore((state) => state.upsertSpacingBehavior)
   const deleteSpacingBehavior = useStore((state) => state.deleteSpacingBehavior)
+  const splitSpacingClassMember = useStore(
+    (state) => state.splitSpacingClassMember
+  )
   const upsertContextualBehavior = useStore(
     (state) => state.upsertContextualBehavior
   )
@@ -249,6 +252,7 @@ export function BehaviorsPanel({ fontData, glyph }: BehaviorsPanelProps) {
           }
           onCommit={(draft) => upsertSpacingBehavior(draft)}
           onDelete={deleteSpacingRow}
+          onSplitClassMember={(input) => splitSpacingClassMember(input)}
           onLeftDraftCommitted={(rowId) =>
             setLeftSpacingDraftRowIds((rowIds) =>
               rowIds.filter((id) => id !== rowId)

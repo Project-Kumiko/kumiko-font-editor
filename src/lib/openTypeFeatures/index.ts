@@ -89,6 +89,7 @@ export {
   resolveCombinationFeatureTag,
   suggestAlternateGlyphName,
   suggestCombinationOutput,
+  splitSpacingClassMember,
   upsertAnchorBehavior,
   upsertAlternateBehavior,
   upsertCombinationBehavior,
