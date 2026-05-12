@@ -24,6 +24,7 @@ import {
 } from 'src/features/fontOverview/GlyphPackagePicker'
 import { getExistingGlyphLookupKeys } from 'src/features/fontOverview/glyphLookup'
 import type { GlyphData } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 const emptyPackageSelection: GlyphPackageSelection = {
   glyphNames: [],
@@ -51,6 +52,8 @@ export function AddGlyphModal({
   onSubmitManualInput,
   onSubmitGlyphNames,
 }: AddGlyphModalProps) {
+  const { t } = useTranslation()
+
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeTabIndex, setActiveTabIndex] = useState(0)
   const [packageSelection, setPackageSelection] =
@@ -92,7 +95,7 @@ export function AddGlyphModal({
             pr={14}
           >
             <Text as="h2" fontSize="xl" fontWeight="900">
-              新增字符
+              {t('fontOverview.addGlyph')}
             </Text>
             <SlidingTabList
               activeIndex={activeTabIndex}
@@ -133,8 +136,7 @@ export function AddGlyphModal({
                     }}
                   />
                   <Text fontSize="sm" color="field.muted">
-                    glyph names 請用空白或換行分隔。Recipe
-                    會先新增等號右側的目標 glyph。
+                    {t('fontOverview.glyphInputHint')}
                   </Text>
                 </Stack>
               </TabPanel>
@@ -147,7 +149,7 @@ export function AddGlyphModal({
               )}
             </Box>
             <Button variant="ghost" onClick={onClose}>
-              取消
+              {t('fontOverview.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -159,7 +161,7 @@ export function AddGlyphModal({
                 onSubmitManualInput()
               }}
             >
-              新增
+              {t('fontOverview.add')}
             </Button>
           </ModalFooter>
         </Tabs>

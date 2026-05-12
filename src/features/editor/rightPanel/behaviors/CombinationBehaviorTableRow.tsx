@@ -21,6 +21,7 @@ import {
   type CombinationBehaviorRow,
   type CombinationBehaviorType,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface CombinationBehaviorTableRowProps {
   row?: CombinationBehaviorRow
@@ -39,6 +40,8 @@ export function CombinationBehaviorTableRow({
   onDraftCommitted,
   onOpenGlyph,
 }: CombinationBehaviorTableRowProps) {
+  const { t } = useTranslation()
+
   const [input, setInput] = useState(row?.input ?? '')
   const [output, setOutput] = useState(row?.output ?? '')
   const [type, setType] = useState<CombinationBehaviorType>(
@@ -98,7 +101,7 @@ export function CombinationBehaviorTableRow({
         alignItems="center"
       >
         <Input
-          aria-label="Combination input sequence"
+          aria-label={t('editor.combinationInputSequence')}
           value={input}
           size="xs"
           placeholder="f+t"
@@ -108,7 +111,7 @@ export function CombinationBehaviorTableRow({
         />
         <NavArrowRight width={14} height={14} aria-hidden="true" />
         <Input
-          aria-label="Combination output glyph"
+          aria-label={t('editor.combinationOutputGlyph')}
           value={output}
           size="xs"
           placeholder="f_t"
@@ -119,9 +122,9 @@ export function CombinationBehaviorTableRow({
           }}
           onKeyDown={commitOnEnter}
         />
-        <Tooltip label="Open output glyph">
+        <Tooltip label={t('editor.openOutputGlyph')}>
           <IconButton
-            aria-label="開啟 output glyph"
+            aria-label={t('editor.openOutputGlyph')}
             icon={<NavArrowRight width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -129,9 +132,9 @@ export function CombinationBehaviorTableRow({
             onClick={() => onOpenGlyph(output)}
           />
         </Tooltip>
-        <Tooltip label="Delete behavior">
+        <Tooltip label={t('editor.deleteBehavior')}>
           <IconButton
-            aria-label="刪除 combination"
+            aria-label={t('editor.deleteCombination')}
             icon={<Trash width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -149,7 +152,7 @@ export function CombinationBehaviorTableRow({
         gap={1}
       >
         <Select
-          aria-label="Combination behavior type"
+          aria-label={t('editor.combinationBehaviorType')}
           value={type}
           size="xs"
           onBlur={commit}
@@ -169,11 +172,11 @@ export function CombinationBehaviorTableRow({
         </Select>
         {type === 'customFeature' ? (
           <Input
-            aria-label="Custom feature tag"
+            aria-label={t('editor.customFeatureTag')}
             value={customFeatureTag}
             size="xs"
             maxLength={4}
-            placeholder="xxxx"
+            placeholder={t('editor.xxxx')}
             onBlur={commit}
             onChange={(event) => setCustomFeatureTag(event.target.value)}
             onKeyDown={commitOnEnter}
@@ -201,7 +204,7 @@ export function CombinationBehaviorTableRow({
             </Badge>
           ))}
           {!canCommit && (input || output) ? (
-            <Badge colorScheme="red">Invalid Input</Badge>
+            <Badge colorScheme="red">{t('editor.invalidInput')}</Badge>
           ) : null}
         </HStack>
       </HStack>

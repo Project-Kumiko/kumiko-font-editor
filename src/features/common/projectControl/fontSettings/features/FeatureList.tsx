@@ -1,16 +1,18 @@
 import { Badge, HStack, Stack, Text } from '@chakra-ui/react'
 import type { OpenTypeFeaturesState } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureListProps {
   state: OpenTypeFeaturesState
 }
 
 export function FeatureList({ state }: FeatureListProps) {
+  const { t } = useTranslation()
+
   if (state.features.length === 0) {
     return (
       <Text fontSize="sm" color="field.muted">
-        No canonical OpenType features yet. Scan suggestions to create rules
-        from glyph names.
+        {t('projectControl.noCanonicalOpentypeFeaturesYetScan')}
       </Text>
     )
   }
@@ -32,11 +34,12 @@ export function FeatureList({ state }: FeatureListProps) {
               </Text>
               <Badge>{feature.origin}</Badge>
               {!feature.isActive ? (
-                <Badge colorScheme="gray">inactive</Badge>
+                <Badge colorScheme="gray">{t('projectControl.inactive')}</Badge>
               ) : null}
             </HStack>
             <Text fontSize="xs" color="field.muted">
-              {feature.entries.length} script/language entries
+              {feature.entries.length}{' '}
+              {t('projectControl.scriptLanguageEntries')}
             </Text>
           </Stack>
           <Text fontSize="sm" color="field.muted">
@@ -44,7 +47,7 @@ export function FeatureList({ state }: FeatureListProps) {
               (total, entry) => total + entry.lookupIds.length,
               0
             )}{' '}
-            lookups
+            {t('projectControl.lookups')}
           </Text>
         </HStack>
       ))}

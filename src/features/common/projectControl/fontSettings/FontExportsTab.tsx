@@ -16,6 +16,7 @@ import {
   parseInteger,
   type ExportDraft,
 } from 'src/features/common/projectControl/fontSettings/model'
+import { useTranslation } from 'react-i18next'
 
 interface FontExportsTabProps {
   exports: ExportDraft[]
@@ -26,6 +27,8 @@ export function FontExportsTab({
   exports,
   onExportsChange,
 }: FontExportsTabProps) {
+  const { t } = useTranslation()
+
   const updateExport = (index: number, update: Partial<ExportDraft>) => {
     onExportsChange(
       exports.map((instance, instanceIndex) =>
@@ -37,7 +40,7 @@ export function FontExportsTab({
   return (
     <Stack spacing={3}>
       <HStack justify="space-between">
-        <Text fontWeight="semibold">Export instances</Text>
+        <Text fontWeight="semibold">{t('projectControl.exportInstances')}</Text>
         <Button
           size="sm"
           onClick={() =>
@@ -54,14 +57,14 @@ export function FontExportsTab({
             ])
           }
         >
-          新增
+          {t('projectControl.add')}
         </Button>
       </HStack>
       {exports.map((instance, index) => (
         <Box key={instance.id} borderWidth="1px" p={3}>
           <SimpleGrid columns={{ base: 1, lg: 4 }} spacing={3}>
             <FormControl>
-              <FormLabel fontSize="sm">Name</FormLabel>
+              <FormLabel fontSize="sm">{t('projectControl.name')}</FormLabel>
               <Input
                 value={instance.name}
                 onChange={(event) =>
@@ -70,7 +73,9 @@ export function FontExportsTab({
               />
             </FormControl>
             <FormControl>
-              <FormLabel fontSize="sm">Style name</FormLabel>
+              <FormLabel fontSize="sm">
+                {t('projectControl.styleName')}
+              </FormLabel>
               <Input
                 value={instance.styleName}
                 onChange={(event) =>
@@ -79,7 +84,9 @@ export function FontExportsTab({
               />
             </FormControl>
             <FormControl>
-              <FormLabel fontSize="sm">Location JSON</FormLabel>
+              <FormLabel fontSize="sm">
+                {t('projectControl.locationJson')}
+              </FormLabel>
               <Input
                 fontFamily="mono"
                 value={instance.locationText}
@@ -89,7 +96,9 @@ export function FontExportsTab({
               />
             </FormControl>
             <FormControl>
-              <FormLabel fontSize="sm">File name</FormLabel>
+              <FormLabel fontSize="sm">
+                {t('projectControl.fileName')}
+              </FormLabel>
               <Input
                 value={instance.fileName ?? ''}
                 onChange={(event) =>
@@ -98,7 +107,7 @@ export function FontExportsTab({
               />
             </FormControl>
             <NumberField
-              label="Weight class"
+              label={t('projectControl.weightClass')}
               min={1}
               max={1000}
               value={instance.weightClass}
@@ -107,7 +116,7 @@ export function FontExportsTab({
               }
             />
             <NumberField
-              label="Width class"
+              label={t('projectControl.widthClass')}
               min={1}
               max={9}
               value={instance.widthClass}
@@ -123,7 +132,7 @@ export function FontExportsTab({
                 updateExport(index, { export: event.target.checked })
               }
             >
-              Export
+              {t('projectControl.export')}
             </Checkbox>
             <Button
               size="sm"
@@ -134,7 +143,7 @@ export function FontExportsTab({
                 )
               }
             >
-              移除
+              {t('projectControl.remove')}
             </Button>
           </HStack>
         </Box>

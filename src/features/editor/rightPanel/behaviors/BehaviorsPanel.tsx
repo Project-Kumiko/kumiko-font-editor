@@ -29,6 +29,7 @@ import { AlternateBehaviorList } from 'src/features/editor/rightPanel/behaviors/
 import { SpacingBehaviorList } from 'src/features/editor/rightPanel/behaviors/SpacingBehaviorList'
 import { ContextualBehaviorList } from 'src/features/editor/rightPanel/behaviors/ContextualBehaviorList'
 import { AnchorBehaviorList } from 'src/features/editor/rightPanel/behaviors/AnchorBehaviorList'
+import { useTranslation } from 'react-i18next'
 
 interface BehaviorsPanelProps {
   fontData: FontData | null
@@ -36,6 +37,8 @@ interface BehaviorsPanelProps {
 }
 
 export function BehaviorsPanel({ fontData, glyph }: BehaviorsPanelProps) {
+  const { t } = useTranslation()
+
   const [draftRowIds, setDraftRowIds] = useState<string[]>([])
   const [alternateDraftRowIds, setAlternateDraftRowIds] = useState<string[]>([])
   const [leftSpacingDraftRowIds, setLeftSpacingDraftRowIds] = useState<
@@ -311,17 +314,17 @@ export function BehaviorsPanel({ fontData, glyph }: BehaviorsPanelProps) {
         <AlertDialogOverlay>
           <AlertDialogContent>
             <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Unused glyph
+              {t('editor.unusedGlyph')}
             </AlertDialogHeader>
             <AlertDialogBody>
-              {unusedGlyphPrompt?.glyphId} is no longer used by any behavior.
+              {unusedGlyphPrompt?.glyphId} {t('editor.isNoLongerUsedByAny')}
             </AlertDialogBody>
             <AlertDialogFooter>
               <Button ref={cancelUnusedGlyphRef} onClick={keepUnusedGlyph}>
-                Keep
+                {t('editor.keep')}
               </Button>
               <Button colorScheme="red" ml={3} onClick={deleteUnusedGlyph}>
-                Delete
+                {t('editor.delete')}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

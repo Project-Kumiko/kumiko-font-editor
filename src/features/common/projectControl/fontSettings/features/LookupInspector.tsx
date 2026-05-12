@@ -14,6 +14,7 @@ import type {
   Rule,
 } from 'src/lib/openTypeFeatures'
 import { RuleEditorList } from 'src/features/common/projectControl/fontSettings/features/RuleEditorList'
+import { useTranslation } from 'react-i18next'
 
 interface LookupInspectorProps {
   state: OpenTypeFeaturesState
@@ -170,6 +171,8 @@ function LookupBadges({
   lookup: LookupRecord
   diagnostics: FeatureDiagnostic[]
 }) {
+  const { t } = useTranslation()
+
   return (
     <HStack justify="flex-end" wrap="wrap">
       <Badge colorScheme={lookup.editable ? 'green' : 'orange'}>
@@ -177,13 +180,17 @@ function LookupBadges({
       </Badge>
       <Badge>{lookup.origin}</Badge>
       {diagnostics.length > 0 ? (
-        <Badge colorScheme="yellow">{diagnostics.length} diagnostics</Badge>
+        <Badge colorScheme="yellow">
+          {diagnostics.length} {t('projectControl.diagnosticsLowercase')}
+        </Badge>
       ) : null}
     </HStack>
   )
 }
 
 function LookupFlags({ lookup }: { lookup: LookupRecord }) {
+  const { t } = useTranslation()
+
   const activeFlags = Object.entries(lookup.lookupFlag)
     .filter(([, enabled]) => enabled)
     .map(([name]) => name)
@@ -191,11 +198,11 @@ function LookupFlags({ lookup }: { lookup: LookupRecord }) {
   return (
     <Stack spacing={1}>
       <Text fontSize="xs" color="field.muted">
-        Lookup flags
+        {t('projectControl.lookupFlags')}
       </Text>
       <HStack wrap="wrap">
         {activeFlags.length === 0 ? (
-          <Badge colorScheme="gray">none</Badge>
+          <Badge colorScheme="gray">{t('projectControl.none')}</Badge>
         ) : (
           activeFlags.map((flag) => <Badge key={flag}>{flag}</Badge>)
         )}
@@ -208,13 +215,16 @@ function LookupFlags({ lookup }: { lookup: LookupRecord }) {
 }
 
 function ProvenanceSummary({ lookup }: { lookup: LookupRecord }) {
+  const { t } = useTranslation()
+
   if (!lookup.provenance) {
     return null
   }
 
   return (
     <Text fontSize="xs" color="field.muted">
-      Imported from {lookup.provenance.table}
+      {t('projectControl.importedFrom')}
+      {lookup.provenance.table}
       {lookup.provenance.lookupIndex === undefined
         ? ''
         : ` lookup ${lookup.provenance.lookupIndex}`}

@@ -26,6 +26,7 @@ import {
   type SpacingBehaviorDraft,
   type SpacingBehaviorRow,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface SpacingBehaviorTableRowProps {
   row?: SpacingBehaviorRow
@@ -50,6 +51,8 @@ export function SpacingBehaviorTableRow({
   onDraftCommitted,
   onOpenPair,
 }: SpacingBehaviorTableRowProps) {
+  const { t } = useTranslation()
+
   const [editableGlyph, setEditableGlyph] = useState(
     getInitialEditableGlyph(row, side)
   )
@@ -110,7 +113,7 @@ export function SpacingBehaviorTableRow({
       <HStack justify="space-between" align="center">
         <HStack spacing={1} minW={0} flex={1}>
           <IconButton
-            aria-label="展開 class members"
+            aria-label={t('editor.expandClassMembers')}
             icon={
               <NavArrowRight
                 width={14}
@@ -136,7 +139,7 @@ export function SpacingBehaviorTableRow({
           />
           {!isClassPair ? (
             <Button
-              aria-label="Add spacing pair to editor"
+              aria-label={t('editor.addSpacingPairToEditor')}
               leftIcon={
                 <ArrowLeftTag width={14} height={14} aria-hidden="true" />
               }
@@ -145,7 +148,7 @@ export function SpacingBehaviorTableRow({
               isDisabled={!left || !right}
               onClick={() => onOpenPair(left, right)}
             >
-              Edit
+              {t('editor.edit')}
             </Button>
           ) : null}
         </HStack>
@@ -161,7 +164,7 @@ export function SpacingBehaviorTableRow({
             </Badge>
           ))}
           {!canCommit && (left || right || value) ? (
-            <Badge colorScheme="red">Invalid Input</Badge>
+            <Badge colorScheme="red">{t('editor.invalidInput')}</Badge>
           ) : null}
         </HStack>
       </HStack>
@@ -174,7 +177,7 @@ export function SpacingBehaviorTableRow({
       >
         {side === 'left' && !isClassPair ? (
           <Input
-            aria-label="Spacing left glyph"
+            aria-label={t('editor.spacingLeftGlyph')}
             value={editableGlyph}
             size="xs"
             placeholder="V"
@@ -189,7 +192,7 @@ export function SpacingBehaviorTableRow({
           <FixedGlyphCell label={(row?.rightLabel ?? right) || 'Right'} />
         ) : (
           <Input
-            aria-label="Spacing right glyph"
+            aria-label={t('editor.spacingRightGlyph')}
             value={editableGlyph}
             size="xs"
             placeholder="V"
@@ -200,14 +203,14 @@ export function SpacingBehaviorTableRow({
         )}
         <HStack spacing={0}>
           <IconButton
-            aria-label="Decrease spacing"
+            aria-label={t('editor.decreaseSpacing')}
             icon={<Minus width={14} height={14} aria-hidden="true" />}
             size="xs"
             variant="ghost"
             onClick={() => nudge(-10)}
           />
           <Input
-            aria-label="Spacing value"
+            aria-label={t('editor.spacingValue')}
             value={value}
             size="xs"
             inputMode="numeric"
@@ -217,16 +220,16 @@ export function SpacingBehaviorTableRow({
             onKeyDown={commitOnEnter}
           />
           <IconButton
-            aria-label="Increase spacing"
+            aria-label={t('editor.increaseSpacing')}
             icon={<Plus width={14} height={14} aria-hidden="true" />}
             size="xs"
             variant="ghost"
             onClick={() => nudge(10)}
           />
         </HStack>
-        <Tooltip label="Delete spacing pair">
+        <Tooltip label={t('editor.deleteSpacingPair')}>
           <IconButton
-            aria-label="刪除 spacing pair"
+            aria-label={t('editor.deleteSpacingPair')}
             icon={<Trash width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -303,6 +306,8 @@ function PairLabel({
   rightLabel?: string
   isClassPair: boolean
 }) {
+  const { t } = useTranslation()
+
   const leftText = formatCompactPairLabel(leftLabel, left)
   const rightText = formatCompactPairLabel(rightLabel, right)
 
@@ -331,7 +336,7 @@ function PairLabel({
       </Text>
       {isClassPair ? (
         <Text as="span" flexShrink={0} color="field.muted">
-          class
+          {t('editor.class')}
         </Text>
       ) : null}
     </Box>
@@ -403,6 +408,8 @@ function ClassMemberList({
   onOpenPair: (left: string, right: string) => void
   onSplitClassMember: (input: SplitSpacingClassMemberInput) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <Box borderWidth="1px" borderColor="field.line" bg="field.panelMuted">
       <HStack px={2} py={1} justify="space-between">
@@ -422,9 +429,9 @@ function ClassMemberList({
               <Text fontSize="xs" fontFamily="mono" flex={1} isTruncated>
                 {glyphId}
               </Text>
-              <Tooltip label="Add this pair to editor">
+              <Tooltip label={t('editor.addThisPairToEditor')}>
                 <IconButton
-                  aria-label="加入編輯區"
+                  aria-label={t('editor.addToEditingArea')}
                   icon={<ArrowLeftTag width={13} height={13} />}
                   size="xs"
                   variant="ghost"
@@ -432,9 +439,9 @@ function ClassMemberList({
                 />
               </Tooltip>
               {row.scope === 'classPair' ? (
-                <Tooltip label="Split member out as an independent pair">
+                <Tooltip label={t('editor.splitMemberOutAsAnIndependent')}>
                   <IconButton
-                    aria-label="拉出成獨立 pair"
+                    aria-label={t('editor.splitMemberOutAsAnIndependent')}
                     icon={<ArrowEmailForward width={13} height={13} />}
                     size="xs"
                     variant="ghost"

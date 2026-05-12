@@ -1,5 +1,6 @@
 import { FormControl, FormLabel, Input, SimpleGrid } from '@chakra-ui/react'
 import type { LigatureSubstitutionRule } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface LigatureSubstitutionRuleEditorProps {
   rule: LigatureSubstitutionRule
@@ -10,10 +11,12 @@ export function LigatureSubstitutionRuleEditor({
   rule,
   onChange,
 }: LigatureSubstitutionRuleEditorProps) {
+  const { t } = useTranslation()
+
   return (
     <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
       <FormControl>
-        <FormLabel fontSize="xs">Components</FormLabel>
+        <FormLabel fontSize="xs">{t('projectControl.components')}</FormLabel>
         <Input
           size="sm"
           fontFamily="mono"
@@ -27,7 +30,9 @@ export function LigatureSubstitutionRuleEditor({
         />
       </FormControl>
       <FormControl>
-        <FormLabel fontSize="xs">Replacement glyph</FormLabel>
+        <FormLabel fontSize="xs">
+          {t('projectControl.replacementGlyph')}
+        </FormLabel>
         <Input
           size="sm"
           fontFamily="mono"

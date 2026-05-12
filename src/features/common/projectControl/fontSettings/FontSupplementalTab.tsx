@@ -1,4 +1,5 @@
 import { FormControl, FormLabel, Stack, Textarea } from '@chakra-ui/react'
+import { useTranslation } from 'react-i18next'
 
 interface FontSupplementalTabProps {
   notes: string
@@ -13,10 +14,12 @@ export function FontSupplementalTab({
   onNotesChange,
   onSupplementalTextChange,
 }: FontSupplementalTabProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={4}>
       <FormControl>
-        <FormLabel fontSize="sm">Notes</FormLabel>
+        <FormLabel fontSize="sm">{t('projectControl.notes')}</FormLabel>
         <Textarea
           minH="180px"
           value={notes}
@@ -24,7 +27,7 @@ export function FontSupplementalTab({
         />
       </FormControl>
       <FormControl>
-        <FormLabel fontSize="sm">補充</FormLabel>
+        <FormLabel fontSize="sm">{t('projectControl.supplemental')}</FormLabel>
         <Textarea
           minH="260px"
           value={supplementalText}

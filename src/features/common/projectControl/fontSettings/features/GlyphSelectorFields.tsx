@@ -1,5 +1,6 @@
 import { FormControl, FormLabel, HStack, Input, Select } from '@chakra-ui/react'
 import type { GlyphSelector } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface GlyphSelectorFieldsProps {
   label: string
@@ -12,6 +13,8 @@ export function GlyphSelectorFields({
   value,
   onChange,
 }: GlyphSelectorFieldsProps) {
+  const { t } = useTranslation()
+
   return (
     <FormControl>
       <FormLabel fontSize="xs">{label}</FormLabel>
@@ -24,8 +27,8 @@ export function GlyphSelectorFields({
             onChange(createSelector(event.target.value, getSelectorText(value)))
           }
         >
-          <option value="glyph">Glyph</option>
-          <option value="class">Class</option>
+          <option value="glyph">{t('projectControl.glyph')}</option>
+          <option value="class">{t('projectControl.class')}</option>
         </Select>
         <Input
           size="sm"

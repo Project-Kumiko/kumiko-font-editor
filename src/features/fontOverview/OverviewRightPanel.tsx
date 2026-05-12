@@ -7,8 +7,11 @@ import { useRightPanelModel } from 'src/features/common/glyphInspector/useRightP
 import { FontSettingsModal } from 'src/features/common/projectControl/FontSettingsModal'
 import { ProjectControlActions } from 'src/features/common/projectControl/ProjectControlActions'
 import { useStore } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 export function OverviewRightPanel() {
+  const { t } = useTranslation()
+
   const panel = useRightPanelModel()
   const exportModal = useDisclosure()
   const fontSettingsModal = useDisclosure()
@@ -50,7 +53,7 @@ export function OverviewRightPanel() {
 
         {!panel.glyph ? (
           <Text fontSize="sm" color="field.muted" fontFamily="mono">
-            尚未選取字形。
+            {t('fontOverview.noGlyphSelected')}
           </Text>
         ) : (
           <GlyphSummaryCard

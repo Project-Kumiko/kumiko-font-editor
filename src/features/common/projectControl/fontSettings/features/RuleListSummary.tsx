@@ -1,16 +1,19 @@
 import { Badge, HStack, Stack, Text } from '@chakra-ui/react'
 import type { Rule } from 'src/lib/openTypeFeatures'
 import { formatRuleSummary } from 'src/features/common/projectControl/fontSettings/features/featureRuleText'
+import { useTranslation } from 'react-i18next'
 
 interface RuleListSummaryProps {
   rules: Rule[]
 }
 
 export function RuleListSummary({ rules }: RuleListSummaryProps) {
+  const { t } = useTranslation()
+
   if (rules.length === 0) {
     return (
       <Text fontSize="sm" color="field.muted">
-        No rules in this lookup.
+        {t('projectControl.noRulesInThisLookup')}
       </Text>
     )
   }

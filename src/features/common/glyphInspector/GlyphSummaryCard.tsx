@@ -15,6 +15,7 @@ import {
   getGlyphScriptLabel,
 } from 'src/lib/glyphOverview'
 import type { GlyphData, GlyphLayerData, WorkspaceView } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface GlyphSummaryCardProps {
   activeLayer: GlyphLayerData | null
@@ -39,6 +40,8 @@ export function GlyphSummaryCard({
   onEnterEditor,
   onLayerChange,
 }: GlyphSummaryCardProps) {
+  const { t } = useTranslation()
+
   const overviewStats = getGlyphOverviewStats(glyph)
   const glyphDisplayCharacter = getGlyphDisplayCharacter(glyph)
 
@@ -83,7 +86,8 @@ export function GlyphSummaryCard({
         )}
         <Stack direction="row" spacing={1} align="center">
           <Tag alignSelf="start" colorScheme="cyan" variant="subtle">
-            Layer {selectedLayerId ?? activeLayer?.id ?? 'default'}
+            {t('glyphInspector.layer')}
+            {selectedLayerId ?? activeLayer?.id ?? 'default'}
           </Tag>
           <Tag
             fontSize="xs"
@@ -96,7 +100,7 @@ export function GlyphSummaryCard({
         {availableLayers.length > 0 && (
           <Box>
             <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              圖層 / Master
+              {t('glyphInspector.layerMaster')}
             </Text>
             <Select
               size="sm"
@@ -116,7 +120,7 @@ export function GlyphSummaryCard({
             <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
               <GridItem>
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
-                  Unicode
+                  {t('glyphInspector.unicode')}
                 </Text>
                 <Text fontSize="sm" color="field.ink" fontFamily="mono">
                   {glyph.unicode ?? '未編碼'}
@@ -124,7 +128,7 @@ export function GlyphSummaryCard({
               </GridItem>
               <GridItem>
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
-                  Script
+                  {t('glyphInspector.script')}
                 </Text>
                 <Text fontSize="sm" color="field.ink">
                   {getGlyphScriptLabel(glyph)}
@@ -132,7 +136,7 @@ export function GlyphSummaryCard({
               </GridItem>
               <GridItem>
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
-                  Block
+                  {t('glyphInspector.block')}
                 </Text>
                 <Text fontSize="sm" color="field.ink">
                   {getGlyphBlockLabel(glyph)}
@@ -140,7 +144,7 @@ export function GlyphSummaryCard({
               </GridItem>
               <GridItem>
                 <Text fontSize="xs" color="field.muted" fontFamily="mono">
-                  Contours / Components
+                  {t('glyphInspector.contoursComponents')}
                 </Text>
                 <Text fontSize="sm" color="field.ink" fontFamily="mono">
                   {overviewStats?.contourCount ?? 0} /{' '}
@@ -149,10 +153,10 @@ export function GlyphSummaryCard({
               </GridItem>
             </Grid>
             <Button size="sm" onClick={onEnterEditor}>
-              進入字符編輯器
+              {t('glyphInspector.enterGlyphEditor')}
             </Button>
             <Button size="sm" variant="outline" onClick={onDeleteGlyph}>
-              刪除字符
+              {t('glyphInspector.deleteGlyph')}
             </Button>
           </>
         )}

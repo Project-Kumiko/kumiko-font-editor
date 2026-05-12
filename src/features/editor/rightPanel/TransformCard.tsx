@@ -40,6 +40,7 @@ import {
   type TransformField,
   type TransformOrigin,
 } from 'src/features/editor/rightPanel/transformGeometry'
+import { useTranslation } from 'react-i18next'
 
 interface TransformCardProps {
   glyph: GlyphData | null
@@ -57,6 +58,8 @@ export function TransformCard({
   onMoveSelection,
   onPathOperation,
 }: TransformCardProps) {
+  const { t } = useTranslation()
+
   const selectedNodes = useMemo(
     () => getSelectedNodes(glyph?.paths ?? [], selectedNodeIds),
     [glyph?.paths, selectedNodeIds]
@@ -244,7 +247,7 @@ export function TransformCard({
       <HStack justify="space-between" align="start" mb={3}>
         <Box>
           <Heading size="sm" textTransform="uppercase" color="field.ink">
-            Transform
+            {t('editor.transform')}
           </Heading>
           <Text fontSize="xs" color="field.muted" fontFamily="mono">
             {selectedNodes.length > 0
@@ -296,7 +299,7 @@ export function TransformCard({
             onToggleLock={() => setIsScaleLocked((current) => !current)}
           />
           <TransformActionRow
-            label="Rotate"
+            label={t('editor.rotate')}
             value={actionDrafts.rotate}
             unit="deg"
             isDisabled={isDisabled}
@@ -316,7 +319,7 @@ export function TransformCard({
             onRight={() => applyRotationStep(1)}
           />
           <TransformActionRow
-            label="Skew X"
+            label={t('editor.skewX')}
             value={actionDrafts.skewX}
             unit="deg"
             isDisabled={isDisabled}
@@ -330,7 +333,7 @@ export function TransformCard({
             onRight={() => applySkewStep('x', 1)}
           />
           <TransformActionRow
-            label="Skew Y"
+            label={t('editor.skewY')}
             value={actionDrafts.skewY}
             unit="deg"
             isDisabled={isDisabled}
@@ -346,11 +349,11 @@ export function TransformCard({
 
           <Box>
             <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-              Quick
+              {t('editor.quick')}
             </Text>
-            <Tooltip label="Rotate 90 degrees">
+            <Tooltip label={t('editor.rotate90Degrees')}>
               <Button
-                aria-label="Rotate 90 degrees"
+                aria-label={t('editor.rotate90Degrees')}
                 leftIcon={<Refresh width={16} height={16} />}
                 size="sm"
                 w="100%"
@@ -363,7 +366,7 @@ export function TransformCard({
                   )
                 }
               >
-                Rotate 90°
+                {t('editor.rotateNinety')}
               </Button>
             </Tooltip>
           </Box>

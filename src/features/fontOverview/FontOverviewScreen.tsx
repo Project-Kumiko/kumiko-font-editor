@@ -27,8 +27,10 @@ import {
   getExistingGlyphLookupKeys,
   hasGlyphCandidate,
 } from 'src/features/fontOverview/glyphLookup'
+import { useTranslation } from 'react-i18next'
 
 export function FontOverviewScreen() {
+  const { t } = useTranslation()
   const toast = useToast()
   const [isAddingGlyphs, setIsAddingGlyphs] = useState(false)
   const [glyphInputValue, setGlyphInputValue] = useState('')
@@ -105,7 +107,7 @@ export function FontOverviewScreen() {
       const allSection = sections.find((section) => section.id === 'all')
       return {
         id: 'all',
-        label: '全部字符',
+        label: t('fontOverview.allGlyphs'),
         glyphs: allSection?.glyphs ?? overviewGlyphs,
       }
     }
@@ -113,11 +115,11 @@ export function FontOverviewScreen() {
     return (
       sections.find((section) => section.id === selectedSectionId) ?? {
         id: 'all',
-        label: '全部字符',
+        label: t('fontOverview.allGlyphs'),
         glyphs: overviewGlyphs,
       }
     )
-  }, [overviewGlyphs, sections, selectedSectionId])
+  }, [overviewGlyphs, sections, selectedSectionId, t])
 
   useEffect(() => {
     if (
@@ -196,8 +198,8 @@ export function FontOverviewScreen() {
     const candidates = parseGlyphAdditionInput(inputValue)
     if (candidates.length === 0) {
       toast({
-        title: '沒有可新增的 glyph',
-        description: '請輸入字符、glyph name、recipe 或 unicode 範圍。',
+        title: t('fontOverview.noGlyphsToAdd'),
+        description: t('fontOverview.addGlyphEmptyWarningDescription'),
         status: 'warning',
         duration: 2200,
         isClosable: true,
@@ -277,8 +279,8 @@ export function FontOverviewScreen() {
     } catch (error) {
       console.warn('Save before closing project failed.', error)
       toast({
-        title: '離開前儲存失敗',
-        description: '目前仍留在專案中，請稍後再試或手動儲存。',
+        title: t('fontOverview.closeProjectSaveFailed'),
+        description: t('fontOverview.closeProjectSaveFailedDescription'),
         status: 'error',
         duration: 3200,
         isClosable: true,
@@ -298,6 +300,7 @@ export function FontOverviewScreen() {
     projectId,
     projectTitle,
     selectedLayerId,
+    t,
     toast,
   ])
 

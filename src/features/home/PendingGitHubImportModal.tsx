@@ -13,6 +13,7 @@ import {
   VStack,
 } from '@chakra-ui/react'
 import type { PendingGitHubImport } from 'src/features/home/types'
+import { useTranslation } from 'react-i18next'
 
 interface PendingGitHubImportModalProps {
   importRequest: PendingGitHubImport | null
@@ -27,16 +28,20 @@ export function PendingGitHubImportModal({
   onCancel,
   onConfirm,
 }: PendingGitHubImportModalProps) {
+  const { t } = useTranslation()
+
   return (
     <Modal isOpen={Boolean(importRequest)} onClose={onCancel} isCentered>
       <ModalOverlay />
       <ModalContent borderRadius="sm">
-        <ModalHeader fontWeight={800}>載入 GitHub 專案</ModalHeader>
+        <ModalHeader fontWeight={800}>
+          {t('home.loadGitHubProject')}
+        </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack align="stretch" spacing={4}>
             <Text fontSize="sm" color="field.muted">
-              是否要載入以下 GitHub 專案？
+              {t('home.loadGitHubProjectPrompt')}
             </Text>
             <Box
               border="1px solid"
@@ -46,7 +51,7 @@ export function PendingGitHubImportModal({
               p={4}
             >
               <Text fontSize="xs" color="field.muted" fontFamily="mono">
-                Repository
+                {t('home.repository')}
               </Text>
 
               {importRequest?.repoUrl && (
@@ -72,7 +77,7 @@ export function PendingGitHubImportModal({
                 </Box>
               )}
               <Text mt={3} fontSize="xs" color="field.muted" fontFamily="mono">
-                Ref
+                {t('home.ref')}
               </Text>
               <Text fontWeight="700" wordBreak="break-all">
                 {importRequest?.ref || '預設 branch'}
@@ -82,14 +87,14 @@ export function PendingGitHubImportModal({
         </ModalBody>
         <ModalFooter gap={3}>
           <Button variant="ghost" onClick={onCancel} isDisabled={isLoading}>
-            取消
+            {t('home.cancel')}
           </Button>
           <Button
             onClick={() => void onConfirm()}
             isLoading={isLoading}
             loadingText="下載與解析中..."
           >
-            載入專案
+            {t('home.loadProject')}
           </Button>
         </ModalFooter>
       </ModalContent>

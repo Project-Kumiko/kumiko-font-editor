@@ -19,6 +19,7 @@ import {
   type DefaultGlyphPackage,
   type GlyphPackageGroup,
 } from 'src/features/fontOverview/defaultGlyphPackages'
+import { useTranslation } from 'react-i18next'
 
 interface GlyphPackagePickerProps {
   existingGlyphIds: Set<string>
@@ -72,6 +73,8 @@ interface PackageCardProps {
 }
 
 function PackageCard({ glyphPackage, isSelected, onToggle }: PackageCardProps) {
+  const { t } = useTranslation()
+
   const selectedBg = 'field.ink'
   const selectedColor = 'field.yellow.300'
   const mutedColor = isSelected ? 'field.panelMuted' : 'field.muted'
@@ -117,7 +120,7 @@ function PackageCard({ glyphPackage, isSelected, onToggle }: PackageCardProps) {
               fontSize="0.625rem"
               position="absolute"
             >
-              已選
+              {t('fontOverview.selected')}
             </Badge>
           )}
         </Stack>
@@ -125,7 +128,8 @@ function PackageCard({ glyphPackage, isSelected, onToggle }: PackageCardProps) {
           {glyphPackage.description}
         </Text>
         <Text fontSize="xs" color={mutedColor} fontFamily="mono">
-          {glyphPackage.glyphNames.length.toLocaleString()} glyphs
+          {glyphPackage.glyphNames.length.toLocaleString()}{' '}
+          {t('fontOverview.glyphs')}
         </Text>
       </Stack>
     </Button>
@@ -173,13 +177,15 @@ interface PackageGroupSourceProps {
 }
 
 function PackageGroupSource({ groupId }: PackageGroupSourceProps) {
+  const { t } = useTranslation()
+
   if (groupId !== 'zh-jf7000') {
     return null
   }
 
   return (
     <Text fontSize="xs" color="field.muted">
-      來源：
+      {t('fontOverview.sourceLabel')}
       <Link
         href="https://justfont.com/jf7000"
         isExternal
@@ -187,7 +193,7 @@ function PackageGroupSource({ groupId }: PackageGroupSourceProps) {
         color="field.ink"
         textDecoration="underline"
       >
-        jf7000 當務字集
+        {t('fontOverview.jf7000Package')}
       </Link>
     </Text>
   )
@@ -300,10 +306,12 @@ interface SummaryFormulaProps {
 }
 
 function SummaryFormula({ packages }: SummaryFormulaProps) {
+  const { t } = useTranslation()
+
   if (packages.length === 0) {
     return (
       <Text fontSize="sm" color="field.muted">
-        尚未選取
+        {t('fontOverview.noneSelected')}
       </Text>
     )
   }
@@ -329,23 +337,25 @@ interface GlyphPackageSelectionSummaryProps {
 export function GlyphPackageSelectionSummary({
   selection,
 }: GlyphPackageSelectionSummaryProps) {
+  const { t } = useTranslation()
+
   return (
     <Box minW={0}>
       <SummaryFormula packages={selection.packages} />
       <Text fontSize="xl" fontWeight={500} color="field.steel" mt={2}>
-        合計
+        {t('fontOverview.total')}
         <Box as="span" fontWeight={700} mx={1}>
           {selection.glyphNames.length.toLocaleString()}
         </Box>
-        字符，已存在
+        {t('fontOverview.glyphExists')}
         <Box as="span" fontWeight={700} mx={1}>
           {selection.existingCount.toLocaleString()}
         </Box>
-        字符 ，預計新增
+        {t('fontOverview.glyphWillBeAdded')}
         <Box as="span" fontWeight={800} mx={1}>
           {selection.missingGlyphNames.length.toLocaleString()}
         </Box>
-        字符
+        {t('fontOverview.glyph')}
       </Text>
     </Box>
   )

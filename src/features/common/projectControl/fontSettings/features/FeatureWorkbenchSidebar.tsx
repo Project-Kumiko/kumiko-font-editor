@@ -4,6 +4,7 @@ import type {
   FeatureDiagnostic,
   OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 export type FeatureWorkbenchSelection =
   | { kind: 'prelude' }
@@ -26,6 +27,8 @@ export function FeatureWorkbenchSidebar({
   suggestionsCount,
   onSelect,
 }: FeatureWorkbenchSidebarProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack
       spacing={4}
@@ -33,38 +36,38 @@ export function FeatureWorkbenchSidebar({
       pr={{ base: 0, lg: 4 }}
       minW={0}
     >
-      <SidebarSection title="前置">
+      <SidebarSection title={t('projectControl.preludeSection')}>
         <SidebarButton
           isSelected={selected.kind === 'prelude'}
-          label="Prelude"
+          label={t('projectControl.prelude')}
           detail={`${state.languagesystems.length} language systems`}
           onClick={() => onSelect({ kind: 'prelude' })}
         />
       </SidebarSection>
 
-      <SidebarSection title="工作流程">
+      <SidebarSection title={t('projectControl.workflowSection')}>
         <SidebarButton
           isSelected={selected.kind === 'workflow'}
-          label="Workflow"
+          label={t('projectControl.workflow')}
           detail={`${suggestionsCount} suggestions / ${state.unsupportedLookups.length} unsupported`}
           badge={diagnosticsForWorkflow(diagnostics)}
           onClick={() => onSelect({ kind: 'workflow' })}
         />
       </SidebarSection>
 
-      <SidebarSection title="類別">
+      <SidebarSection title={t('projectControl.classesSection')}>
         <SidebarButton
           isSelected={selected.kind === 'classes'}
-          label="Classes"
+          label={t('projectControl.classes')}
           detail={`${state.glyphClasses.length} glyph / ${state.markClasses.length} mark`}
           onClick={() => onSelect({ kind: 'classes' })}
         />
       </SidebarSection>
 
-      <SidebarSection title="特性">
+      <SidebarSection title={t('projectControl.featuresSection')}>
         {state.features.length === 0 ? (
           <Text fontSize="sm" color="field.muted">
-            No features yet.
+            {t('projectControl.noFeaturesYet')}
           </Text>
         ) : (
           state.features.map((feature) => (

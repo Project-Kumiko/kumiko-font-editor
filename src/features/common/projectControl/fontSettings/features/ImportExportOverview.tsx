@@ -3,23 +3,26 @@ import {
   deriveOpenTypeImportExportSummary,
   type OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface ImportExportOverviewProps {
   state: OpenTypeFeaturesState
 }
 
 export function ImportExportOverview({ state }: ImportExportOverviewProps) {
+  const { t } = useTranslation()
+
   const summary = deriveOpenTypeImportExportSummary(state)
 
   return (
     <Stack spacing={3}>
       <HStack justify="space-between" align="flex-start" gap={3}>
         <Stack spacing={1}>
-          <Text fontWeight="semibold">Behavior Library / Export View</Text>
+          <Text fontWeight="semibold">
+            {t('projectControl.behaviorLibraryExportView')}
+          </Text>
           <Text fontSize="sm" color="field.muted">
-            Imported tables are treated as preserved source material. Kumiko
-            behavior edits are tracked separately and compiled according to the
-            selected export policy.
+            {t('projectControl.importedTablesAreTreatedAsPreserved')}
           </Text>
         </Stack>
         <Badge colorScheme="cyan" flexShrink={0}>
@@ -31,31 +34,34 @@ export function ImportExportOverview({ state }: ImportExportOverviewProps) {
         <OverviewTile
           accent="Imported"
           detail={`${summary.importedFeatures} features / ${summary.importedLookups} lookups`}
-          label="Recognized"
+          label={t('projectControl.recognized')}
           value={summary.importedRules}
         />
         <OverviewTile
           accent="Manual"
           detail={`${summary.manualFeatures} features / ${summary.manualLookups} lookups`}
-          label="Editable"
+          label={t('projectControl.editable')}
           value={summary.manualRules}
         />
         <OverviewTile
           accent="Generated"
           detail={`${summary.generatedLookups} lookups`}
-          label="Auto"
+          label={t('projectControl.auto')}
           value={summary.generatedRules}
         />
       </SimpleGrid>
 
       <SimpleGrid columns={{ base: 1, md: 3 }} spacing={3}>
-        <StatusLine label="Editable lookups" value={summary.editableLookups} />
         <StatusLine
-          label="Preserved raw lookups"
+          label={t('projectControl.editableLookups')}
+          value={summary.editableLookups}
+        />
+        <StatusLine
+          label={t('projectControl.preservedRawLookups')}
           value={summary.preservedLookups}
         />
         <StatusLine
-          label="Unsupported lookups"
+          label={t('projectControl.unsupportedLookups')}
           value={summary.unsupportedLookups}
           tone={summary.unsupportedLookups > 0 ? 'orange' : 'gray'}
         />

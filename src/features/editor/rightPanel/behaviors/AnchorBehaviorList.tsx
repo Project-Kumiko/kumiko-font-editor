@@ -13,6 +13,7 @@ import type {
   AnchorBehaviorRow,
 } from 'src/lib/openTypeFeatures'
 import { AnchorBehaviorTableRow } from 'src/features/editor/rightPanel/behaviors/AnchorBehaviorTableRow'
+import { useTranslation } from 'react-i18next'
 
 interface AnchorBehaviorListProps {
   rows: AnchorBehaviorRow[]
@@ -33,28 +34,30 @@ export function AnchorBehaviorList({
   onDelete,
   onDraftCommitted,
 }: AnchorBehaviorListProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <HStack justify="space-between" align="center">
         <HStack spacing={2}>
           <Text fontSize="sm" fontWeight="semibold">
-            Anchors
+            {t('editor.anchors')}
           </Text>
           <Badge colorScheme="gray">{rows.length}</Badge>
         </HStack>
         <HStack spacing={1}>
-          <Tooltip label="Add anchor">
+          <Tooltip label={t('editor.addAnchor')}>
             <IconButton
-              aria-label="新增 anchor"
+              aria-label={t('editor.addAnchor')}
               icon={<PlusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
               onClick={onAddDraftRow}
             />
           </Tooltip>
-          <Tooltip label="Remove the last draft row">
+          <Tooltip label={t('editor.removeTheLastDraftRow')}>
             <IconButton
-              aria-label="移除最後一列 anchor 草稿"
+              aria-label={t('editor.removeLastAnchorDraft')}
               icon={<MinusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
@@ -69,7 +72,7 @@ export function AnchorBehaviorList({
         <AnchorHeader />
         {rows.length === 0 && draftRowIds.length === 0 ? (
           <Text fontSize="xs" color="field.muted" px={3} py={3}>
-            No anchors for this glyph yet.
+            {t('editor.noAnchorsForThisGlyphYet')}
           </Text>
         ) : null}
         {rows.map((row) => (
@@ -100,6 +103,8 @@ function getAnchorRowKey(row: AnchorBehaviorRow) {
 }
 
 function AnchorHeader() {
+  const { t } = useTranslation()
+
   return (
     <Box
       display="grid"
@@ -112,7 +117,7 @@ function AnchorHeader() {
       borderColor="field.line"
     >
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Name
+        {t('editor.name')}
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
         X
@@ -121,7 +126,7 @@ function AnchorHeader() {
         Y
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Type
+        {t('editor.type')}
       </Text>
     </Box>
   )

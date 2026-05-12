@@ -1,5 +1,6 @@
 import { Box, Input } from '@chakra-ui/react'
 import type { MouseEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface SteppedNumberInputProps {
   value: string
@@ -22,6 +23,8 @@ export function SteppedNumberInput({
   onBlur,
   onStep,
 }: SteppedNumberInputProps) {
+  const { t } = useTranslation()
+
   const handleStep = (direction: 1 | -1) => {
     onStep(step * direction)
   }
@@ -62,7 +65,7 @@ export function SteppedNumberInput({
         <Box
           as="button"
           type="button"
-          aria-label="Increment value"
+          aria-label={t('editor.incrementValue')}
           fontSize="8px"
           lineHeight="1"
           color="field.muted"
@@ -78,7 +81,7 @@ export function SteppedNumberInput({
         <Box
           as="button"
           type="button"
-          aria-label="Decrement value"
+          aria-label={t('editor.decrementValue')}
           fontSize="8px"
           lineHeight="1"
           color="field.muted"

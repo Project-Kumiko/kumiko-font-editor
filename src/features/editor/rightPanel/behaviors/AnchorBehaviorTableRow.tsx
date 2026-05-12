@@ -15,6 +15,7 @@ import {
   type AnchorBehaviorDraft,
   type AnchorBehaviorRow,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface AnchorBehaviorTableRowProps {
   row?: AnchorBehaviorRow
@@ -33,6 +34,8 @@ export function AnchorBehaviorTableRow({
   onDelete,
   onDraftCommitted,
 }: AnchorBehaviorTableRowProps) {
+  const { t } = useTranslation()
+
   const [name, setName] = useState(row?.name ?? 'top')
   const [x, setX] = useState(String(row?.x ?? 0))
   const [y, setY] = useState(String(row?.y ?? 700))
@@ -78,16 +81,16 @@ export function AnchorBehaviorTableRow({
         alignItems="center"
       >
         <Input
-          aria-label="Anchor name"
+          aria-label={t('editor.anchorName')}
           value={name}
           size="xs"
-          placeholder="top"
+          placeholder={t('editor.top')}
           onBlur={commit}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={commitOnEnter}
         />
         <Input
-          aria-label="Anchor x"
+          aria-label={t('editor.anchorX')}
           value={x}
           size="xs"
           inputMode="numeric"
@@ -96,7 +99,7 @@ export function AnchorBehaviorTableRow({
           onKeyDown={commitOnEnter}
         />
         <Input
-          aria-label="Anchor y"
+          aria-label={t('editor.anchorY')}
           value={y}
           size="xs"
           inputMode="numeric"
@@ -104,9 +107,9 @@ export function AnchorBehaviorTableRow({
           onChange={(event) => setY(event.target.value)}
           onKeyDown={commitOnEnter}
         />
-        <Tooltip label="Delete anchor">
+        <Tooltip label={t('editor.deleteAnchor')}>
           <IconButton
-            aria-label="刪除 anchor"
+            aria-label={t('editor.deleteAnchor')}
             icon={<Trash width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -127,7 +130,7 @@ export function AnchorBehaviorTableRow({
             </Badge>
           ))}
           {!canCommit && (name || x || y) ? (
-            <Badge colorScheme="red">Invalid Input</Badge>
+            <Badge colorScheme="red">{t('editor.invalidInput')}</Badge>
           ) : null}
         </HStack>
       </HStack>

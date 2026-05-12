@@ -9,6 +9,7 @@ import {
 } from '@chakra-ui/react'
 import { Lock, ScaleFrameEnlarge, ScaleFrameReduce } from 'iconoir-react'
 import type { MouseEvent, ReactElement } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export type SkewAxis = 'x' | 'y'
 
@@ -124,13 +125,15 @@ export function ScaleActionGroup({
   onScaleYUp,
   onToggleLock,
 }: ScaleActionGroupProps) {
+  const { t } = useTranslation()
+
   const isScaleYDisabled = isDisabled || isScaleLocked
 
   return (
     <Box position="relative">
       <Stack spacing={2}>
         <ScaleActionLine
-          label="Scale X"
+          label={t('editor.scaleX')}
           value={scaleX}
           isDisabled={isDisabled}
           leftLabel="Scale down X"
@@ -141,7 +144,7 @@ export function ScaleActionGroup({
           onRight={onScaleXUp}
         />
         <ScaleActionLine
-          label="Scale Y"
+          label={t('editor.scaleY')}
           value={scaleY}
           isDisabled={isScaleYDisabled}
           leftLabel="Scale down Y"
@@ -244,6 +247,8 @@ function ActionValueInput({
   onChange: (value: string) => void
   onStep: (delta: number) => void
 }) {
+  const { t } = useTranslation()
+
   const handleStep = (direction: 1 | -1) => {
     onStep(direction)
   }
@@ -292,7 +297,7 @@ function ActionValueInput({
         <Box
           as="button"
           type="button"
-          aria-label="Increment action value"
+          aria-label={t('editor.incrementActionValue')}
           fontSize="7px"
           lineHeight="1"
           color="field.muted"
@@ -308,7 +313,7 @@ function ActionValueInput({
         <Box
           as="button"
           type="button"
-          aria-label="Decrement action value"
+          aria-label={t('editor.decrementActionValue')}
           fontSize="7px"
           lineHeight="1"
           color="field.muted"

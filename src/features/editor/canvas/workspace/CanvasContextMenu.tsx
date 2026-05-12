@@ -5,6 +5,7 @@ import {
   type FontData,
   type SelectedSegmentState,
 } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface CanvasContextMenuProps {
   activeEditorGlyphId: string | null
@@ -37,6 +38,8 @@ export function CanvasContextMenu({
   onClose,
   onRequestCanvasUpdate,
 }: CanvasContextMenuProps) {
+  const { t } = useTranslation()
+
   const selectedReversiblePathIds = useMemo(
     () =>
       getSelectedReversiblePathIds({
@@ -119,27 +122,29 @@ export function CanvasContextMenu({
         isDisabled={selectedNodeIds.length === 0 && !selectedSegment}
         onClick={handleCopySelection}
       >
-        複製
+        {t('editor.copy')}
       </ContextMenuButton>
       <ContextMenuButton
         isDisabled={selectedNodeIds.length === 0}
         onClick={handleCutSelection}
       >
-        剪下
+        {t('editor.cut')}
       </ContextMenuButton>
-      <ContextMenuButton onClick={handlePasteSelection}>貼上</ContextMenuButton>
+      <ContextMenuButton onClick={handlePasteSelection}>
+        {t('editor.paste')}
+      </ContextMenuButton>
       <Box h="1px" my="4px" bg="gray.100" />
       <ContextMenuButton
         isDisabled={selectedReversiblePathIds.length === 0}
         onClick={handleReverseSelectedPaths}
       >
-        逆轉選取外框的方向
+        {t('editor.reverseSelectedContourDirection')}
       </ContextMenuButton>
       <ContextMenuButton
         isDisabled={selectedNodeIds.length < 2}
         onClick={handleReconnectSelectedNodes}
       >
-        重新連接控制點
+        {t('editor.reconnectControlPoints')}
       </ContextMenuButton>
     </Box>
   )

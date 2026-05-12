@@ -13,6 +13,7 @@ import type {
   SpacingBehaviorRow,
 } from 'src/lib/openTypeFeatures'
 import { SpacingBehaviorTableRow } from 'src/features/editor/rightPanel/behaviors/SpacingBehaviorTableRow'
+import { useTranslation } from 'react-i18next'
 
 interface SpacingBehaviorListProps {
   rows: SpacingBehaviorRow[]
@@ -43,6 +44,8 @@ export function SpacingBehaviorList({
   onRightDraftCommitted,
   onOpenPair,
 }: SpacingBehaviorListProps) {
+  const { t } = useTranslation()
+
   const leftRows = rows.filter((row) => row.right === currentGlyphId)
   const rightRows = rows.filter((row) => row.left === currentGlyphId)
 
@@ -51,14 +54,14 @@ export function SpacingBehaviorList({
       <HStack justify="space-between" align="center">
         <HStack spacing={2}>
           <Text fontSize="sm" fontWeight="semibold">
-            Spacing
+            {t('editor.spacing')}
           </Text>
           <Badge colorScheme="gray">{rows.length}</Badge>
         </HStack>
       </HStack>
 
       <SpacingBehaviorGroup
-        title="Left spacing"
+        title={t('editor.leftSpacing')}
         side="left"
         rows={leftRows}
         draftRowIds={leftDraftRowIds}
@@ -72,7 +75,7 @@ export function SpacingBehaviorList({
         onOpenPair={onOpenPair}
       />
       <SpacingBehaviorGroup
-        title="Right spacing"
+        title={t('editor.rightSpacing')}
         side="right"
         rows={rightRows}
         draftRowIds={rightDraftRowIds}
@@ -118,6 +121,8 @@ function SpacingBehaviorGroup({
   onDraftCommitted,
   onOpenPair,
 }: SpacingBehaviorGroupProps) {
+  const { t } = useTranslation()
+
   return (
     <Box borderWidth="1px" borderColor="field.line" bg="field.panel">
       <HStack
@@ -144,7 +149,7 @@ function SpacingBehaviorGroup({
               onClick={onAddDraftRow}
             />
           </Tooltip>
-          <Tooltip label="Remove the last draft row">
+          <Tooltip label={t('editor.removeTheLastDraftRow')}>
             <IconButton
               aria-label={`移除最後一列 ${title} 草稿`}
               icon={<MinusCircle width={16} height={16} aria-hidden="true" />}
@@ -212,6 +217,8 @@ function getSpacingRowKey(row: SpacingBehaviorRow) {
 }
 
 function SpacingHeader({ side }: { side: 'left' | 'right' }) {
+  const { t } = useTranslation()
+
   return (
     <Box
       display="grid"
@@ -230,7 +237,7 @@ function SpacingHeader({ side }: { side: 'left' | 'right' }) {
         {side === 'left' ? 'Fixed right' : 'Editable right'}
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Value
+        {t('editor.value')}
       </Text>
     </Box>
   )

@@ -1,4 +1,5 @@
 import { Box, Button, Heading, HStack, Text } from '@chakra-ui/react'
+import { useTranslation } from 'react-i18next'
 
 interface LeftPanelHeaderProps {
   hasSelectedGlyph: boolean
@@ -11,6 +12,8 @@ export function LeftPanelHeader({
   isCjkGlyph,
   onBack,
 }: LeftPanelHeaderProps) {
+  const { t } = useTranslation()
+
   return (
     <>
       <HStack justify="space-between" align="flex-start">
@@ -24,7 +27,7 @@ export function LeftPanelHeader({
             fontFamily="mono"
             fontWeight="900"
           >
-            Kumiko Font Editor
+            {t('editor.kumikoFontEditor')}
           </Text>
           <Heading
             color="field.ink"
@@ -37,13 +40,13 @@ export function LeftPanelHeader({
         </Box>
 
         <Button size="sm" variant="ghost" onClick={onBack}>
-          ⬅︎ 所有字符
+          {t('editor.backToAllGlyphs')}
         </Button>
       </HStack>
 
       {!hasSelectedGlyph ? (
         <Text fontSize="sm" color="field.muted">
-          先選擇一個字符。
+          {t('editor.selectGlyphFirst')}
         </Text>
       ) : null}
     </>

@@ -1,22 +1,25 @@
 import { Badge, HStack, Stack, Text } from '@chakra-ui/react'
 import type { OpenTypeFeaturesState } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureClassesPanelProps {
   state: OpenTypeFeaturesState
 }
 
 export function FeatureClassesPanel({ state }: FeatureClassesPanelProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={5}>
       <Stack spacing={2}>
-        <Text fontWeight="semibold">Classes</Text>
+        <Text fontWeight="semibold">{t('projectControl.classes')}</Text>
         <Text fontSize="sm" color="field.muted">
-          Glyph and mark classes are shared feature resources.
+          {t('projectControl.glyphAndMarkClassesAreShared')}
         </Text>
       </Stack>
       <ClassSection
         emptyText="No glyph classes."
-        title="Glyph Classes"
+        title={t('projectControl.glyphClasses')}
         items={state.glyphClasses.map((glyphClass) => ({
           id: glyphClass.id,
           label: glyphClass.name,
@@ -26,7 +29,7 @@ export function FeatureClassesPanel({ state }: FeatureClassesPanelProps) {
       />
       <ClassSection
         emptyText="No mark classes."
-        title="Mark Classes"
+        title={t('projectControl.markClasses')}
         items={state.markClasses.map((markClass) => ({
           id: markClass.id,
           label: markClass.name,

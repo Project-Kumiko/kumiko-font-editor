@@ -21,8 +21,11 @@ import { NodeInspectorCard } from 'src/features/editor/rightPanel/NodeInspectorC
 import { TransformCard } from 'src/features/editor/rightPanel/TransformCard'
 import { BehaviorsPanel } from 'src/features/editor/rightPanel/behaviors/BehaviorsPanel'
 import { useStore } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 export function EditorRightPanel() {
+  const { t } = useTranslation()
+
   const panel = useRightPanelModel()
   const exportModal = useDisclosure()
   const fontSettingsModal = useDisclosure()
@@ -65,7 +68,7 @@ export function EditorRightPanel() {
 
         {!panel.glyph ? (
           <Text fontSize="sm" color="field.muted" fontFamily="mono">
-            尚未選取字形。
+            {t('editor.noGlyphSelected')}
           </Text>
         ) : (
           <Tabs

@@ -12,6 +12,7 @@ import {
 import SmoothNodeIcon from 'src/assets/icons/SmoothNodeIcon.svg?react'
 import CornerNodeIcon from 'src/assets/icons/CornerNodeIcon.svg?react'
 import type { NodeType, SelectedSegmentState } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface NodeInspectorCardProps {
   effectiveNodeType: NodeType | undefined
@@ -36,43 +37,45 @@ export function NodeInspectorCard({
   onConvertSelectedSegment,
   onNodeTypeChange,
 }: NodeInspectorCardProps) {
+  const { t } = useTranslation()
+
   return (
     <Box p={4} bg="field.panel" borderRadius="sm">
       <Heading size="sm" mb={3} textTransform="uppercase" color="field.ink">
-        節點檢視
+        {t('editor.nodeView')}
       </Heading>
       {!selectedNode || !nodeRef ? (
         selectedSegment ? (
           <Stack spacing={3}>
             <Text fontSize="sm" color="field.ink" fontFamily="mono">
-              Segment{' '}
+              {t('editor.segment')}{' '}
               <Tag size="sm" ml={2}>
                 {selectedSegment.pathId}
               </Tag>
             </Text>
             <Text fontSize="sm" color="field.muted">
-              目前高亮的是一段
+              {t('editor.highlightedSegmentPrefix')}
               {selectedSegment.type === 'line' ? '直線' : '曲線'}。
             </Text>
             {selectedSegment.type === 'line' ? (
               <Button size="sm" onClick={onConvertSelectedSegment}>
-                轉成曲線
+                {t('editor.convertToCurve')}
               </Button>
             ) : (
               <Text fontSize="sm" color="field.muted">
-                這段已經是曲線，不需要再轉換。
+                {t('editor.segmentAlreadyCurve')}
               </Text>
             )}
           </Stack>
         ) : (
           <Text fontSize="sm" color="field.muted">
-            目前沒有選取節點。點擊畫布上的節點即可在這裡微調座標與節點類型。
+            {t('editor.noNodeSelectedHint')}
           </Text>
         )
       ) : (
         <Stack spacing={3}>
           <Text fontSize="sm" color="field.ink" fontFamily="mono">
-            Path{' '}
+            {t('editor.path')}{' '}
             <Tag size="sm" ml={2}>
               {nodeRef.pathId}
             </Tag>
@@ -109,7 +112,7 @@ export function NodeInspectorCard({
 
           {!isOnCurveNode ? (
             <Text fontSize="sm" color="field.muted">
-              目前選到的是控制把手。把手本身沒有方形／圓形節點類型。
+              {t('editor.selectedHandleNoNodeType')}
             </Text>
           ) : (
             <Stack spacing={2}>
@@ -120,7 +123,7 @@ export function NodeInspectorCard({
                   onClick={() => onNodeTypeChange('corner')}
                   leftIcon={<CornerNodeIcon />}
                 >
-                  折線
+                  {t('editor.corner')}
                 </Button>
                 <Button
                   size="sm"
@@ -129,7 +132,7 @@ export function NodeInspectorCard({
                   isDisabled={isEndpointNode}
                   leftIcon={<SmoothNodeIcon />}
                 >
-                  平滑
+                  {t('editor.smooth')}
                 </Button>
               </Grid>
               <Text fontSize="xs" color="field.muted">

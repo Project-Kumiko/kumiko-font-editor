@@ -19,6 +19,7 @@ import {
   parseInteger,
   parseNumber,
 } from 'src/features/common/projectControl/fontSettings/model'
+import { useTranslation } from 'react-i18next'
 
 interface FontOtherTabProps {
   fontType: NonNullable<FontProjectSettings['fontType']>
@@ -43,6 +44,8 @@ export function FontOtherTab({
   onOutlineTypeChange,
   onStatusDefinitionsChange,
 }: FontOtherTabProps) {
+  const { t } = useTranslation()
+
   const updateStatus = (
     index: number,
     update: Partial<DevelopmentStatusDefinition>
@@ -58,7 +61,7 @@ export function FontOtherTab({
     <Stack spacing={5}>
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
         <FormControl>
-          <FormLabel fontSize="sm">Font type</FormLabel>
+          <FormLabel fontSize="sm">{t('projectControl.fontType')}</FormLabel>
           <Select
             value={fontType}
             onChange={(event) =>
@@ -67,12 +70,12 @@ export function FontOtherTab({
               )
             }
           >
-            <option value="static">一般</option>
-            <option value="variable">可變</option>
+            <option value="static">{t('projectControl.static')}</option>
+            <option value="variable">{t('projectControl.variable')}</option>
           </Select>
         </FormControl>
         <FormControl>
-          <FormLabel fontSize="sm">Outline type</FormLabel>
+          <FormLabel fontSize="sm">{t('projectControl.outlineType')}</FormLabel>
           <Select
             value={outlineType}
             onChange={(event) =>
@@ -81,14 +84,16 @@ export function FontOtherTab({
               )
             }
           >
-            <option value="cubic">Cubic</option>
-            <option value="quadratic">Quadratic</option>
+            <option value="cubic">{t('projectControl.cubic')}</option>
+            <option value="quadratic">{t('projectControl.quadratic')}</option>
           </Select>
         </FormControl>
       </SimpleGrid>
 
       <HStack justify="space-between">
-        <Text fontWeight="semibold">Status definitions</Text>
+        <Text fontWeight="semibold">
+          {t('projectControl.statusDefinitions')}
+        </Text>
         <Button
           size="sm"
           onClick={() =>
@@ -102,7 +107,7 @@ export function FontOtherTab({
             ])
           }
         >
-          新增
+          {t('projectControl.add')}
         </Button>
       </HStack>
       <Stack spacing={3}>
@@ -113,7 +118,7 @@ export function FontOtherTab({
             spacing={3}
           >
             <NumberField
-              label="Value"
+              label={t('projectControl.value')}
               min={0}
               value={status.value}
               onChange={(value) =>
@@ -123,7 +128,7 @@ export function FontOtherTab({
               }
             />
             <FormControl>
-              <FormLabel fontSize="sm">Label</FormLabel>
+              <FormLabel fontSize="sm">{t('projectControl.label')}</FormLabel>
               <Input
                 value={status.label}
                 onChange={(event) =>
@@ -157,7 +162,7 @@ export function FontOtherTab({
                 updateStatus(index, { isDefault: event.target.checked })
               }
             >
-              Default
+              {t('projectControl.default')}
             </Checkbox>
           </SimpleGrid>
         ))}

@@ -1,6 +1,7 @@
 import { Box, Button, Text } from '@chakra-ui/react'
 import type { GlyphData } from 'src/store'
 import { InlineGlyphPreview } from 'src/features/editor/leftPanel/InlineGlyphPreview'
+import { useTranslation } from 'react-i18next'
 
 interface GlyphPreviewStripProps {
   glyphMap: Record<string, GlyphData>
@@ -15,6 +16,8 @@ export function GlyphPreviewStrip({
   resultGlyphs,
   onPreviewGlyphChange,
 }: GlyphPreviewStripProps) {
+  const { t } = useTranslation()
+
   return (
     <Box
       bg="field.panelMuted"
@@ -59,7 +62,7 @@ export function GlyphPreviewStrip({
         </Box>
       ) : (
         <Text fontSize="sm" color="field.muted">
-          目前沒有可顯示的字符。
+          {t('editor.noDisplayableGlyphs')}
         </Text>
       )}
     </Box>

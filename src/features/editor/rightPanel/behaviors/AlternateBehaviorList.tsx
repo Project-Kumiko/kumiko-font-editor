@@ -13,6 +13,7 @@ import type {
   AlternateBehaviorRow,
 } from 'src/lib/openTypeFeatures'
 import { AlternateBehaviorTableRow } from 'src/features/editor/rightPanel/behaviors/AlternateBehaviorTableRow'
+import { useTranslation } from 'react-i18next'
 
 interface AlternateBehaviorListProps {
   rows: AlternateBehaviorRow[]
@@ -35,28 +36,30 @@ export function AlternateBehaviorList({
   onDraftCommitted,
   onOpenGlyph,
 }: AlternateBehaviorListProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <HStack justify="space-between" align="center">
         <HStack spacing={2}>
           <Text fontSize="sm" fontWeight="semibold">
-            Alternates
+            {t('editor.alternates')}
           </Text>
           <Badge colorScheme="gray">{rows.length}</Badge>
         </HStack>
         <HStack spacing={1}>
-          <Tooltip label="Add alternate">
+          <Tooltip label={t('editor.addAlternate')}>
             <IconButton
-              aria-label="新增 alternate"
+              aria-label={t('editor.addAlternate')}
               icon={<PlusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
               onClick={onAddDraftRow}
             />
           </Tooltip>
-          <Tooltip label="Remove the last draft row">
+          <Tooltip label={t('editor.removeTheLastDraftRow')}>
             <IconButton
-              aria-label="移除最後一列 alternate 草稿"
+              aria-label={t('editor.removeLastAlternateDraft')}
               icon={<MinusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
@@ -71,7 +74,7 @@ export function AlternateBehaviorList({
         <AlternateHeader />
         {rows.length === 0 && draftRowIds.length === 0 ? (
           <Text fontSize="xs" color="field.muted" px={3} py={3}>
-            No alternates for this glyph yet.
+            {t('editor.noAlternatesForThisGlyphYet')}
           </Text>
         ) : null}
         {rows.map((row) => (
@@ -111,6 +114,8 @@ function getAlternateRowKey(row: AlternateBehaviorRow) {
 }
 
 function AlternateHeader() {
+  const { t } = useTranslation()
+
   return (
     <Box
       display="grid"
@@ -123,13 +128,13 @@ function AlternateHeader() {
       borderColor="field.line"
     >
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Default
+        {t('editor.default')}
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
         →
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Alternate
+        {t('editor.alternate')}
       </Text>
     </Box>
   )

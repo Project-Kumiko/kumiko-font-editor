@@ -5,6 +5,7 @@ import { LigatureSubstitutionRuleEditor } from 'src/features/common/projectContr
 import { PairPositioningRuleEditor } from 'src/features/common/projectControl/fontSettings/features/PairPositioningRuleEditor'
 import { SinglePositioningRuleEditor } from 'src/features/common/projectControl/fontSettings/features/SinglePositioningRuleEditor'
 import { SingleSubstitutionRuleEditor } from 'src/features/common/projectControl/fontSettings/features/SingleSubstitutionRuleEditor'
+import { useTranslation } from 'react-i18next'
 
 interface RuleEditorListProps {
   lookup: LookupRecord
@@ -12,10 +13,12 @@ interface RuleEditorListProps {
 }
 
 export function RuleEditorList({ lookup, onRuleChange }: RuleEditorListProps) {
+  const { t } = useTranslation()
+
   if (lookup.rules.length === 0) {
     return (
       <Text fontSize="sm" color="field.muted">
-        No rules in this lookup.
+        {t('projectControl.noRulesInThisLookup')}
       </Text>
     )
   }
@@ -23,12 +26,11 @@ export function RuleEditorList({ lookup, onRuleChange }: RuleEditorListProps) {
   return (
     <Stack spacing={2}>
       <Text fontWeight="semibold" fontSize="sm">
-        Rules
+        {t('projectControl.rules')}
       </Text>
       {!lookup.editable ? (
         <Text fontSize="sm" color="field.muted">
-          This lookup can be inspected but not visually edited yet. If you
-          rebuild OpenType features on export, unsupported data may be removed.
+          {t('projectControl.thisLookupCanBeInspectedBut')}
         </Text>
       ) : null}
       {lookup.rules.map((rule) => (
@@ -68,6 +70,8 @@ function RuleSurface({
 }
 
 function RuleHeader({ rule, canEdit }: { rule: Rule; canEdit: boolean }) {
+  const { t } = useTranslation()
+
   return (
     <HStack justify="space-between" align="flex-start">
       <Stack spacing={1}>
@@ -86,7 +90,9 @@ function RuleHeader({ rule, canEdit }: { rule: Rule; canEdit: boolean }) {
           {rule.meta.origin}
         </Badge>
         {rule.meta.userOverridden ? (
-          <Badge colorScheme="purple">user overridden</Badge>
+          <Badge colorScheme="purple">
+            {t('projectControl.userOverridden')}
+          </Badge>
         ) : null}
       </HStack>
     </HStack>

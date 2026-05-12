@@ -1,6 +1,7 @@
 import { Box, Button, Heading, HStack, Text, VStack } from '@chakra-ui/react'
 import type { KumikoProjectSummary } from 'src/lib/projectTypes'
 import type { ProjectOpenHandler } from 'src/features/home/types'
+import { useTranslation } from 'react-i18next'
 
 interface RecentProjectsListProps {
   projects: KumikoProjectSummary[]
@@ -13,14 +14,16 @@ export function RecentProjectsList({
   onDeleteProject,
   onOpenProject,
 }: RecentProjectsListProps) {
+  const { t } = useTranslation()
+
   return (
     <Box>
       <Heading size="sm" mb={4}>
-        您最近開啟的字體專案 (IndexedDB)
+        {t('home.recentProjectsTitle')}
       </Heading>
       {projects.length === 0 ? (
         <Text fontSize="sm" color="field.muted" textAlign="center">
-          尚無任何專案紀錄
+          {t('home.noRecentProjects')}
         </Text>
       ) : (
         <VStack align="stretch" spacing={2} maxHeight="300px" overflowY="auto">
@@ -54,10 +57,10 @@ export function RecentProjectsList({
                   variant="ghost"
                   onClick={(event) => onDeleteProject(project.id, event)}
                 >
-                  刪除
+                  {t('home.delete')}
                 </Button>
                 <Button size="sm" onClick={() => void onOpenProject(project)}>
-                  開啟此專案
+                  {t('home.openProject')}
                 </Button>
               </HStack>
             </HStack>

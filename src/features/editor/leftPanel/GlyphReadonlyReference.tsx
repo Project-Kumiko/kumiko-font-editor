@@ -8,6 +8,7 @@ import {
   type PathData,
   type PathNode,
 } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 const PREVIEW_PADDING_X = 80
 const PREVIEW_ASCENDER = 900
@@ -251,6 +252,8 @@ export function GlyphReadonlyReference({
   glyph: GlyphData
   glyphMap: Record<string, GlyphData>
 }) {
+  const { t } = useTranslation()
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const selectedGlyphId = useStore((state) => state.selectedGlyphId)
   const createPath = useStore((state) => state.createPath)
@@ -386,7 +389,7 @@ export function GlyphReadonlyReference({
       userSelect="none"
     >
       <Text fontSize="xs" color="field.muted" mb={2} fontFamily="mono">
-        滑過部件會高亮，點擊可直接複製進目前編輯字。
+        {t('editor.componentSearchHint')}
       </Text>
       <Box
         as="canvas"

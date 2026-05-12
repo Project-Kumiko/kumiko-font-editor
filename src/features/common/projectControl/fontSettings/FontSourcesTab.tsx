@@ -17,6 +17,7 @@ import {
   parseNumber,
   type SourceDraft,
 } from 'src/features/common/projectControl/fontSettings/model'
+import { useTranslation } from 'react-i18next'
 
 interface FontSourcesTabProps {
   fontData: FontData | null
@@ -29,6 +30,8 @@ export function FontSourcesTab({
   sources,
   onSourcesChange,
 }: FontSourcesTabProps) {
+  const { t } = useTranslation()
+
   const updateSource = (index: number, update: Partial<SourceDraft>) => {
     onSourcesChange(
       sources.map((source, sourceIndex) =>
@@ -40,7 +43,7 @@ export function FontSourcesTab({
   return (
     <Stack spacing={3}>
       <HStack justify="space-between">
-        <Text fontWeight="semibold">主版 / Sources</Text>
+        <Text fontWeight="semibold">{t('projectControl.sourcesTitle')}</Text>
         <Button
           size="sm"
           onClick={() =>
@@ -60,14 +63,14 @@ export function FontSourcesTab({
             ])
           }
         >
-          新增
+          {t('projectControl.add')}
         </Button>
       </HStack>
       {sources.map((source, index) => (
         <Box key={source.id} borderWidth="1px" p={3}>
           <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={3}>
             <FormControl>
-              <FormLabel fontSize="sm">Name</FormLabel>
+              <FormLabel fontSize="sm">{t('projectControl.name')}</FormLabel>
               <Input
                 value={source.name}
                 onChange={(event) =>
@@ -76,7 +79,7 @@ export function FontSourcesTab({
               />
             </FormControl>
             <NumberField
-              label="Italic angle"
+              label={t('projectControl.italicAngle')}
               value={source.italicAngle}
               onChange={(value) =>
                 updateSource(index, {
@@ -85,7 +88,9 @@ export function FontSourcesTab({
               }
             />
             <FormControl>
-              <FormLabel fontSize="sm">Location JSON</FormLabel>
+              <FormLabel fontSize="sm">
+                {t('projectControl.locationJson')}
+              </FormLabel>
               <Input
                 fontFamily="mono"
                 value={source.locationText}
@@ -126,7 +131,7 @@ export function FontSourcesTab({
                 )
               }
             >
-              移除
+              {t('projectControl.remove')}
             </Button>
           </HStack>
         </Box>

@@ -11,6 +11,7 @@ import type {
   ExportPolicy,
   OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface ExportPolicyControlProps {
   state: OpenTypeFeaturesState
@@ -27,12 +28,16 @@ export function ExportPolicyControl({
   state,
   onChange,
 }: ExportPolicyControlProps) {
+  const { t } = useTranslation()
+
   const warnings = getExportPolicyWarnings(state)
 
   return (
     <Stack spacing={3}>
       <FormControl>
-        <FormLabel fontSize="sm">OpenType export policy</FormLabel>
+        <FormLabel fontSize="sm">
+          {t('projectControl.opentypeExportPolicy')}
+        </FormLabel>
         <Select
           value={state.exportPolicy}
           onChange={(event) => onChange(event.target.value as ExportPolicy)}
@@ -45,8 +50,7 @@ export function ExportPolicyControl({
         </Select>
       </FormControl>
       <Text fontSize="sm" color="field.muted">
-        Export behavior is explicit because compiling generated FEA may replace
-        existing compiled GSUB, GPOS, or GDEF tables.
+        {t('projectControl.exportBehaviorIsExplicitBecauseCompiling')}
       </Text>
       {warnings.map((warning) => (
         <Alert key={warning} status="warning" borderRadius="sm">

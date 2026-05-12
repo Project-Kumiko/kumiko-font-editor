@@ -1,4 +1,5 @@
 import { Button, HStack, Spinner, Text, VStack } from '@chakra-ui/react'
+import { useTranslation } from 'react-i18next'
 
 interface ComponentSearchSectionProps {
   components: string[]
@@ -13,17 +14,19 @@ export function ComponentSearchSection({
   selectedComponent,
   onSelectComponent,
 }: ComponentSearchSectionProps) {
+  const { t } = useTranslation()
+
   return (
     <VStack align="stretch" spacing={2}>
       <Text fontSize="sm" color="field.muted" fontFamily="mono">
-        拆字部件
+        {t('editor.decompositionComponents')}
       </Text>
       <HStack spacing={2} flexWrap="wrap">
         {loading && components.length === 0 ? (
           <HStack spacing={2}>
             <Spinner size="sm" color="field.yellow.400" />
             <Text fontSize="sm" color="field.muted">
-              分析中
+              {t('editor.analyzing')}
             </Text>
           </HStack>
         ) : components.length > 0 ? (
@@ -40,7 +43,7 @@ export function ComponentSearchSection({
           ))
         ) : (
           <Text fontSize="sm" color="field.muted">
-            找不到可用的拆字部件。
+            {t('editor.noComponentsAvailable')}
           </Text>
         )}
       </HStack>

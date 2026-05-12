@@ -19,6 +19,7 @@ import {
 import { useState } from 'react'
 import type { OpenTypeExportWarning } from 'src/lib/openTypeFeatures'
 import { requiresDropUnsupportedConfirmation } from 'src/lib/openTypeFeatures/exportPolicy'
+import { useTranslation } from 'react-i18next'
 
 export type FontExportFormat = 'zip' | 'ttf' | 'otf' | 'woff' | 'woff2'
 
@@ -120,6 +121,8 @@ function DropUnsupportedConfirmation({
   isChecked: boolean
   onChange: (isChecked: boolean) => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <Checkbox
       colorScheme="red"
@@ -127,8 +130,7 @@ function DropUnsupportedConfirmation({
       onChange={(event) => onChange(event.target.checked)}
     >
       <Text as="span" fontSize="sm">
-        I understand unsupported imported OpenType lookups will be removed from
-        rebuilt layout tables.
+        {t('fontExport.iUnderstandUnsupportedImportedOpentypeLookups')}
       </Text>
     </Checkbox>
   )
@@ -143,6 +145,8 @@ export function ExportFontModal({
   onClose,
   onExport,
 }: ExportFontModalProps) {
+  const { t } = useTranslation()
+
   const [selectedFormats, setSelectedFormats] = useState<FontExportFormat[]>([
     'zip',
   ])
@@ -173,7 +177,7 @@ export function ExportFontModal({
     <Modal isOpen={isOpen} onClose={closeModal} size="lg">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>匯出字型</ModalHeader>
+        <ModalHeader>{t('fontExport.exportFont')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <Stack spacing={3}>
@@ -220,7 +224,7 @@ export function ExportFontModal({
         </ModalBody>
         <ModalFooter>
           <Button variant="ghost" onClick={closeModal} isDisabled={isExporting}>
-            關閉
+            {t('fontExport.close')}
           </Button>
           <Button
             ml={3}
@@ -229,7 +233,7 @@ export function ExportFontModal({
             loadingText={loadingText}
             onClick={() => onExport(selectedFormats)}
           >
-            匯出
+            {t('fontExport.export')}
           </Button>
         </ModalFooter>
       </ModalContent>

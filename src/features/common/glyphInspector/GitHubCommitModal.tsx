@@ -20,6 +20,7 @@ import {
 } from '@chakra-ui/react'
 import type { GitHubForkStatus, GitHubViewer } from 'src/lib/githubAuth'
 import { GitHubRepoCard } from 'src/features/common/glyphInspector/GitHubRepoCard'
+import { useTranslation } from 'react-i18next'
 
 export interface GitHubCommitModalProps {
   isOpen: boolean
@@ -74,6 +75,8 @@ export function GitHubCommitModal({
   onMergeUpstream,
   onCreateCommit,
 }: GitHubCommitModalProps) {
+  const { t } = useTranslation()
+
   const sourceRepo = githubForkStatus?.sourceRepo ?? null
   const editableRepo = githubForkStatus?.targetRepo ?? sourceRepo
   const isEditableRepoReadonly = Boolean(editableRepo && !editableRepo.canPush)
@@ -104,7 +107,7 @@ export function GitHubCommitModal({
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>GitHub / Commit</ModalHeader>
+        <ModalHeader>{t('glyphInspector.githubCommit')}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <Stack spacing={4}>
@@ -130,10 +133,11 @@ export function GitHubCommitModal({
                   </HStack>
                 ) : (
                   <Box>
-                    <Text fontWeight="medium">尚未登入 GitHub</Text>
+                    <Text fontWeight="medium">
+                      {t('glyphInspector.notSignedInToGitHub')}
+                    </Text>
                     <Text fontSize="sm" color="gray.500">
-                      登入後才能檢查 fork、推送 commit，並前往 GitHub compare
-                      頁。
+                      {t('glyphInspector.gitHubLoginRequiredDescription')}
                     </Text>
                   </Box>
                 )}
@@ -145,11 +149,11 @@ export function GitHubCommitModal({
                     onClick={onLogoutGitHub}
                     isLoading={isLoggingOutGitHub}
                   >
-                    登出
+                    {t('glyphInspector.signOut')}
                   </Button>
                 ) : (
                   <Button size="sm" onClick={onLoginGitHub}>
-                    登入 GitHub
+                    {t('glyphInspector.signInToGitHub')}
                   </Button>
                 )}
               </HStack>
@@ -159,12 +163,12 @@ export function GitHubCommitModal({
               <>
                 {isLoadingGitHubForkStatus ? (
                   <Text fontSize="sm" color="gray.500">
-                    正在讀取 fork 與 branch 狀態...
+                    {t('glyphInspector.loadingForkBranch')}
                   </Text>
                 ) : (
                   <>
                     <GitHubRepoCard
-                      title="來源 repo"
+                      title={t('glyphInspector.sourceRepo')}
                       repo={sourceRepo}
                       statusText={sourceStatusText}
                       statusActionLabel={sourceActionLabel}
@@ -182,7 +186,7 @@ export function GitHubCommitModal({
                       }
                     />
                     <GitHubRepoCard
-                      title="目前編輯 repo"
+                      title={t('glyphInspector.editingRepo')}
                       repo={editableRepo}
                       badgeLabel={isEditableRepoReadonly ? '唯讀' : '可寫入'}
                       badgeColorScheme={
@@ -204,7 +208,7 @@ export function GitHubCommitModal({
                   <>
                     {githubForkStatus?.branches.length ? (
                       <FormControl>
-                        <FormLabel>Branch</FormLabel>
+                        <FormLabel>{t('glyphInspector.branch')}</FormLabel>
                         <HStack align="end">
                           <Select
                             value={
@@ -219,7 +223,9 @@ export function GitHubCommitModal({
                               onBranchSelect(event.target.value)
                             }
                           >
-                            <option value="">選擇 branch</option>
+                            <option value="">
+                              {t('glyphInspector.selectBranch')}
+                            </option>
                             {githubForkStatus.branches.map((branch) => (
                               <option key={branch} value={branch}>
                                 {branch}
@@ -227,7 +233,7 @@ export function GitHubCommitModal({
                             ))}
                           </Select>
                           <IconButton
-                            aria-label="建立新 branch"
+                            aria-label={t('glyphInspector.createBranch')}
                             icon={<span>+</span>}
                             size="sm"
                             variant="outline"
@@ -242,7 +248,9 @@ export function GitHubCommitModal({
                         <FormControl
                           display={isCreatingNewBranch ? 'block' : 'none'}
                         >
-                          <FormLabel>Branch 名稱</FormLabel>
+                          <FormLabel>
+                            {t('glyphInspector.branchName')}
+                          </FormLabel>
                           <Input
                             value={gitHubBranchName}
                             onChange={(event) =>
@@ -253,7 +261,9 @@ export function GitHubCommitModal({
                           />
                         </FormControl>
                         <FormControl>
-                          <FormLabel>Commit message</FormLabel>
+                          <FormLabel>
+                            {t('glyphInspector.commitMessage')}
+                          </FormLabel>
                           <Input
                             value={gitHubCommitMessage}
                             onChange={(event) =>
@@ -266,10 +276,10 @@ export function GitHubCommitModal({
                     ) : (
                       <Box borderWidth={1} borderRadius="lg" p={4} bg="gray.50">
                         <Text fontWeight="medium" mb={1}>
-                          目前沒有可送出的 GitHub 變更
+                          {t('glyphInspector.noGitHubChanges')}
                         </Text>
                         <Text fontSize="sm" color="gray.600">
-                          先新增或修改 glyph，這裡就會自動帶出 commit message。
+                          {t('glyphInspector.emptyCommitMessageHint')}
                         </Text>
                       </Box>
                     )}
@@ -279,11 +289,10 @@ export function GitHubCommitModal({
             ) : (
               <Box borderWidth={1} borderRadius="lg" p={4} bg="gray.50">
                 <Text fontWeight="medium" mb={1}>
-                  先登入 GitHub
+                  {t('glyphInspector.signInFirst')}
                 </Text>
                 <Text fontSize="sm" color="gray.600">
-                  登入後這裡會顯示來源 repo、目前編輯 repo，以及是否需要先
-                  fork。
+                  {t('glyphInspector.repoForkHint')}
                 </Text>
               </Box>
             )}
@@ -291,7 +300,7 @@ export function GitHubCommitModal({
         </ModalBody>
         <ModalFooter gap={3}>
           <Button variant="ghost" onClick={onClose}>
-            取消
+            {t('glyphInspector.cancel')}
           </Button>
           <Button
             colorScheme="green"
@@ -306,7 +315,7 @@ export function GitHubCommitModal({
             }
             loadingText="推送中..."
           >
-            建立 Commit
+            {t('glyphInspector.createCommit')}
           </Button>
         </ModalFooter>
       </ModalContent>

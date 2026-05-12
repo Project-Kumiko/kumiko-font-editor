@@ -29,6 +29,7 @@ import type {
   TransformField,
   TransformOrigin,
 } from 'src/features/editor/rightPanel/transformGeometry'
+import { useTranslation } from 'react-i18next'
 
 interface OriginPickerProps {
   origin: TransformOrigin
@@ -138,10 +139,12 @@ function OriginPicker({
   isDisabled,
   onOriginChange,
 }: OriginPickerProps) {
+  const { t } = useTranslation()
+
   return (
     <Box minW="72px">
       <Text fontSize="xs" color="field.muted" mb={1} fontFamily="mono">
-        Origin
+        {t('editor.origin')}
       </Text>
       <Grid templateColumns="repeat(3, 18px)" gap="3px">
         {(
@@ -224,13 +227,15 @@ function BoundsFields({
 }
 
 export function MirrorControls({ isDisabled, onMirror }: MirrorControlsProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <Text fontSize="xs" color="field.muted" fontFamily="mono">
-        Mirror
+        {t('editor.mirror')}
       </Text>
       <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap={2}>
-        <Tooltip label="Mirror horizontally">
+        <Tooltip label={t('editor.mirrorHorizontally')}>
           <Button
             size="sm"
             variant="outline"
@@ -241,7 +246,7 @@ export function MirrorControls({ isDisabled, onMirror }: MirrorControlsProps) {
             X
           </Button>
         </Tooltip>
-        <Tooltip label="Mirror vertically">
+        <Tooltip label={t('editor.mirrorVertically')}>
           <Button
             size="sm"
             variant="outline"
@@ -258,10 +263,12 @@ export function MirrorControls({ isDisabled, onMirror }: MirrorControlsProps) {
 }
 
 export function AlignControls({ isDisabled, onAlign }: AlignControlsProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <Text fontSize="xs" color="field.muted" fontFamily="mono">
-        Align
+        {t('editor.align')}
       </Text>
       <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap={2}>
         {alignButtons.map(({ icon: Icon, label, target }) => (
@@ -286,11 +293,13 @@ export function PathOpsControls({
   selectedClosedPathIds,
   onPathOperation,
 }: PathOpsControlsProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <HStack justify="space-between">
         <Text fontSize="xs" color="field.muted" fontFamily="mono">
-          Path ops
+          {t('editor.pathOps')}
         </Text>
         <Text fontSize="10px" color="field.muted" fontFamily="mono">
           {canApply

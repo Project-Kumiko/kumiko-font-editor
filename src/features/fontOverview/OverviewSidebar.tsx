@@ -6,12 +6,12 @@ import {
   Heading,
   HStack,
   Input,
-  Tag,
   Text,
   VStack,
 } from '@chakra-ui/react'
 import type { GlyphOverviewTreeNode } from 'src/lib/glyphOverview'
 import { OverviewTreeNav } from 'src/features/fontOverview/OverviewTreeNav'
+import { useTranslation } from 'react-i18next'
 
 interface OverviewSidebarProps {
   currentSearchQuery: string
@@ -40,6 +40,8 @@ export function OverviewSidebar({
   onSectionSelect,
   onShowOnlyEmptyGlyphsChange,
 }: OverviewSidebarProps) {
+  const { t } = useTranslation()
+
   return (
     <Box
       p={4}
@@ -62,7 +64,7 @@ export function OverviewSidebar({
               fontFamily="mono"
               fontWeight="900"
             >
-              Kumiko Font Editor
+              {t('fontOverview.kumikoFontEditor')}
             </Text>
             <Heading
               color="field.ink"
@@ -70,7 +72,7 @@ export function OverviewSidebar({
               lineHeight="0.86"
               letterSpacing="0"
             >
-              所有字符
+              {t('fontOverview.allGlyphs')}
             </Heading>
             <Text fontSize="sm" color="field.muted" mt={2} noOfLines={2}>
               {projectTitle}
@@ -83,24 +85,21 @@ export function OverviewSidebar({
             loadingText="儲存中"
             onClick={onCloseProject}
           >
-            ⬅︎ 首頁
+            {t('fontOverview.backHome')}
           </Button>
         </HStack>
 
         <Input
-          placeholder="搜尋字符、glyph name 或 unicode"
+          placeholder={t('fontOverview.searchPlaceholder')}
           value={currentSearchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
         />
 
-        <HStack justify="space-between">
-          <Text fontSize="sm" color="field.muted" fontFamily="mono">
-            目前共 {overviewGlyphCount.toLocaleString()} 個字符
-          </Text>
-          <Tag size="sm" variant="subtle">
-            Overview
-          </Tag>
-        </HStack>
+        <Text fontSize="sm" color="field.muted" fontFamily="mono">
+          {t('fontOverview.currentTotalPrefix')}{' '}
+          {overviewGlyphCount.toLocaleString()}{' '}
+          {t('fontOverview.glyphCountSuffix')}
+        </Text>
 
         <Checkbox
           isChecked={showOnlyEmptyGlyphs}
@@ -110,7 +109,7 @@ export function OverviewSidebar({
           size="sm"
           color="field.ink"
         >
-          只看空白待編輯字符
+          {t('fontOverview.showOnlyEmptyGlyphs')}
         </Checkbox>
       </VStack>
 

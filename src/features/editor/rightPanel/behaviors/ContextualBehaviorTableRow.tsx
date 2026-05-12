@@ -16,6 +16,7 @@ import {
   type ContextualBehaviorDraft,
   type ContextualBehaviorRow,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface ContextualBehaviorTableRowProps {
   row?: ContextualBehaviorRow
@@ -34,6 +35,8 @@ export function ContextualBehaviorTableRow({
   onDelete,
   onDraftCommitted,
 }: ContextualBehaviorTableRowProps) {
+  const { t } = useTranslation()
+
   const [before, setBefore] = useState(row?.before ?? '')
   const [source, setSource] = useState(row?.source ?? currentGlyphId)
   const [after, setAfter] = useState(row?.after ?? '')
@@ -76,7 +79,7 @@ export function ContextualBehaviorTableRow({
     >
       <Stack spacing={1}>
         <Text fontSize="10px" fontWeight="bold" color="field.muted">
-          When
+          {t('editor.when')}
         </Text>
         <Box
           display="grid"
@@ -85,35 +88,35 @@ export function ContextualBehaviorTableRow({
           alignItems="center"
         >
           <Input
-            aria-label="Context before glyphs"
+            aria-label={t('editor.contextBeforeGlyphs')}
             value={before}
             size="xs"
-            placeholder="before"
+            placeholder={t('editor.before')}
             onBlur={commit}
             onChange={(event) => setBefore(event.target.value)}
             onKeyDown={commitOnEnter}
           />
           <Input
-            aria-label="Context source glyph"
+            aria-label={t('editor.contextSourceGlyph')}
             value={source}
             size="xs"
-            placeholder="glyph"
+            placeholder={t('editor.glyph')}
             onBlur={commit}
             onChange={(event) => setSource(event.target.value)}
             onKeyDown={commitOnEnter}
           />
           <Input
-            aria-label="Context after glyphs"
+            aria-label={t('editor.contextAfterGlyphs')}
             value={after}
             size="xs"
-            placeholder="after"
+            placeholder={t('editor.after')}
             onBlur={commit}
             onChange={(event) => setAfter(event.target.value)}
             onKeyDown={commitOnEnter}
           />
-          <Tooltip label="Delete contextual rule">
+          <Tooltip label={t('editor.deleteContextualRule')}>
             <IconButton
-              aria-label="刪除 contextual rule"
+              aria-label={t('editor.deleteContextualRule')}
               icon={<Trash width={15} height={15} aria-hidden="true" />}
               size="xs"
               variant="ghost"
@@ -137,7 +140,7 @@ export function ContextualBehaviorTableRow({
         </Box>
         <NavArrowRight width={14} height={14} aria-hidden="true" />
         <Input
-          aria-label="Context replacement glyph"
+          aria-label={t('editor.contextReplacementGlyph')}
           value={replacement}
           size="xs"
           placeholder="glyph.alt"
@@ -162,7 +165,7 @@ export function ContextualBehaviorTableRow({
             </Badge>
           ))}
           {!canCommit && (before || after || source || replacement) ? (
-            <Badge colorScheme="red">Invalid Input</Badge>
+            <Badge colorScheme="red">{t('editor.invalidInput')}</Badge>
           ) : null}
         </HStack>
       </HStack>

@@ -14,6 +14,7 @@ import {
 import { XmarkCircle } from 'iconoir-react'
 
 import { getLanguageOptions } from './languages'
+import { useTranslation } from 'react-i18next'
 
 const COMMON_LANGUAGES = getLanguageOptions()
 
@@ -40,6 +41,8 @@ export function LocalizedNamesEditor({
   localizedNames,
   onChange,
 }: LocalizedNamesEditorProps) {
+  const { t } = useTranslation()
+
   const updateValue = (nameKey: string, language: string, value: string) => {
     onChange({
       ...localizedNames,
@@ -95,7 +98,9 @@ export function LocalizedNamesEditor({
               {entries.map(([language, value]) => (
                 <>
                   <FormControl>
-                    <FormLabel fontSize="xs">Language</FormLabel>
+                    <FormLabel fontSize="xs">
+                      {t('projectControl.language')}
+                    </FormLabel>
                     <Select
                       value={language}
                       onChange={(event) =>
@@ -114,7 +119,9 @@ export function LocalizedNamesEditor({
                     </Select>
                   </FormControl>
                   <FormControl>
-                    <FormLabel fontSize="xs">Value</FormLabel>
+                    <FormLabel fontSize="xs">
+                      {t('projectControl.value')}
+                    </FormLabel>
                     <Input
                       value={value}
                       onChange={(event) =>
@@ -127,7 +134,7 @@ export function LocalizedNamesEditor({
                     variant="ghost"
                     onClick={() => removeLanguage(nameKey, language)}
                     width="20px"
-                    aria-label="Delete"
+                    aria-label={t('projectControl.delete')}
                     borderRadius="full"
                     _hover={{ bg: 'transparent', color: 'red.500' }}
                     icon={

@@ -9,12 +9,12 @@ import {
   ModalOverlay,
   Select,
 } from '@chakra-ui/react'
-import { useTranslation } from 'react-i18next'
 import {
   languageNames,
   supportedLanguages,
   type SupportedLanguage,
 } from 'src/i18n'
+import { useTranslation } from 'react-i18next'
 
 interface AppSettingsModalProps {
   isOpen: boolean

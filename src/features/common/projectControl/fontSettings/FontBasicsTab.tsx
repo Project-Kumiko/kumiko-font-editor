@@ -25,6 +25,7 @@ import {
   type FontInfoDraft,
   type OpenTypeDraft,
 } from 'src/features/common/projectControl/fontSettings/model'
+import { useTranslation } from 'react-i18next'
 
 interface FontBasicsTabProps {
   axes: FontAxis[]
@@ -61,6 +62,8 @@ export function FontBasicsTab({
   onUnitsPerEmChange,
   onLocalizedNamesChange,
 }: FontBasicsTabProps) {
+  const { t } = useTranslation()
+
   const updateAxis = (index: number, update: Partial<FontAxis>) => {
     onAxesChange(
       axes.map((axis, axisIndex) =>
@@ -73,7 +76,7 @@ export function FontBasicsTab({
     <Stack spacing={6}>
       <Box>
         <Text fontWeight="semibold" mb={3}>
-          一般
+          {t('projectControl.static')}
         </Text>
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
           {generalFontInfoFields.map((field) =>
@@ -104,7 +107,7 @@ export function FontBasicsTab({
             )
           )}
           <NumberField
-            label="Units Per Em"
+            label={t('projectControl.unitsPerEm')}
             min={1}
             value={unitsPerEm}
             onChange={onUnitsPerEmChange}
@@ -114,7 +117,7 @@ export function FontBasicsTab({
 
       <Box>
         <Text fontWeight="semibold" mb={3}>
-          本地化名稱
+          {t('projectControl.localizedNames')}
         </Text>
         <LocalizedNamesEditor
           localizedNames={localizedNames}
@@ -124,7 +127,7 @@ export function FontBasicsTab({
 
       <Box>
         <HStack justify="space-between" mb={3}>
-          <Text fontWeight="semibold">變化軸</Text>
+          <Text fontWeight="semibold">{t('projectControl.variationAxes')}</Text>
           <Button
             size="sm"
             onClick={() =>
@@ -132,7 +135,7 @@ export function FontBasicsTab({
                 ...axes,
                 {
                   name: 'weight',
-                  label: 'Weight',
+                  label: t('projectControl.weight'),
                   tag: 'wght',
                   minValue: 100,
                   defaultValue: 400,
@@ -141,7 +144,7 @@ export function FontBasicsTab({
               ])
             }
           >
-            新增
+            {t('projectControl.add')}
           </Button>
         </HStack>
         <Stack spacing={3}>
@@ -149,7 +152,9 @@ export function FontBasicsTab({
             <Box key={`${axis.name}-${index}`} borderWidth="1px" p={3}>
               <SimpleGrid columns={{ base: 1, lg: 6 }} spacing={3}>
                 <FormControl>
-                  <FormLabel fontSize="sm">Name</FormLabel>
+                  <FormLabel fontSize="sm">
+                    {t('projectControl.name')}
+                  </FormLabel>
                   <Input
                     value={axis.name}
                     onChange={(event) =>
@@ -158,7 +163,7 @@ export function FontBasicsTab({
                   />
                 </FormControl>
                 <FormControl>
-                  <FormLabel fontSize="sm">Tag</FormLabel>
+                  <FormLabel fontSize="sm">{t('projectControl.tag')}</FormLabel>
                   <Input
                     value={axis.tag}
                     maxLength={4}
@@ -168,7 +173,9 @@ export function FontBasicsTab({
                   />
                 </FormControl>
                 <FormControl>
-                  <FormLabel fontSize="sm">Label</FormLabel>
+                  <FormLabel fontSize="sm">
+                    {t('projectControl.label')}
+                  </FormLabel>
                   <Input
                     value={axis.label}
                     onChange={(event) =>
@@ -198,7 +205,7 @@ export function FontBasicsTab({
                     updateAxis(index, { hidden: event.target.checked })
                   }
                 >
-                  Hidden
+                  {t('projectControl.hidden')}
                 </Checkbox>
                 <Button
                   size="sm"
@@ -209,7 +216,7 @@ export function FontBasicsTab({
                     )
                   }
                 >
-                  移除
+                  {t('projectControl.remove')}
                 </Button>
               </HStack>
             </Box>
@@ -218,7 +225,9 @@ export function FontBasicsTab({
       </Box>
 
       <FormControl>
-        <FormLabel fontSize="sm">Cross-axis mapping</FormLabel>
+        <FormLabel fontSize="sm">
+          {t('projectControl.crossAxisMapping')}
+        </FormLabel>
         <Textarea
           minH="140px"
           fontFamily="mono"
@@ -229,7 +238,7 @@ export function FontBasicsTab({
 
       <Box>
         <Text fontWeight="semibold" mb={3}>
-          OpenType settings
+          {t('projectControl.opentypeSettings')}
         </Text>
         <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
           {openTypeFontInfoSettings.map((setting) =>
@@ -271,7 +280,9 @@ export function FontBasicsTab({
       </Box>
 
       <FormControl>
-        <FormLabel fontSize="sm">自定參數</FormLabel>
+        <FormLabel fontSize="sm">
+          {t('projectControl.customParameters')}
+        </FormLabel>
         <Textarea
           minH="160px"
           fontFamily="mono"

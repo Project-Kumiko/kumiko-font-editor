@@ -1,5 +1,6 @@
 import { Badge, Stack, Text } from '@chakra-ui/react'
 import type { FeatureDiagnostic } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureDiagnosticsListProps {
   diagnostics: FeatureDiagnostic[]
@@ -8,10 +9,12 @@ interface FeatureDiagnosticsListProps {
 export function FeatureDiagnosticsList({
   diagnostics,
 }: FeatureDiagnosticsListProps) {
+  const { t } = useTranslation()
+
   if (diagnostics.length === 0) {
     return (
       <Text fontSize="sm" color="field.muted">
-        No feature diagnostics.
+        {t('projectControl.noFeatureDiagnostics')}
       </Text>
     )
   }

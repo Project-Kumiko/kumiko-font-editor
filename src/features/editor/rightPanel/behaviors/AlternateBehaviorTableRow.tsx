@@ -21,6 +21,7 @@ import {
   type AlternateBehaviorRow,
   type AlternateBehaviorType,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface AlternateBehaviorTableRowProps {
   row?: AlternateBehaviorRow
@@ -41,6 +42,8 @@ export function AlternateBehaviorTableRow({
   onDraftCommitted,
   onOpenGlyph,
 }: AlternateBehaviorTableRowProps) {
+  const { t } = useTranslation()
+
   const [source, setSource] = useState(row?.source ?? currentGlyphId)
   const [alternate, setAlternate] = useState(
     row?.alternate ?? suggestAlternateGlyphName(currentGlyphId)
@@ -104,7 +107,7 @@ export function AlternateBehaviorTableRow({
         alignItems="center"
       >
         <Input
-          aria-label="Alternate source glyph"
+          aria-label={t('editor.alternateSourceGlyph')}
           value={source}
           size="xs"
           placeholder="f"
@@ -114,7 +117,7 @@ export function AlternateBehaviorTableRow({
         />
         <NavArrowRight width={14} height={14} aria-hidden="true" />
         <Input
-          aria-label="Alternate glyph"
+          aria-label={t('editor.alternateGlyph')}
           value={alternate}
           size="xs"
           placeholder="f.alt"
@@ -125,9 +128,9 @@ export function AlternateBehaviorTableRow({
           }}
           onKeyDown={commitOnEnter}
         />
-        <Tooltip label="Open alternate glyph">
+        <Tooltip label={t('editor.openAlternateGlyph')}>
           <IconButton
-            aria-label="開啟 alternate glyph"
+            aria-label={t('editor.openAlternateGlyph')}
             icon={<NavArrowRight width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -135,9 +138,9 @@ export function AlternateBehaviorTableRow({
             onClick={() => onOpenGlyph(alternate)}
           />
         </Tooltip>
-        <Tooltip label="Delete behavior">
+        <Tooltip label={t('editor.deleteBehavior')}>
           <IconButton
-            aria-label="刪除 alternate"
+            aria-label={t('editor.deleteAlternate')}
             icon={<Trash width={15} height={15} aria-hidden="true" />}
             size="xs"
             variant="ghost"
@@ -155,7 +158,7 @@ export function AlternateBehaviorTableRow({
         gap={1}
       >
         <Select
-          aria-label="Alternate behavior type"
+          aria-label={t('editor.alternateBehaviorType')}
           value={type}
           size="xs"
           onBlur={commit}
@@ -175,11 +178,11 @@ export function AlternateBehaviorTableRow({
         </Select>
         {type === 'customFeature' ? (
           <Input
-            aria-label="Custom alternate feature tag"
+            aria-label={t('editor.customAlternateFeatureTag')}
             value={customFeatureTag}
             size="xs"
             maxLength={4}
-            placeholder="xxxx"
+            placeholder={t('editor.xxxx')}
             onBlur={commit}
             onChange={(event) => setCustomFeatureTag(event.target.value)}
             onKeyDown={commitOnEnter}
@@ -207,7 +210,7 @@ export function AlternateBehaviorTableRow({
             </Badge>
           ))}
           {!canCommit && (source || alternate) ? (
-            <Badge colorScheme="red">Invalid Input</Badge>
+            <Badge colorScheme="red">{t('editor.invalidInput')}</Badge>
           ) : null}
         </HStack>
       </HStack>

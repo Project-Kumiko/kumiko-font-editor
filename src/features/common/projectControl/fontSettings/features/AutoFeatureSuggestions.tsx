@@ -1,5 +1,6 @@
 import { Badge, Button, HStack, Stack, Text } from '@chakra-ui/react'
 import type { AutoFeatureSuggestion } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface AutoFeatureSuggestionsProps {
   suggestions: AutoFeatureSuggestion[]
@@ -14,17 +15,21 @@ export function AutoFeatureSuggestions({
   onIgnore,
   onScan,
 }: AutoFeatureSuggestionsProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={3}>
       <HStack justify="space-between">
-        <Text fontWeight="semibold">Auto Feature Suggestions</Text>
+        <Text fontWeight="semibold">
+          {t('projectControl.autoFeatureSuggestions')}
+        </Text>
         <Button size="sm" onClick={onScan}>
-          Scan
+          {t('projectControl.scan')}
         </Button>
       </HStack>
       {suggestions.length === 0 ? (
         <Text fontSize="sm" color="field.muted">
-          No pending suggestions.
+          {t('projectControl.noPendingSuggestions')}
         </Text>
       ) : (
         suggestions.map((suggestion) => (
@@ -42,15 +47,15 @@ export function AutoFeatureSuggestions({
                 </Text>
                 <Badge>{suggestion.confidence}</Badge>
                 <Badge colorScheme="blue">
-                  {suggestion.ruleIds.length} rules
+                  {suggestion.ruleIds.length} {t('projectControl.rules')}
                 </Badge>
               </HStack>
               <HStack>
                 <Button size="xs" onClick={() => onIgnore(suggestion)}>
-                  Ignore
+                  {t('projectControl.ignore')}
                 </Button>
                 <Button size="xs" onClick={() => onAccept(suggestion)}>
-                  Accept
+                  {t('projectControl.accept')}
                 </Button>
               </HStack>
             </HStack>

@@ -3,6 +3,7 @@ import type {
   FeatureDiagnostic,
   OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureSummaryProps {
   state: OpenTypeFeaturesState
@@ -10,6 +11,8 @@ interface FeatureSummaryProps {
 }
 
 export function FeatureSummary({ state, diagnostics }: FeatureSummaryProps) {
+  const { t } = useTranslation()
+
   const errorCount = diagnostics.filter(
     (diagnostic) => diagnostic.severity === 'error'
   ).length
@@ -19,22 +22,28 @@ export function FeatureSummary({ state, diagnostics }: FeatureSummaryProps) {
 
   return (
     <SimpleGrid columns={{ base: 1, md: 4 }} spacing={3}>
-      <SummaryTile label="Features" value={state.features.length} />
-      <SummaryTile label="Lookups" value={state.lookups.length} />
       <SummaryTile
-        label="Unsupported"
+        label={t('projectControl.features')}
+        value={state.features.length}
+      />
+      <SummaryTile
+        label={t('projectControl.lookups')}
+        value={state.lookups.length}
+      />
+      <SummaryTile
+        label={t('projectControl.unsupported')}
         value={state.unsupportedLookups.length}
       />
       <Stack borderWidth="1px" borderRadius="sm" p={3} spacing={2}>
         <Text fontSize="xs" color="field.muted">
-          Diagnostics
+          {t('projectControl.diagnostics')}
         </Text>
         <HStack>
           <Badge colorScheme={errorCount ? 'red' : 'green'}>
-            {errorCount} errors
+            {errorCount} {t('projectControl.errors')}
           </Badge>
           <Badge colorScheme={warningCount ? 'yellow' : 'gray'}>
-            {warningCount} warnings
+            {warningCount} {t('projectControl.warnings')}
           </Badge>
         </HStack>
       </Stack>

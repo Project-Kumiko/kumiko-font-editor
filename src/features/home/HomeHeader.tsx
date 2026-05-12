@@ -1,12 +1,15 @@
 import { Box, Heading, HStack, Image, Text } from '@chakra-ui/react'
 import logoUrl from 'src/assets/logo.svg'
+import { useTranslation } from 'react-i18next'
 
 export function HomeHeader() {
+  const { t } = useTranslation()
+
   return (
     <HStack mt={4} mb={8} align="center" spacing={{ base: 4, md: 6 }}>
       <Image
         src={logoUrl}
-        alt="Kumiko Font Editor"
+        alt={t('home.kumikoFontEditor')}
         boxSize={{ base: '72px', md: '112px' }}
         flexShrink={0}
         mt="15px"
@@ -19,7 +22,7 @@ export function HomeHeader() {
           letterSpacing="0.16em"
           color="field.muted"
         >
-          FULL WEB BASED / FONT EDITOR
+          {t('home.fullWebBasedFontEditor')}
         </Text>
         <Heading
           mt={1}
@@ -30,9 +33,9 @@ export function HomeHeader() {
           fontWeight="700"
           fontFamily="'SF Pro Display', 'SF Pro Text', -apple-system, BlinkMacSystemFont,'Noto Sans TC', sans-serif"
         >
-          Kumiko
+          {t('home.kumiko')}
           <br />
-          Font Editor
+          {t('home.fontEditor')}
         </Heading>
       </Box>
     </HStack>

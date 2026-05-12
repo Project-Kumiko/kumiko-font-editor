@@ -7,6 +7,7 @@ import type {
   OpenTypeFeaturesState,
   Rule,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureDetailPanelProps {
   diagnostics: FeatureDiagnostic[]
@@ -21,6 +22,8 @@ export function FeatureDetailPanel({
   state,
   onRuleChange,
 }: FeatureDetailPanelProps) {
+  const { t } = useTranslation()
+
   const lookups = getFeatureLookups(feature, state.lookups)
 
   return (
@@ -33,12 +36,11 @@ export function FeatureDetailPanel({
             </Text>
             <Badge>{feature.origin}</Badge>
             {!feature.isActive ? (
-              <Badge colorScheme="gray">inactive</Badge>
+              <Badge colorScheme="gray">{t('projectControl.inactive')}</Badge>
             ) : null}
           </HStack>
           <Text fontSize="sm" color="field.muted">
-            Feature code is organized by script/language entries and the lookups
-            they reference.
+            {t('projectControl.featureCodeIsOrganizedByScript')}
           </Text>
         </Stack>
       </HStack>
@@ -48,7 +50,7 @@ export function FeatureDetailPanel({
       <LookupInspector
         state={state}
         lookups={lookups}
-        title="Feature code lookups"
+        title={t('projectControl.featureCodeLookups')}
         emptyMessage="This feature does not reference any lookups."
         diagnostics={diagnostics}
         onRuleChange={onRuleChange}
@@ -64,12 +66,14 @@ function FeatureEntries({
   feature: FeatureRecord
   lookups: LookupRecord[]
 }) {
+  const { t } = useTranslation()
+
   const lookupById = new Map(lookups.map((lookup) => [lookup.id, lookup]))
 
   return (
     <Stack spacing={2}>
       <Text fontSize="xs" fontWeight="900" color="field.muted">
-        Script / Language Entries
+        {t('projectControl.scriptLanguageEntries')}
       </Text>
       {feature.entries.map((entry) => (
         <Stack
@@ -86,7 +90,7 @@ function FeatureEntries({
           <HStack wrap="wrap">
             {entry.lookupIds.length === 0 ? (
               <Text fontSize="sm" color="field.muted">
-                No referenced lookups.
+                {t('projectControl.noReferencedLookups')}
               </Text>
             ) : (
               entry.lookupIds.map((lookupId) => {

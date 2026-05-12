@@ -1,6 +1,7 @@
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react'
 import { GlyphReadonlyReference } from 'src/features/editor/leftPanel/GlyphReadonlyReference'
 import type { GlyphData } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface GlyphPreviewCardProps {
   glyph: GlyphData | null
@@ -13,6 +14,8 @@ export function GlyphPreviewCard({
   glyphMap,
   onAddToEditor,
 }: GlyphPreviewCardProps) {
+  const { t } = useTranslation()
+
   if (!glyph) {
     return null
   }
@@ -23,7 +26,7 @@ export function GlyphPreviewCard({
         <HStack justify="space-between" align="center">
           <Box minW={0}>
             <Text fontSize="sm" color="field.ink" fontWeight="900">
-              部件預覽
+              {t('editor.componentPreview')}
             </Text>
             <Text
               fontSize="xs"
@@ -39,7 +42,7 @@ export function GlyphPreviewCard({
             variant="outline"
             onClick={() => onAddToEditor(glyph.id)}
           >
-            加入編輯器
+            {t('editor.addToEditor')}
           </Button>
         </HStack>
         <GlyphReadonlyReference glyph={glyph} glyphMap={glyphMap} />

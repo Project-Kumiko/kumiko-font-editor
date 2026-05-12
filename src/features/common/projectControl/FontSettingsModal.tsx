@@ -44,6 +44,7 @@ import type {
   FontData,
   FontProjectSettings,
 } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface FontSettingsModalProps {
   fontData: FontData | null
@@ -62,6 +63,8 @@ export function FontSettingsModal({
   onClose,
   onSave,
 }: FontSettingsModalProps) {
+  const { t } = useTranslation()
+
   const fontInfo = fontData?.fontInfo
   const initialAxes = fontData?.axes ?? defaultFontAxes
   const initialSettings = getInitialSettings(fontData)
@@ -183,7 +186,7 @@ export function FontSettingsModal({
             pr={14}
           >
             <Text as="h2" fontSize="xl" fontWeight="900">
-              Font Settings
+              {t('projectControl.fontSettings')}
               {projectTitle ? ` · ${projectTitle}` : ''}
             </Text>
             <SlidingTabList
@@ -258,10 +261,10 @@ export function FontSettingsModal({
 
           <ModalFooter gap={3}>
             <Button variant="ghost" onClick={onClose}>
-              關閉
+              {t('projectControl.close')}
             </Button>
             <Button onClick={handleSave} isDisabled={!fontData}>
-              套用
+              {t('projectControl.apply')}
             </Button>
           </ModalFooter>
         </Tabs>

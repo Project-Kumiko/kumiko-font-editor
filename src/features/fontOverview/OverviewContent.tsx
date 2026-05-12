@@ -20,6 +20,7 @@ import {
   OverviewGridList,
 } from 'src/features/fontOverview/OverviewGridComponents'
 import type { GlyphData } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 interface OverviewSection {
   id: string
@@ -56,6 +57,8 @@ export function OverviewContent({
   onRangeChange,
   onSelectGlyph,
 }: OverviewContentProps) {
+  const { t } = useTranslation()
+
   const gridComponents = useMemo(
     () => ({
       List: OverviewGridList,
@@ -150,7 +153,7 @@ export function OverviewContent({
               fontWeight="900"
               letterSpacing="0.16em"
             >
-              GLYPH INDEX / TOTAL FIELD
+              {t('fontOverview.glyphIndexTotalField')}
             </Text>
             <Heading
               color="field.ink"
@@ -158,10 +161,10 @@ export function OverviewContent({
               lineHeight="0.86"
               letterSpacing="0"
             >
-              字符總覽
+              {t('fontOverview.glyphOverview')}
             </Heading>
             <Text fontSize="sm" color="field.muted" mt={2}>
-              單擊查看資訊，雙擊進入字符編輯器
+              {t('fontOverview.glyphCardHint')}
             </Text>
           </Box>
           <Button
@@ -170,13 +173,15 @@ export function OverviewContent({
             flexShrink={0}
             onClick={onOpenAddGlyphModal}
           >
-            ＋ 新增字符
+            {t('fontOverview.addGlyphButton')}
           </Button>
         </HStack>
 
         {visibleSections.length === 0 ? (
           <Box p={10} bg="field.panel" borderRadius="sm">
-            <Text color="field.muted">目前沒有符合條件的字符。</Text>
+            <Text color="field.muted">
+              {t('fontOverview.noMatchingGlyphs')}
+            </Text>
           </Box>
         ) : (
           <Box

@@ -1,6 +1,7 @@
 import { Box, Grid, GridItem, Heading, Input, Text } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
 import type { GlyphMetrics } from 'src/store'
+import { useTranslation } from 'react-i18next'
 
 type MetricField = 'lsb' | 'rsb' | 'width'
 
@@ -21,6 +22,8 @@ export function MetricsCard({
   displayedMetrics,
   onMetricsChange,
 }: MetricsCardProps) {
+  const { t } = useTranslation()
+
   const [focusedField, setFocusedField] = useState<MetricField | null>(null)
   const [draftMetrics, setDraftMetrics] = useState(() =>
     formatMetrics(displayedMetrics)
@@ -61,7 +64,7 @@ export function MetricsCard({
   return (
     <Box p={4} bg="field.panel" borderRadius="sm">
       <Heading size="sm" mb={3} textTransform="uppercase" color="field.ink">
-        Metrics
+        {t('editor.metrics')}
       </Heading>
       <Grid templateColumns="repeat(3, minmax(0, 1fr))" gap={3}>
         {metricFields.map((field) => (

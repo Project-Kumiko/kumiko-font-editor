@@ -13,6 +13,7 @@ import type {
   CombinationBehaviorRow,
 } from 'src/lib/openTypeFeatures'
 import { CombinationBehaviorTableRow } from 'src/features/editor/rightPanel/behaviors/CombinationBehaviorTableRow'
+import { useTranslation } from 'react-i18next'
 
 interface CombinationBehaviorListProps {
   rows: CombinationBehaviorRow[]
@@ -33,28 +34,30 @@ export function CombinationBehaviorList({
   onDraftCommitted,
   onOpenGlyph,
 }: CombinationBehaviorListProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={2}>
       <HStack justify="space-between" align="center">
         <HStack spacing={2}>
           <Text fontSize="sm" fontWeight="semibold">
-            Combinations
+            {t('editor.combinations')}
           </Text>
           <Badge colorScheme="gray">{rows.length}</Badge>
         </HStack>
         <HStack spacing={1}>
-          <Tooltip label="Add combination">
+          <Tooltip label={t('editor.addCombination')}>
             <IconButton
-              aria-label="新增 combination"
+              aria-label={t('editor.addCombination')}
               icon={<PlusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
               onClick={onAddDraftRow}
             />
           </Tooltip>
-          <Tooltip label="Remove the last draft row">
+          <Tooltip label={t('editor.removeTheLastDraftRow')}>
             <IconButton
-              aria-label="移除最後一列草稿"
+              aria-label={t('editor.removeLastDraftRow')}
               icon={<MinusCircle width={17} height={17} aria-hidden="true" />}
               size="xs"
               variant="ghost"
@@ -69,7 +72,7 @@ export function CombinationBehaviorList({
         <CombinationHeader />
         {rows.length === 0 && draftRowIds.length === 0 ? (
           <Text fontSize="xs" color="field.muted" px={3} py={3}>
-            No combinations for this glyph yet.
+            {t('editor.noCombinationsForThisGlyphYet')}
           </Text>
         ) : null}
         {rows.map((row) => (
@@ -108,6 +111,8 @@ function getCombinationRowKey(row: CombinationBehaviorRow) {
 }
 
 function CombinationHeader() {
+  const { t } = useTranslation()
+
   return (
     <Box
       display="grid"
@@ -120,13 +125,13 @@ function CombinationHeader() {
       borderColor="field.line"
     >
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Input
+        {t('editor.input')}
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
         →
       </Text>
       <Text fontSize="10px" fontWeight="bold" color="field.muted">
-        Output
+        {t('editor.output')}
       </Text>
     </Box>
   )

@@ -7,6 +7,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react'
+import { useTranslation } from 'react-i18next'
 
 interface GitHubImportCardProps {
   isLoading: boolean
@@ -29,6 +30,8 @@ export function GitHubImportCard({
   onRepoInputChange,
   onToggleRefInput,
 }: GitHubImportCardProps) {
+  const { t } = useTranslation()
+
   return (
     <Box
       border="1px solid"
@@ -38,10 +41,10 @@ export function GitHubImportCard({
       bg="field.panel"
     >
       <Heading size="sm" mb={2} textTransform="uppercase">
-        從 GitHub 載入
+        {t('home.loadFromGitHub')}
       </Heading>
       <Text fontSize="sm" color="field.muted" mb={4}>
-        輸入 `owner/repo` 或 GitHub URL。
+        {t('home.repoInputHint')}
       </Text>
       <VStack spacing={3} align="stretch">
         <Input
@@ -74,7 +77,7 @@ export function GitHubImportCard({
             <Input
               value={refInput}
               onChange={(event) => onRefInputChange(event.target.value)}
-              placeholder="branch、tag 或 commit（可留空）"
+              placeholder={t('home.refPlaceholder')}
             />
           </Box>
         </Collapse>
@@ -83,7 +86,7 @@ export function GitHubImportCard({
           isLoading={isLoading}
           loadingText="下載與解析中..."
         >
-          載入 GitHub 專案
+          {t('home.loadGitHubProject')}
         </Button>
       </VStack>
     </Box>

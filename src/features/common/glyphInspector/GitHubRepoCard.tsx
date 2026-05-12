@@ -1,5 +1,6 @@
 import { Badge, Box, Button, HStack, Link, Stack, Text } from '@chakra-ui/react'
 import type { GitHubRepoSummary } from 'src/lib/githubAuth'
+import { useTranslation } from 'react-i18next'
 
 interface GitHubRepoCardProps {
   title: string
@@ -34,6 +35,8 @@ export function GitHubRepoCard({
   isStatusActionLoading = false,
   onStatusAction,
 }: GitHubRepoCardProps) {
+  const { t } = useTranslation()
+
   return (
     <Box borderWidth={1} borderRadius="lg" p={4}>
       <Stack spacing={3}>
@@ -51,12 +54,13 @@ export function GitHubRepoCard({
                   {repo.fullName}
                 </Link>
                 <Text fontSize="sm" color="gray.500">
-                  預設分支：{repo.defaultBranch}
+                  {t('glyphInspector.defaultBranchLabel')}
+                  {repo.defaultBranch}
                 </Text>
               </Stack>
             ) : (
               <Text fontSize="sm" color="gray.500">
-                尚未取得 repo 資訊
+                {t('glyphInspector.repoUnavailable')}
               </Text>
             )}
           </Box>

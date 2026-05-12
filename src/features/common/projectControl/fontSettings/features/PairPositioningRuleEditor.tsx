@@ -2,6 +2,7 @@ import { Stack } from '@chakra-ui/react'
 import type { PairPositioningRule } from 'src/lib/openTypeFeatures'
 import { GlyphSelectorFields } from 'src/features/common/projectControl/fontSettings/features/GlyphSelectorFields'
 import { ValueRecordFields } from 'src/features/common/projectControl/fontSettings/features/ValueRecordFields'
+import { useTranslation } from 'react-i18next'
 
 interface PairPositioningRuleEditorProps {
   rule: PairPositioningRule
@@ -12,25 +13,27 @@ export function PairPositioningRuleEditor({
   rule,
   onChange,
 }: PairPositioningRuleEditorProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={3}>
       <GlyphSelectorFields
-        label="Left"
+        label={t('projectControl.left')}
         value={rule.left}
         onChange={(left) => onChange({ ...rule, left })}
       />
       <GlyphSelectorFields
-        label="Right"
+        label={t('projectControl.right')}
         value={rule.right}
         onChange={(right) => onChange({ ...rule, right })}
       />
       <ValueRecordFields
-        label="First value"
+        label={t('projectControl.firstValue')}
         value={rule.firstValue}
         onChange={(firstValue) => onChange({ ...rule, firstValue })}
       />
       <ValueRecordFields
-        label="Second value"
+        label={t('projectControl.secondValue')}
         value={rule.secondValue}
         onChange={(secondValue) => onChange({ ...rule, secondValue })}
       />

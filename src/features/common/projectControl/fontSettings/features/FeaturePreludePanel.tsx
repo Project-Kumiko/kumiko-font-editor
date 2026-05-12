@@ -8,6 +8,7 @@ import {
   Textarea,
 } from '@chakra-ui/react'
 import type { OpenTypeFeaturesState } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeaturePreludePanelProps {
   featuresText: string
@@ -20,19 +21,20 @@ export function FeaturePreludePanel({
   state,
   onFeaturesTextChange,
 }: FeaturePreludePanelProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={4}>
       <Stack spacing={2}>
-        <Text fontWeight="semibold">Prelude</Text>
+        <Text fontWeight="semibold">{t('projectControl.prelude')}</Text>
         <Text fontSize="sm" color="field.muted">
-          Language systems and imported feature source live here. Generated FEA
-          remains disposable output.
+          {t('projectControl.languageSystemsAndImportedFeatureSource')}
         </Text>
       </Stack>
 
       <Stack spacing={2}>
         <Text fontSize="xs" color="field.muted">
-          Language systems
+          {t('projectControl.languageSystems')}
         </Text>
         <HStack wrap="wrap">
           {state.languagesystems.map((languageSystem) => (
@@ -44,13 +46,15 @@ export function FeaturePreludePanel({
       </Stack>
 
       <FormControl>
-        <FormLabel fontSize="sm">Imported or legacy feature text</FormLabel>
+        <FormLabel fontSize="sm">
+          {t('projectControl.importedOrLegacyFeatureText')}
+        </FormLabel>
         <Textarea
           minH="220px"
           fontFamily="mono"
           value={featuresText}
           onChange={(event) => onFeaturesTextChange(event.target.value)}
-          placeholder={`languagesystem DFLT dflt;\n\nfeature liga {\n  sub f i by fi;\n} liga;`}
+          placeholder={t('projectControl.languagesystemDfltDfltFeatureLigaSub')}
         />
       </FormControl>
     </Stack>

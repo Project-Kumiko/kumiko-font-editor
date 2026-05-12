@@ -12,6 +12,7 @@ import type {
   GeneratedFeaSourceMap,
   OpenTypeFeaturesState,
 } from 'src/lib/openTypeFeatures'
+import { useTranslation } from 'react-i18next'
 
 interface FeatureWorkflowPanelProps {
   diagnostics: FeatureDiagnostic[]
@@ -37,13 +38,14 @@ export function FeatureWorkflowPanel({
   onIgnoreSuggestion,
   onScanSuggestions,
 }: FeatureWorkflowPanelProps) {
+  const { t } = useTranslation()
+
   return (
     <Stack spacing={5}>
       <Stack spacing={2}>
-        <Text fontWeight="semibold">Workflow</Text>
+        <Text fontWeight="semibold">{t('projectControl.workflow')}</Text>
         <Text fontSize="sm" color="field.muted">
-          Scan feature suggestions, choose export behavior, and inspect
-          generated build output from the canonical Kumiko feature model.
+          {t('projectControl.scanFeatureSuggestionsChooseExportBehavior')}
         </Text>
       </Stack>
 

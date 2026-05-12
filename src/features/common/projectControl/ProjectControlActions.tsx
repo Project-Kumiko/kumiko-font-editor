@@ -13,8 +13,8 @@ import {
   Github,
   Settings,
 } from 'iconoir-react'
-import { useTranslation } from 'react-i18next'
 import { AppSettingsModal } from 'src/features/common/projectControl/AppSettingsModal'
+import { useTranslation } from 'react-i18next'
 
 interface ProjectControlActionsProps {
   canSaveDraft: boolean
