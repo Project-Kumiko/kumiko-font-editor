@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageName": "English"
+  },
+  "projectControl": {
+    "gitHubCommit": "GitHub / Commit",
+    "openGitHubCommit": "Open GitHub commit modal",
+    "fontSettings": "Font Settings",
+    "openFontSettings": "Open Font Settings",
+    "export": "Export",
+    "save": "Save",
+    "openSettings": "Open Settings"
+  }
+}

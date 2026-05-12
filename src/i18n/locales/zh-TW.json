@@ -1,0 +1,16 @@
+{
+  "settings": {
+    "title": "設定",
+    "language": "語言",
+    "languageName": "繁體中文"
+  },
+  "projectControl": {
+    "gitHubCommit": "GitHub / Commit",
+    "openGitHubCommit": "開啟 GitHub commit modal",
+    "fontSettings": "Font Settings",
+    "openFontSettings": "開啟 Font Settings",
+    "export": "匯出",
+    "save": "儲存",
+    "openSettings": "開啟設定"
+  }
+}
