@@ -116,6 +116,17 @@ export interface GlyphData {
   components?: ComponentData[]
   guidelines?: GuidelineData[]
   xAdvance: number
+  metrics?: {
+    lsb: number
+    rsb: number
+    width: number
+  }
+  inkBounds?: {
+    xMin: number
+    xMax: number
+  }
+  kerningWithPrevious?: number
+  previousAdvanceEndX?: number
   flattenedPath2d?: Path2D
   closedContoursPath2d?: Path2D
   componentsPath?: {

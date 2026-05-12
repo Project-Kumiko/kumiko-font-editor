@@ -7,6 +7,10 @@ import {
 } from 'src/store'
 import type { ComponentData, GuidelineData, PositionedGlyph } from 'src/canvas'
 import type { ToolId } from 'src/features/editor/canvas/workspace/types'
+import {
+  getGlyphInkBounds,
+  getTextKerningValue,
+} from 'src/features/editor/canvas/workspace/textKerning'
 
 export interface LayerGeometryCacheEntry {
   layerRef: object
@@ -117,6 +121,8 @@ export const buildPositionedGlyphs = ({
   }
 
   let cursorX = 0
+  let previousGlyphId: string | null = null
+  let previousAdvanceEndX = 0
   return editorGlyphIds
     .map((glyphId) => {
       const glyph = fontData.glyphs[glyphId]
@@ -124,6 +130,12 @@ export const buildPositionedGlyphs = ({
       if (!glyph || !activeLayer) {
         return null
       }
+      const kerningWithPrevious = getTextKerningValue(
+        fontData,
+        previousGlyphId,
+        glyph.id
+      )
+      cursorX += kerningWithPrevious
 
       const cacheKey = `${glyph.id}:${activeLayer.id}`
       const cachedGeometry = layerGeometryCache.get(cacheKey)
@@ -188,6 +200,10 @@ export const buildPositionedGlyphs = ({
         glyph: {
           path: varPath,
           xAdvance: activeLayer.metrics.width,
+          metrics: activeLayer.metrics,
+          inkBounds: getGlyphInkBounds(activeLayer),
+          kerningWithPrevious,
+          previousAdvanceEndX,
           components,
           guidelines,
           flattenedPath2d: undefined,
@@ -212,7 +228,9 @@ export const buildPositionedGlyphs = ({
         isSelected: glyph.id === editorGlyphIds[editorActiveGlyphIndex],
         isEmpty: activeLayer.paths.length === 0,
       }
-      cursorX += activeLayer.metrics.width + 80
+      previousGlyphId = glyph.id
+      previousAdvanceEndX = cursorX + activeLayer.metrics.width
+      cursorX = previousAdvanceEndX
       return positionedGlyph
     })
     .filter((glyph): glyph is PositionedGlyph => Boolean(glyph))

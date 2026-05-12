@@ -219,7 +219,7 @@ export function CanvasWorkspace() {
       return cursorGlyph
         ? cursorGlyph.x
         : previousGlyph
-          ? previousGlyph.x + previousGlyph.glyph.xAdvance + 80
+          ? previousGlyph.x + previousGlyph.glyph.xAdvance
           : 0
     },
     [positionedGlyphs]
