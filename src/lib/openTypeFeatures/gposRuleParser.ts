@@ -3,6 +3,7 @@ import {
   glyphNameForId,
   makeImportedGlyphClass,
   readAnchorPoint,
+  readCoverageGlyphIds,
   readClassDefGlyphIds,
   readCoverageGlyphNames,
   resolveGlyphNames,
@@ -45,6 +46,10 @@ const VALUE_FORMAT_FIELDS: Array<keyof ValueRecord> = [
   'xAdvance',
   'yAdvance',
 ]
+
+const VALUE_FORMAT_DEVICE_FIELD_START = VALUE_FORMAT_FIELDS.length
+const VALUE_FORMAT_DEVICE_FIELD_END = 8
+const SUPPORTED_VALUE_FORMAT_MASK = 0x00ff
 
 const makeParserDiagnostic = (
   severity: FeatureDiagnostic['severity'],
@@ -107,7 +112,17 @@ const readValueRecord = (
     cursor += 2
   }
 
-  if (valueFormat & 0xfff0) {
+  for (
+    let bitIndex = VALUE_FORMAT_DEVICE_FIELD_START;
+    bitIndex < VALUE_FORMAT_DEVICE_FIELD_END;
+    bitIndex += 1
+  ) {
+    if (!(valueFormat & (1 << bitIndex))) continue
+    if (reader.uint16(cursor) === null) return null
+    cursor += 2
+  }
+
+  if (valueFormat & ~SUPPORTED_VALUE_FORMAT_MASK) {
     return null
   }
 
@@ -259,7 +274,8 @@ const parsePairPositioningFormat1 = (
       if (!secondValue) return null
 
       if (isEmptyValue(firstValue.value) && isEmptyValue(secondValue.value)) {
-        return null
+        pairValueOffset += 2 + firstValue.byteLength + secondValue.byteLength
+        continue
       }
 
       rules.push({
@@ -289,9 +305,30 @@ const parsePairPositioningFormat1 = (
 const getClassGlyphNames = (
   classGlyphIds: Map<number, number[]>,
   glyphOrder: string[],
-  classId: number
+  classId: number,
+  fallbackGlyphIds: number[] = []
 ) => {
-  const glyphIds = classGlyphIds.get(classId)
+  const explicitGlyphIds = classGlyphIds.get(classId) ?? []
+  const assignedNonZeroGlyphIds =
+    classId === 0
+      ? new Set(
+          Array.from(classGlyphIds.entries()).flatMap(
+            ([currentClassId, currentGlyphIds]) =>
+              currentClassId === 0 ? [] : currentGlyphIds
+          )
+        )
+      : null
+  const glyphIds =
+    classId === 0
+      ? [
+          ...new Set([
+            ...explicitGlyphIds,
+            ...fallbackGlyphIds.filter(
+              (glyphId) => !assignedNonZeroGlyphIds?.has(glyphId)
+            ),
+          ]),
+        ]
+      : explicitGlyphIds
   return glyphIds ? resolveGlyphNames(glyphOrder, glyphIds) : null
 }
 
@@ -322,6 +359,7 @@ const parsePairPositioningFormat2 = (
 ): ParsedSubtableResult | null => {
   const valueFormat1 = subtableReader.uint16(4)
   const valueFormat2 = subtableReader.uint16(6)
+  const coverageOffset = subtableReader.uint16(2)
   const classDef1Offset = subtableReader.uint16(8)
   const classDef2Offset = subtableReader.uint16(10)
   const class1Count = subtableReader.uint16(12)
@@ -329,6 +367,7 @@ const parsePairPositioningFormat2 = (
   if (
     valueFormat1 === null ||
     valueFormat2 === null ||
+    coverageOffset === null ||
     classDef1Offset === null ||
     classDef2Offset === null ||
     class1Count === null ||
@@ -339,15 +378,24 @@ const parsePairPositioningFormat2 = (
 
   const classDef1 = readClassDefGlyphIds(subtableReader, classDef1Offset)
   const classDef2 = readClassDefGlyphIds(subtableReader, classDef2Offset)
-  if (!classDef1 || !classDef2) return null
+  const coverageGlyphIds = readCoverageGlyphIds(subtableReader, coverageOffset)
+  if (!classDef1 || !classDef2 || !coverageGlyphIds) return null
+
+  const allGlyphIds = glyphOrder.map((_, glyphId) => glyphId)
 
   const classes = new Map<string, GlyphClass>()
   const getClassSelector = (
     side: 'left' | 'right',
     classDef: Map<number, number[]>,
-    classId: number
+    classId: number,
+    fallbackGlyphIds: number[]
   ) => {
-    const glyphs = getClassGlyphNames(classDef, glyphOrder, classId)
+    const glyphs = getClassGlyphNames(
+      classDef,
+      glyphOrder,
+      classId,
+      fallbackGlyphIds
+    )
     if (!glyphs?.length) return null
 
     const glyphClass = makePairClass(
@@ -380,8 +428,18 @@ const parsePairPositioningFormat2 = (
       if (!secondValue) return null
 
       if (!isEmptyValue(firstValue.value) || !isEmptyValue(secondValue.value)) {
-        const left = getClassSelector('left', classDef1, class1Id)
-        const right = getClassSelector('right', classDef2, class2Id)
+        const left = getClassSelector(
+          'left',
+          classDef1,
+          class1Id,
+          coverageGlyphIds
+        )
+        const right = getClassSelector(
+          'right',
+          classDef2,
+          class2Id,
+          allGlyphIds
+        )
         if (!left || !right) return null
 
         rules.push({
@@ -1115,12 +1173,7 @@ export const parseGposLookupRules = (
           lookupId
         )
       )
-      return {
-        rules,
-        diagnostics,
-        unsupportedReason:
-          'One or more GPOS subtables could not be reconstructed as editable rules.',
-      }
+      continue
     }
 
     rules.push(...parsedSubtable.rules)
@@ -1135,6 +1188,10 @@ export const parseGposLookupRules = (
   return {
     rules,
     diagnostics,
+    unsupportedReason:
+      rules.length === 0 && diagnostics.length > 0
+        ? 'No GPOS subtables could be reconstructed as editable rules.'
+        : undefined,
     glyphClasses: Array.from(glyphClasses.values()),
     markClasses: Array.from(markClasses.values()),
   }

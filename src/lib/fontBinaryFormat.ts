@@ -345,6 +345,10 @@ export const importBinaryFontFile = async (file: File) => {
   const fontData = {
     glyphs,
     glyphOrder,
+    binarySource: {
+      format: sourceFormat,
+      sfntBuffer: buffer.slice(0),
+    },
     fontInfo: buildFontInfoFromOpenTypeFont(font),
     unitsPerEm: font.unitsPerEm,
     lineMetricsHorizontalLayout: buildLineMetricsFromOpenTypeFont(font),
@@ -434,7 +438,10 @@ export const exportFontAsBinary = (
   const getOutputBuffer = async () => {
     const compiledBuffer = await compileManagedFontFeatures(
       sfntBuffer,
-      fontData.openTypeFeatures
+      fontData.openTypeFeatures,
+      {
+        preserveSourceFontBuffer: fontData.binarySource?.sfntBuffer.slice(0),
+      }
     )
 
     if (format === 'woff') {

@@ -3,6 +3,7 @@ import { AutoFeatureSuggestions } from 'src/features/common/projectControl/fontS
 import { ExportPolicyControl } from 'src/features/common/projectControl/fontSettings/features/ExportPolicyControl'
 import { FeatureDiagnosticsList } from 'src/features/common/projectControl/fontSettings/features/FeatureDiagnosticsList'
 import { GeneratedFeaPreview } from 'src/features/common/projectControl/fontSettings/features/GeneratedFeaPreview'
+import { ImportExportOverview } from 'src/features/common/projectControl/fontSettings/features/ImportExportOverview'
 import { UnsupportedLookupList } from 'src/features/common/projectControl/fontSettings/features/UnsupportedLookupList'
 import type {
   AutoFeatureSuggestion,
@@ -46,6 +47,8 @@ export function FeatureWorkflowPanel({
         </Text>
       </Stack>
 
+      <ImportExportOverview state={state} />
+      <Divider />
       <ExportPolicyControl state={state} onChange={onExportPolicyChange} />
       <Divider />
       <AutoFeatureSuggestions

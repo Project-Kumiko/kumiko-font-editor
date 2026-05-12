@@ -95,6 +95,10 @@ export interface GlyphData {
 export interface FontData {
   glyphs: Record<string, GlyphData>
   glyphOrder?: string[]
+  binarySource?: {
+    format: 'ttf' | 'otf' | 'woff' | 'woff2'
+    sfntBuffer: ArrayBuffer
+  }
   kerningGroups?: KerningGroup[]
   kerningPairs?: KerningPair[]
   fontInfo?: FontInfo
